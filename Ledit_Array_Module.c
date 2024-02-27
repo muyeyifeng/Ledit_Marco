@@ -26,6 +26,7 @@ module Array_Module
 	#define PI 3.14159265358979323846
 	void ArrayByEdgeDistanceOneDimension();
 	void ArrayByOffsetOneDimension();
+	void ArrayByRingSetDistance();
 	void ArrayInObjectByDistanceHexagon();
 	void ArrayInObjectByRing();
 	int CalculateOffset(LObject selectedObject, long distance, double rad, double *offset);
@@ -35,6 +36,66 @@ module Array_Module
 	void GetObjectCoord(LObject selectedObject, long *box);
 	int LSelection_GetNumber(LSelection selectedInital);
 
+	void ArrayByRingSetDistance()
+	{
+		LSelection selectedInital = LSelection_GetList();
+		int selectedObjectNumber =	LSelection_GetNumber(selectedInital);
+		if(selectedObjectNumber != 1)
+		{
+			LDialog_AlertBox("Just Support 1 Object");
+			return;
+		}
+		LObject object1 = LSelection_GetObject(selectedInital);
+		if(LObject_GetShape(object1) != 1)
+		{
+			LDialog_AlertBox("Just Support Circle Object Array");
+			return;
+		}
+
+		//****************************Input Params****************************//
+		LDialogItem Dialog_Items[3] = {{ "Array Edge Distance(nm)", "1000" },
+		{ "Array Start Dimension deg (0-360)", "0" },
+		{ "Ring Radius(nm)", "1000" }};
+		long distance;
+		double deg;
+		long radius;
+		if(LDialog_MultiLineInputBox("Array By Ring Set Distance", Dialog_Items, 3))
+		{
+			distance = atol(Dialog_Items[0].value); // get the distance
+			deg = atoi(Dialog_Items[1].value); // get the deg
+			radius = atol(Dialog_Items[2].value); // get the deg
+		}
+		else{
+			return;
+		}
+		//****************************Input Params****************************//
+		double rad = deg * PI / 180;
+		//if small one inner big one
+		LCell Cell_Now = LCell_GetVisible();
+		LFile File_Now = LCell_GetFile(Cell_Now);
+		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+		LPoint center = LCircle_GetCenter(object1);
+		LCoord r = LCircle_GetRadius(object1);
+		if(2 * r + distance <= 0)
+		{
+			LDialog_AlertBox("Value of 'distance' error");
+			return;
+		}
+		//calculate how many circle in one ring
+		double radius_ring = radius;
+		int maxCircle = 2 * PI * radius_ring / (2 * r + distance);
+		double rad_offset = 2 * PI / maxCircle;
+		int j;
+		for(j = 0; j < maxCircle; j++)
+		{
+			int yOffset = radius * sin(rad + rad_offset * j);
+			int xOffset = radius * cos(rad + rad_offset * j);
+			long center_x = center.x + xOffset;
+			long center_y = center.y + yOffset;
+			LPoint centerOffset = LPoint_Set((long)center_x, (long)center_y);
+			LCircle_New(Cell_Now, LLayer_Now, centerOffset, r);
+		}
+	}
 	void ArrayInObjectByRing()
 	{
 		LSelection selectedInital = LSelection_GetList();
@@ -624,6 +685,7 @@ module Array_Module
 	}
 	void  Array_func(void)
 	{
+		LMacro_Register("ArrayByRingSetDistance_func", "ArrayByRingSetDistance");
 		LMacro_BindToHotKey(KEY_F7, "ArrayByOffsetOneDimension_func", "ArrayByOffsetOneDimension");
 		LMacro_BindToHotKey(KEY_F8, "ArrayByEdgeDistanceOneDimension_func", "ArrayByEdgeDistanceOneDimension");
 		LMacro_BindToHotKey(KEY_F9, "ArrayInObjectByDistanceHexagon_func", "ArrayInObjectByDistanceHexagon");
