@@ -31,6 +31,7 @@ module Alignment_Moudle
 		GetObjectListCoordRange(&xLeft,&xRight,&yBottom,&yTop);
 		//LDialog_AlertBox(LFormat("xLeft:%d, xRight:%d, yBottom:%d, yTop:%d",xLeft,xRight,yBottom,yTop));
 		MoveObjectListLeft(&xLeft);
+		LDisplay_Refresh();
 	}
 	void Alignment_Right()
 	{
@@ -41,6 +42,7 @@ module Alignment_Moudle
 		GetObjectListCoordRange(&xLeft,&xRight,&yBottom,&yTop);
 		//LDialog_AlertBox(LFormat("xLeft:%d, xRight:%d, yBottom:%d, yTop:%d",xLeft,xRight,yBottom,yTop));
 		MoveObjectListRight(&xRight);
+		LDisplay_Refresh();
 	}
 	void Alignment_Bottom()
 	{
@@ -51,6 +53,7 @@ module Alignment_Moudle
 		GetObjectListCoordRange(&xLeft,&xRight,&yBottom,&yTop);
 		//LDialog_AlertBox(LFormat("xLeft:%d, xRight:%d, yBottom:%d, yTop:%d",xLeft,xRight,yBottom,yTop));
 		MoveObjectListBottom(&yBottom);
+		LDisplay_Refresh();
 	}
 	void Alignment_Top()
 	{
@@ -61,6 +64,7 @@ module Alignment_Moudle
 		GetObjectListCoordRange(&xLeft,&xRight,&yBottom,&yTop);
 		//LDialog_AlertBox(LFormat("xLeft:%d, xRight:%d, yBottom:%d, yTop:%d",xLeft,xRight,yBottom,yTop));
 		MoveObjectListTop(&yTop);
+		LDisplay_Refresh();
 	}
 	void Alignment_Center()
 	{
@@ -71,6 +75,7 @@ module Alignment_Moudle
 		GetObjectListCoordRange(&xLeft,&xRight,&yBottom,&yTop);
 		//LDialog_AlertBox(LFormat("xLeft:%d, xRight:%d, yBottom:%d, yTop:%d",xLeft,xRight,yBottom,yTop));
 		MoveObjectListCenter(&xLeft,&xRight,&yBottom,&yTop);
+		LDisplay_Refresh();
 	}
 	
 	void MoveObjectListCenter(long* xLeftTarget,long* xRightTarget,long* yBottomTarget,long* yTopTarget) {

@@ -195,6 +195,8 @@ module ShapeCenter_Module
 		LPoint center = CalculateCentroid(centerPoints, selectedObjectNumber);
 		//LDialog_AlertBox(LFormat("x:%d, y:%d", center.x, center.y));
 		LCircle_New(Cell_Now, LLayer_Now, center, radius);
+
+        LDisplay_Refresh();
     }
 
 	void ShapeCenter_func(void)
