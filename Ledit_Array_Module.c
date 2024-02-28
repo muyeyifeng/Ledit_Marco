@@ -28,13 +28,75 @@ module Array_Module
 	void ArrayByOffsetOneDimension();
 	void ArrayByRingSetDistance();
 	void ArrayInObjectByDistanceHexagon();
+	void _ArrayInObjectByDistanceHexagon(LPoint **point, int *num, long *_distance);
+	void ArrayInObjectByDistanceHexagonAutoFixEdgeSize();
 	void ArrayInObjectByRing();
 	int CalculateOffset(LObject selectedObject, long distance, double rad, double *offset);
+	double CalculatePolarAngle(LPoint p1, LPoint p2);
 	void CopyObject(LObject selectedObject, int arrayNumber, double xOffset, double yOffset);
 	void CopySelectedObjects(int arrayNumber, double xOffset, double yOffset);
 	void CopySelectedObjectsByEdgeDistance(int arrayNumber, long distance, double deg);
 	void GetObjectCoord(LObject selectedObject, long *box);
+	double GetPointDistance(LPoint point1, LPoint point2);
 	int LSelection_GetNumber(LSelection selectedInital);
+
+	void ArrayInObjectByDistanceHexagonAutoFixEdgeSize()
+	{
+    	double startAngle = PI / 3.0;
+    	double interval = PI / 3.0; 
+
+		LCell Cell_Now = LCell_GetVisible();
+		LFile File_Now = LCell_GetFile(Cell_Now);
+		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+
+		LPoint *circlePoints = NULL;;
+		int *num = 0;
+		long *_distance = 0;
+		_ArrayInObjectByDistanceHexagon(&circlePoints, &num, &_distance);
+		LSelection selectedInital = LSelection_GetList();
+
+		LObject object1 = LSelection_GetObject(selectedInital);
+		selectedInital = LSelection_GetNext(selectedInital);
+		LObject object2 = LSelection_GetObject(selectedInital);
+		
+		double area1 = LObject_Area(object1);
+		double area2 = LObject_Area(object2);
+
+		LObject smallerObject = area1 > area2 ? object2 : object1;
+		LObject biggerObject = area1 > area2 ? object1 : object2;
+		int i, j;
+		for(i = 0; i< num; i++)
+		{
+			double center2center = GetPointDistance(circlePoints[i], LCircle_GetCenter(biggerObject));
+			double deltaL = center2center + LCircle_GetRadius(smallerObject) - LCircle_GetRadius(biggerObject);
+			if(deltaL > 0)
+			{
+				
+				double rad = CalculatePolarAngle(circlePoints[i], LCircle_GetCenter(biggerObject));
+				double mod = fmod(rad + PI, PI / 3);
+				int inter = (rad + PI) *3 / PI;
+				if(mod > PI / 6) inter += 1;
+				double direction = inter * PI / 3;
+
+				long r_new = LCircle_GetRadius(smallerObject) - deltaL / 4;
+				long offset1 = deltaL * 3 / 4;
+				long dist = _distance;
+				long offset2 = deltaL * 1 / 4 + 2 * r_new + dist;
+				
+				//Not considering non-axial movement direction, and the distance of movement is insufficient
+				LPoint centerOffset = LPoint_Set((long)(circlePoints[i].x - cos(direction) * offset1), (long)(circlePoints[i].y - sin(direction) * offset1));
+				LCircle_New(Cell_Now, LLayer_Now, centerOffset, r_new);
+				
+				for(j = inter - 1; j < inter + 2; j++)
+				{
+					direction = j * PI / 3;
+					LPoint centerOffset = LPoint_Set((long)(circlePoints[i].x - cos(direction) * offset2), (long)(circlePoints[i].y - sin(direction) * offset2));
+					LCircle_New(Cell_Now, LLayer_Now, centerOffset, r_new);
+				}
+			}
+		}
+		LDisplay_Refresh();
+	}
 
 	void ArrayByRingSetDistance()
 	{
@@ -63,7 +125,7 @@ module Array_Module
 		{
 			distance = atol(Dialog_Items[0].value); // get the distance
 			deg = atoi(Dialog_Items[1].value); // get the deg
-			radius = atol(Dialog_Items[2].value); // get the deg
+			radius = atol(Dialog_Items[2].value); // get the radius
 		}
 		else{
 			return;
@@ -158,19 +220,13 @@ module Array_Module
 			LDialog_AlertBox("Value of 'distance' error");
 			return;
 		}
-		if(LObject_DistanceToPoint( biggerObject, center, File_Now)>0)
-		{
-			LDialog_AlertBox("Smaller object need inner of the bigger object");
-			return;
-		}
+		double distance1 = GetPointDistance(center, LPoint_Set(box[0], box[1]));	// x0 y0
+		double distance2 = GetPointDistance(center, LPoint_Set(box[0], box[3]));	// x0 y1
+		double distance3 = GetPointDistance(center, LPoint_Set(box[2], box[1]));	// x1 y0
+		double distance4 = GetPointDistance(center, LPoint_Set(box[2], box[3]));	// x1 y1
 
-		long center_x = center.x;
-		long center_y = center.y;
-
-		long edgeDistance_x = center_x - box[0] > box[2] - center_x ? center_x-box[0] : box[2] - center_x;
-		long edgeDistance_y = center_y - box[1] > box[3] - center_y ? center_y-box[1] : box[3] - center_y;
 		//long time long too big, convert to double to calculate
-		double radius_max = sqrt((double)edgeDistance_x * edgeDistance_x + (double)edgeDistance_y * edgeDistance_y);
+		double radius_max = max(max(distance1, distance2),max(distance1, distance2));
 		//calculate how many ring need
 		int maxRingLayer = (int)(radius_max / (2 * r + distance));
 		int i , j;
@@ -197,6 +253,19 @@ module Array_Module
 
 	void ArrayInObjectByDistanceHexagon()
 	{
+		LPoint *points = NULL;
+		int *num = 0;
+		long *_distance = 0;
+		_ArrayInObjectByDistanceHexagon(&points, &num, &_distance);
+		LDisplay_Refresh();
+	}
+
+	void _ArrayInObjectByDistanceHexagon(LPoint **points, int *num, long *_distance)
+	{
+		//Dynamic size
+		int initalSize = 100;
+		*points = (LPoint *)malloc(initalSize * sizeof(LPoint));
+
 		LSelection selectedInital = LSelection_GetList();
 		int selectedObjectNumber =	LSelection_GetNumber(selectedInital);
 		if(selectedObjectNumber != 2)
@@ -228,6 +297,7 @@ module Array_Module
 		if (LDialog_MultiLineInputBox ("Hexagon Properties", Dialog_Items, 1))
 		{
 			distance = atol(Dialog_Items[0].value); // get the distance
+			*_distance = distance;
 		}
 		else{
 			return;
@@ -269,7 +339,15 @@ module Array_Module
 				long center_y = center.y + n * (2 * r + distance) + yOffset;
 				LPoint centerOffset = LPoint_Set((long)center_x, (long)center_y);
 				if(LObject_DistanceToPoint( biggerObject, centerOffset, File_Now)<0)
+				{
 					LCircle_New(Cell_Now, LLayer_Now, centerOffset, r);
+					(*points)[*num] = centerOffset;
+					(*num) = (*num) + 1;
+					if(*num > initalSize / 2){
+						initalSize *= 2;
+						*points = (LPoint *)realloc(*points, initalSize * sizeof(LPoint));
+					}
+				}
 				m++;
 			}
 			n++;
@@ -290,7 +368,15 @@ module Array_Module
 				long center_y = center.y - (n * (2 * r + distance) + yOffset);
 				LPoint centerOffset = LPoint_Set((long)center_x, (long)center_y);
 				if(LObject_DistanceToPoint( biggerObject, centerOffset, File_Now)<0)
+				{
 					LCircle_New(Cell_Now, LLayer_Now, centerOffset, r);
+					(*points)[*num] = centerOffset;
+					(*num) = (*num) + 1;
+					if(*num > initalSize / 2){
+						initalSize *= 2;
+						*points = (LPoint *)realloc(*points, initalSize * sizeof(LPoint));
+					}
+				}
 				m++;
 			}
 			n++;
@@ -315,7 +401,15 @@ module Array_Module
 				long center_y = center.y - (n * (2 * r + distance) + yOffset);
 				LPoint centerOffset = LPoint_Set((long)center_x, (long)center_y);
 				if(LObject_DistanceToPoint( biggerObject, centerOffset, File_Now)<0)
+				{
 					LCircle_New(Cell_Now, LLayer_Now, centerOffset, r);
+					(*points)[*num] = centerOffset;
+					(*num) = (*num) + 1;
+					if(*num > initalSize / 2){
+						initalSize *= 2;
+						*points = (LPoint *)realloc(*points, initalSize * sizeof(LPoint));
+					}
+				}
 				m++;
 			}
 			n++;
@@ -340,14 +434,20 @@ module Array_Module
 				long center_y = center.y + n * (2 * r + distance) + yOffset;
 				LPoint centerOffset = LPoint_Set((long)center_x, (long)center_y);
 				if(LObject_DistanceToPoint( biggerObject, centerOffset, File_Now)<0)
+				{
 					LCircle_New(Cell_Now, LLayer_Now, centerOffset, r);
+					(*points)[*num] = centerOffset;
+					(*num) = (*num) + 1;
+					if(*num > initalSize / 2){
+						initalSize *= 2;
+						*points = (LPoint *)realloc(*points, initalSize * sizeof(LPoint));
+					}
+				}
 				m++;
 			}
 			n++;
 			yOffset = (2 * r + distance) * (sin(rad) -1)* n;
 		}
-
-		LDisplay_Refresh();
 	}
 
 	int LSelection_GetNumber(LSelection selectedInital)
@@ -694,13 +794,33 @@ module Array_Module
 		}
 		//
 	}
+	
+	double GetPointDistance(LPoint point1, LPoint point2)
+	{
+		return sqrt((double)(point1.x - point2.x) * (double)(point1.x - point2.x) + (double)(point1.y - point2.y) * (point1.y - point2.y));
+	}
+
+	double CalculatePolarAngle(LPoint p1, LPoint p2) 
+	{
+		// Calculate the differences between the two points
+		double deltaX = p2.x - p1.x;
+		double deltaY = p2.y - p1.y;
+
+		// Use the arctangent function to calculate the polar angle
+		double angle = atan2(deltaY, deltaX);
+
+		return angle;
+	}
+	
 	void  Array_func(void)
 	{
+		//LMacro_BindToMenu( const char* menu, const char* macro_desc, const char* function_name );
+		LMacro_Register("ArrayInObjectByDistanceHexagonAutoFixEdgeSize_func","ArrayInObjectByDistanceHexagonAutoFixEdgeSize");
 		LMacro_Register("ArrayByRingSetDistance_func", "ArrayByRingSetDistance");
-		LMacro_BindToHotKey(KEY_F7, "ArrayByOffsetOneDimension_func", "ArrayByOffsetOneDimension");
-		LMacro_BindToHotKey(KEY_F8, "ArrayByEdgeDistanceOneDimension_func", "ArrayByEdgeDistanceOneDimension");
-		LMacro_BindToHotKey(KEY_F9, "ArrayInObjectByDistanceHexagon_func", "ArrayInObjectByDistanceHexagon");
-		LMacro_BindToHotKey(KEY_F10, "ArrayInObjectByRing_func","ArrayInObjectByRing");
+		LMacro_Register("ArrayByOffsetOneDimension_func", "ArrayByOffsetOneDimension");
+		LMacro_Register("ArrayByEdgeDistanceOneDimension_func", "ArrayByEdgeDistanceOneDimension");
+		LMacro_Register("ArrayInObjectByDistanceHexagon_func", "ArrayInObjectByDistanceHexagon");
+		LMacro_Register("ArrayInObjectByRing_func","ArrayInObjectByRing");
 	}
 } /* end of module Array_Module */
 

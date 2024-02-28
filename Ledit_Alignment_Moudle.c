@@ -441,11 +441,11 @@ module Alignment_Moudle
 
 	void  Register_Alignment_func(void)
 	{
-		LMacro_BindToHotKey(KEY_F2, "Left_func", "Alignment_Left");
-		LMacro_BindToHotKey(KEY_F3, "Right_func", "Alignment_Right");
-		LMacro_BindToHotKey(KEY_F4, "Bottom_func", "Alignment_Bottom");
-		LMacro_BindToHotKey(KEY_F5, "Top_func", "Alignment_Top");
-		LMacro_BindToHotKey(KEY_F6, "Center_func", "Alignment_Center");
+		LMacro_Register("Left_func", "Alignment_Left");
+		LMacro_Register("Right_func", "Alignment_Right");
+		LMacro_Register("Bottom_func", "Alignment_Bottom");
+		LMacro_Register("Top_func", "Alignment_Top");
+		LMacro_Register("Center_func", "Alignment_Center");
 	}
 } /* end of module Alignment_Moudle*/
 

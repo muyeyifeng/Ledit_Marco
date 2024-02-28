@@ -119,10 +119,6 @@ module Polygon_Module
 	{
 		LMacro_Register("DrawPolygonByEdgeLenght_func", "DrawPolygonByEdgeLenght");
 		LMacro_Register("DrawPolygonByRadius_func", "DrawPolygonByRadius");
-		//LMacro_BindToHotKey(KEY_F11, "ArrayByOffsetOneDimension_func", "ArrayByOffsetOneDimension");
-		//LMacro_BindToHotKey(KEY_F8, "ArrayByEdgeDistanceOneDimension_func", "ArrayByEdgeDistanceOneDimension");
-		//LMacro_BindToHotKey(KEY_F9, "ArrayInObjectByDistanceHexagon_func", "ArrayInObjectByDistanceHexagon");
-		//LMacro_BindToHotKey(KEY_F10, "ArrayInObjectByRing_func","ArrayInObjectByRing");
 	}
 } /* end of module Array_Module */
 

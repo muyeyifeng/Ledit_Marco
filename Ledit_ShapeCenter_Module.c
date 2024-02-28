@@ -202,7 +202,6 @@ module ShapeCenter_Module
 	void ShapeCenter_func(void)
 	{
 		LMacro_Register("ShapeCenter_func", "DrawCircleAtShapeCenter");
-		//LMacro_BindToHotKey(KEY_F11, "ArrayByOffsetOneDimension_func", "ArrayByOffsetOneDimension");
 	}
 } /* end of module ShapeCenter_Module */
 
