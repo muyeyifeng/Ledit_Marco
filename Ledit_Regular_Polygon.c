@@ -60,6 +60,8 @@ module Polygon_Module
 		LPoint center = LPoint_Set(0, 0);
 		long radius = edgeLen / (2 * sin(PI / edgeNum));
 		DrawPolygonByCenterRadiusAndEdgeNumber(center, radius, edgeNum, deg);
+
+		LDisplay_Refresh();
 	}
 
 	void DrawPolygonByRadius()
@@ -92,6 +94,8 @@ module Polygon_Module
 		}
 		LPoint center = LPoint_Set(0, 0);
 		DrawPolygonByCenterRadiusAndEdgeNumber(center, radius, edgeNum, deg);
+
+		LDisplay_Refresh();
 	}
 
 	void DrawPolygonByCenterRadiusAndEdgeNumber(LPoint center, long radius, int edgeNum, double rad)

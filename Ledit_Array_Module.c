@@ -95,7 +95,10 @@ module Array_Module
 			LPoint centerOffset = LPoint_Set((long)center_x, (long)center_y);
 			LCircle_New(Cell_Now, LLayer_Now, centerOffset, r);
 		}
+
+		LDisplay_Refresh();
 	}
+
 	void ArrayInObjectByRing()
 	{
 		LSelection selectedInital = LSelection_GetList();
@@ -188,6 +191,8 @@ module Array_Module
 					LCircle_New(Cell_Now, LLayer_Now, centerOffset, r);
 			}
 		}
+
+		LDisplay_Refresh();
 	}
 
 	void ArrayInObjectByDistanceHexagon()
@@ -341,6 +346,8 @@ module Array_Module
 			n++;
 			yOffset = (2 * r + distance) * (sin(rad) -1)* n;
 		}
+
+		LDisplay_Refresh();
 	}
 
 	int LSelection_GetNumber(LSelection selectedInital)
@@ -379,6 +386,8 @@ module Array_Module
 		{
 			CopySelectedObjectsByEdgeDistance(arrayNumber, distance, deg);
 		}
+
+		LDisplay_Refresh();
 	}
 
 	void CopySelectedObjectsByEdgeDistance(int arrayNumber, long distance, double deg)
@@ -479,6 +488,8 @@ module Array_Module
 			double yOffset = distance * sin(rad);
 			CopySelectedObjects(arrayNumber, xOffset, yOffset);
 		}
+
+		LDisplay_Refresh();
 	}
 
 	void CopySelectedObjects(int arrayNumber, double xOffset, double yOffset)
