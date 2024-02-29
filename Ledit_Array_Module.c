@@ -39,6 +39,86 @@ module Array_Module
 	void GetObjectCoord(LObject selectedObject, long *box);
 	double GetPointDistance(LPoint point1, LPoint point2);
 	int LSelection_GetNumber(LSelection selectedInital);
+	void MirrorObjectsByPointAndRad();
+	void RotateObjectsByPoint();
+	LPoint RotatePoint(LPoint p1, LPoint p2, double rad);
+
+	void MirrorObjectsByPointAndRad()
+	{
+		LCell Cell_Now = LCell_GetVisible();
+		LFile File_Now = LCell_GetFile(Cell_Now);
+		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+
+		//****************************Input Params****************************//
+		LDialogItem Dialog_Items[3] = {{ "Mirror Center X Coordinate (nm)", "0" },
+		{ "Mirror Center Y Coordinate (nm)", "0" },
+		{ "Mirror degree (0-360)", "0" }};
+		long xcoord;
+		long ycoord;
+		int rotate;
+		if(LDialog_MultiLineInputBox("Array By Ring Set Distance", Dialog_Items, 3))
+		{
+			xcoord = atol(Dialog_Items[0].value); // get the xcoord
+			ycoord = atol(Dialog_Items[1].value); // get the ycoord
+			rotate = atoi(Dialog_Items[2].value); // get the rotate
+		}
+		else{
+			return;
+		}
+		//****************************Input Params****************************//
+		double rad = rotate * PI / 180;
+		LDisplay_Refresh();
+	}
+
+	void RotateObjectsByPoint()
+	{
+		LCell Cell_Now = LCell_GetVisible();
+		LFile File_Now = LCell_GetFile(Cell_Now);
+		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+
+		//****************************Input Params****************************//
+		LDialogItem Dialog_Items[3] = {{ "Rotate Center X Coordinate (nm)", "0" },
+		{ "Rotate Center Y Coordinate (nm)", "0" },
+		{ "Rotate degree (0-360)", "0" }};
+		long xcoord;
+		long ycoord;
+		int rotate;
+		if(LDialog_MultiLineInputBox("Array By Ring Set Distance", Dialog_Items, 3))
+		{
+			xcoord = atol(Dialog_Items[0].value); // get the xcoord
+			ycoord = atol(Dialog_Items[1].value); // get the ycoord
+			rotate = atoi(Dialog_Items[2].value); // get the rotate
+		}
+		else{
+			return;
+		}
+		//****************************Input Params****************************//
+		double rad = rotate * PI / 180;
+
+		int counter = 0;
+		LSelection selectedInital = LSelection_GetList();
+		while (selectedInital != NULL)
+		{
+			LObject selectedObject = LSelection_GetObject(selectedInital);
+			LShapeType selectedShapeType = LObject_GetShape(selectedObject);//
+
+			LPoint selectedObjectCenter = LCircle_GetCenter(selectedObject);
+			LPoint rotateCenter = LPoint_Set(xcoord, ycoord);
+			double distance = GetPointDistance(selectedObjectCenter, rotateCenter);
+
+			LPoint newPoint = RotatePoint(selectedObjectCenter, rotateCenter, rad);
+			
+			long xoffset = newPoint.x - selectedObjectCenter.x;
+			long yoffset = newPoint.y - selectedObjectCenter.y;
+
+			CopyObject(selectedObject, 2, xoffset, yoffset); // 2 means create new object 		
+
+			//LDialog_AlertBox(LFormat("%d",selectedShapeType));
+			selectedInital = LSelection_GetNext(selectedInital);
+			counter++;
+		}
+		LDisplay_Refresh();
+	}
 
 	void ArrayInObjectByDistanceHexagonAutoFixEdgeSize()
 	{
@@ -811,7 +891,16 @@ module Array_Module
 
 		return angle;
 	}
-	
+
+	LPoint RotatePoint(LPoint p1, LPoint p2, double rad) {
+		double relX = p1.x - p2.x;
+		double relY = p1.y - p2.y;
+		
+		long x = relX * cos(rad) - relY * sin(rad) + p2.x;
+		long y = relX * sin(rad) + relY * cos(rad) + p2.y;
+		return LPoint_Set(x, y);
+	}
+
 	void  Array_func(void)
 	{
 		//LMacro_BindToMenu( const char* menu, const char* macro_desc, const char* function_name );
@@ -821,6 +910,7 @@ module Array_Module
 		LMacro_Register("ArrayInObjectByDistanceHexagon_func", "ArrayInObjectByDistanceHexagon");
 		LMacro_Register("ArrayInObjectByRing_func","ArrayInObjectByRing");
 		LMacro_Register("ArrayInObjectByDistanceHexagonAutoFixEdgeSize_func","ArrayInObjectByDistanceHexagonAutoFixEdgeSize");
+		LMacro_Register("RotateObjectsByPoint_func", "RotateObjectsByPoint");
 	}
 } /* end of module Array_Module */
 
