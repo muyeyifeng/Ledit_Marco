@@ -39,9 +39,11 @@ module Array_Module
 	void GetObjectCoord(LObject selectedObject, long *box);
 	double GetPointDistance(LPoint point1, LPoint point2);
 	int LSelection_GetNumber(LSelection selectedInital);
+	LPoint MirrorCoordinates(LPoint p1, LPoint p2, double rad);
 	void MirrorObjectsByPointAndRad();
 	void RotateObjectsByPoint();
 	LPoint RotatePoint(LPoint p1, LPoint p2, double rad);
+	
 
 	void MirrorObjectsByPointAndRad()
 	{
@@ -52,7 +54,7 @@ module Array_Module
 		//****************************Input Params****************************//
 		LDialogItem Dialog_Items[3] = {{ "Mirror Center X Coordinate (nm)", "0" },
 		{ "Mirror Center Y Coordinate (nm)", "0" },
-		{ "Mirror degree (0-360)", "0" }};
+		{ "Mirror degree (0-180)", "0" }};
 		long xcoord;
 		long ycoord;
 		int rotate;
@@ -67,6 +69,28 @@ module Array_Module
 		}
 		//****************************Input Params****************************//
 		double rad = rotate * PI / 180;
+		int counter = 0;
+		LSelection selectedInital = LSelection_GetList();
+		while (selectedInital != NULL)
+		{
+			LObject selectedObject = LSelection_GetObject(selectedInital);
+			LShapeType selectedShapeType = LObject_GetShape(selectedObject);//
+
+			LPoint selectedObjectCenter = LCircle_GetCenter(selectedObject);
+			LPoint mirrorPoint = LPoint_Set(xcoord, ycoord);
+			double distance = GetPointDistance(selectedObjectCenter, mirrorPoint);
+
+			LPoint newPoint = MirrorCoordinates(selectedObjectCenter, mirrorPoint, rad);
+			
+			long xoffset = newPoint.x - selectedObjectCenter.x;
+			long yoffset = newPoint.y - selectedObjectCenter.y;
+
+			CopyObject(selectedObject, 2, xoffset, yoffset); // 2 means create new object 		
+
+			//LDialog_AlertBox(LFormat("%d",selectedShapeType));
+			selectedInital = LSelection_GetNext(selectedInital);
+			counter++;
+		}
 		LDisplay_Refresh();
 	}
 
@@ -901,6 +925,45 @@ module Array_Module
 		return LPoint_Set(x, y);
 	}
 
+	LPoint _MirrorCoordinates(LPoint p1, LPoint p2, double rad)
+	{
+		double theta = 2 * rad;
+		long xMirror = p1.x * cos(theta) + p1.y * sin(theta) + 2 * p2.x * cos(rad) - 2 * p2.y * sin(rad);
+		long yMirror = p1.x * sin(theta) - p1.y * cos(theta) + 2 * p2.x * sin(rad) + 2 * p2.y * cos(rad);
+		return LPoint_Set(xMirror, yMirror);
+	}
+
+	LPoint MirrorCoordinates(LPoint p, LPoint linePoint, double rad) 
+	{
+		// Calculate the tangent value of the line's angle
+		double slopeTan = tan(rad);
+		// Handle the case when tan(pi/2) is encountered
+		if (abs(rad - PI/2) < 1e-6) {
+			LPoint mirrorPoint;
+			mirrorPoint.x = 2 * linePoint.x - p.x;
+			mirrorPoint.y = p.y;
+			return mirrorPoint;
+		}
+
+		// Calculate the constant term 'c' in the equation y = mx + c
+		double c = linePoint.y - slopeTan * linePoint.x;
+
+		// Calculate the perpendicular distance from the point to the line
+		double distance = abs(slopeTan * p.x - p.y + c) / sqrt(1 + slopeTan * slopeTan);
+
+		double A = slopeTan;
+		double B = -1;
+		double C = c;
+		// Calculate the mirror coordinates of the point with respect to the line
+		
+		long mirrorx = 2 * (linePoint.y - c + slopeTan * p.x + slopeTan * slopeTan * p.y) / (1 + slopeTan * slopeTan);
+		long mirrory = 2 * (slopeTan * linePoint.x - slopeTan * p.x + p.y + c) / (1 + slopeTan * slopeTan) - p.y;
+		
+		mirrorx = -1 * (2 * A * B * p.y + (A * A - B * B) * p.x + 2 * A * C) / (B * B + A * A);
+		mirrory = -1 * (2 * A * B * p.x - (A * A - B * B) * p.y + 2 * B * C) / (B * B + A * A);
+		return LPoint_Set(mirrorx, mirrory);
+	}
+
 	void  Array_func(void)
 	{
 		//LMacro_BindToMenu( const char* menu, const char* macro_desc, const char* function_name );
@@ -911,6 +974,7 @@ module Array_Module
 		LMacro_Register("ArrayInObjectByRing_func","ArrayInObjectByRing");
 		LMacro_Register("ArrayInObjectByDistanceHexagonAutoFixEdgeSize_func","ArrayInObjectByDistanceHexagonAutoFixEdgeSize");
 		LMacro_Register("RotateObjectsByPoint_func", "RotateObjectsByPoint");
+		LMacro_Register("MirrorObjectsByPointAndRad_func", "MirrorObjectsByPointAndRad");
 	}
 } /* end of module Array_Module */
 
