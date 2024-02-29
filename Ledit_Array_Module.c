@@ -924,6 +924,37 @@ module Array_Module
 		long y = relX * sin(rad) + relY * cos(rad) + p2.y;
 		return LPoint_Set(x, y);
 	}
+	
+	LPoint MirrorCoordinates(LPoint p, LPoint linePoint, double rad) 
+	{
+		// Calculate the tangent value of the line's angle
+		double slopeTan = tan(rad);
+		// Handle the case when tan(pi/2) is encountered
+		if (abs(rad - PI/2) < 1e-6) {
+			LPoint mirrorPoint;
+			mirrorPoint.x = 2 * linePoint.x - p.x;
+			mirrorPoint.y = p.y;
+			return mirrorPoint;
+		}
+
+		// Calculate the constant term 'c' in the equation y = mx + c
+		double c = linePoint.y - slopeTan * linePoint.x;
+
+		// Calculate the perpendicular distance from the point to the line
+		double distance = abs(slopeTan * p.x - p.y + c) / sqrt(1 + slopeTan * slopeTan);
+
+		double A = slopeTan;
+		double B = -1;
+		double C = c;
+		// Calculate the mirror coordinates of the point with respect to the line
+		
+		long mirrorx = 2 * (linePoint.y - c + slopeTan * p.x + slopeTan * slopeTan * p.y) / (1 + slopeTan * slopeTan);
+		long mirrory = 2 * (slopeTan * linePoint.x - slopeTan * p.x + p.y + c) / (1 + slopeTan * slopeTan) - p.y;
+		
+		mirrorx = -1 * (2 * A * B * p.y + (A * A - B * B) * p.x + 2 * A * C) / (B * B + A * A);
+		mirrory = -1 * (2 * A * B * p.x - (A * A - B * B) * p.y + 2 * B * C) / (B * B + A * A);
+		return LPoint_Set(mirrorx, mirrory);
+	}
 
 	LPoint _MirrorCoordinates(LPoint p1, LPoint p2, double rad)
 	{
