@@ -201,7 +201,7 @@ module ShapeCenter_Module
 
 	void ShapeCenter_func(void)
 	{
-		LMacro_Register("ShapeCenter_func", "DrawCircleAtShapeCenter");
+		LMacro_Register("DrawCircleAtShapeCenter_func", "DrawCircleAtShapeCenter");
 	}
 } /* end of module ShapeCenter_Module */
 

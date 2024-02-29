@@ -815,12 +815,12 @@ module Array_Module
 	void  Array_func(void)
 	{
 		//LMacro_BindToMenu( const char* menu, const char* macro_desc, const char* function_name );
-		LMacro_Register("ArrayInObjectByDistanceHexagonAutoFixEdgeSize_func","ArrayInObjectByDistanceHexagonAutoFixEdgeSize");
 		LMacro_Register("ArrayByRingSetDistance_func", "ArrayByRingSetDistance");
 		LMacro_Register("ArrayByOffsetOneDimension_func", "ArrayByOffsetOneDimension");
 		LMacro_Register("ArrayByEdgeDistanceOneDimension_func", "ArrayByEdgeDistanceOneDimension");
 		LMacro_Register("ArrayInObjectByDistanceHexagon_func", "ArrayInObjectByDistanceHexagon");
 		LMacro_Register("ArrayInObjectByRing_func","ArrayInObjectByRing");
+		LMacro_Register("ArrayInObjectByDistanceHexagonAutoFixEdgeSize_func","ArrayInObjectByDistanceHexagonAutoFixEdgeSize");
 	}
 } /* end of module Array_Module */
 

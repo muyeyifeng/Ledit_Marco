@@ -441,11 +441,11 @@ module Alignment_Moudle
 
 	void  Register_Alignment_func(void)
 	{
-		LMacro_Register("Left_func", "Alignment_Left");
-		LMacro_Register("Right_func", "Alignment_Right");
-		LMacro_Register("Bottom_func", "Alignment_Bottom");
-		LMacro_Register("Top_func", "Alignment_Top");
-		LMacro_Register("Center_func", "Alignment_Center");
+		LMacro_Register("Alignment_Left_func", "Alignment_Left");
+		LMacro_Register("Alignment_Right_func", "Alignment_Right");
+		LMacro_Register("Alignment_Bottom_func", "Alignment_Bottom");
+		LMacro_Register("Alignment_Top_func", "Alignment_Top");
+		LMacro_Register("Alignment_Center_func", "Alignment_Center");
 	}
 } /* end of module Alignment_Moudle*/
 
