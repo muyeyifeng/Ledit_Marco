@@ -37,12 +37,12 @@ module Polygon_Module
 		{ "Rota Deg (0-360)","0" }};
 		int edgeNum;
 		long edgeLen;
-		int deg;
+		double deg;
 		if(LDialog_MultiLineInputBox(" Draw Polygon By Edge Lenght", Dialog_Items, 3))
 		{
 			edgeNum = atoi(Dialog_Items[0].value); // get the edgeNum
 			edgeLen = atol(Dialog_Items[1].value); // get the edgeLen
-			deg = atoi(Dialog_Items[2].value); // get the deg
+			deg = atof(Dialog_Items[2].value); // get the deg
 		}
 		else{
 			return;
@@ -59,7 +59,7 @@ module Polygon_Module
 		}
 		LPoint center = LPoint_Set(0, 0);
 		long radius = edgeLen / (2 * sin(PI / edgeNum));
-		DrawPolygonByCenterRadiusAndEdgeNumber(center, radius, edgeNum, deg);
+		DrawPolygonByCenterRadiusAndEdgeNumber(center, radius, edgeNum, rad);
 
 		LDisplay_Refresh();
 	}
@@ -72,12 +72,12 @@ module Polygon_Module
 		{ "Rota Deg (0-360)","0" }};
 		int edgeNum;
 		long radius;
-		int deg;
+		double deg;
 		if(LDialog_MultiLineInputBox("Draw Polygon By Radius", Dialog_Items, 3))
 		{
 			edgeNum = atoi(Dialog_Items[0].value); // get the edgeNum
 			radius = atol(Dialog_Items[1].value); // get the radius
-			deg = atoi(Dialog_Items[2].value); // get the deg
+			deg = atof(Dialog_Items[2].value); // get the deg
 		}
 		else{
 			return;
@@ -93,7 +93,7 @@ module Polygon_Module
 			return;
 		}
 		LPoint center = LPoint_Set(0, 0);
-		DrawPolygonByCenterRadiusAndEdgeNumber(center, radius, edgeNum, deg);
+		DrawPolygonByCenterRadiusAndEdgeNumber(center, radius, edgeNum, rad);
 
 		LDisplay_Refresh();
 	}
