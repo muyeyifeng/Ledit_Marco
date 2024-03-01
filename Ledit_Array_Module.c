@@ -40,7 +40,9 @@ module Array_Module
 	double GetPointDistance(LPoint point1, LPoint point2);
 	int LSelection_GetNumber(LSelection selectedInital);
 	LPoint MirrorCoordinates(LPoint p1, LPoint p2, double rad);
+	void MirrorObject(LObject selectedObject, LPoint mirrorPoint, double rad);
 	void MirrorObjectsByPointAndRad();
+	void RotateObject(LObject selectedObject, LPoint rotateCenter, double rad);
 	void RotateObjectsByPoint();
 	LPoint RotatePoint(LPoint p1, LPoint p2, double rad);
 	
@@ -57,12 +59,12 @@ module Array_Module
 		{ "Mirror degree (0-180)", "0" }};
 		long xcoord;
 		long ycoord;
-		int rotate;
+		double rotate;
 		if(LDialog_MultiLineInputBox("Array By Ring Set Distance", Dialog_Items, 3))
 		{
 			xcoord = atol(Dialog_Items[0].value); // get the xcoord
 			ycoord = atol(Dialog_Items[1].value); // get the ycoord
-			rotate = atoi(Dialog_Items[2].value); // get the rotate
+			rotate = atof(Dialog_Items[2].value); // get the rotate
 		}
 		else{
 			return;
@@ -74,24 +76,131 @@ module Array_Module
 		while (selectedInital != NULL)
 		{
 			LObject selectedObject = LSelection_GetObject(selectedInital);
-			LShapeType selectedShapeType = LObject_GetShape(selectedObject);//
+			LShapeType selectedShapeType = LObject_GetShape(selectedObject);
 
-			LPoint selectedObjectCenter = LCircle_GetCenter(selectedObject);
 			LPoint mirrorPoint = LPoint_Set(xcoord, ycoord);
-			double distance = GetPointDistance(selectedObjectCenter, mirrorPoint);
-
-			LPoint newPoint = MirrorCoordinates(selectedObjectCenter, mirrorPoint, rad);
-			
-			long xoffset = newPoint.x - selectedObjectCenter.x;
-			long yoffset = newPoint.y - selectedObjectCenter.y;
-
-			CopyObject(selectedObject, 2, xoffset, yoffset); // 2 means create new object 		
-
+			MirrorObject(selectedObject, mirrorPoint, rad);
 			//LDialog_AlertBox(LFormat("%d",selectedShapeType));
 			selectedInital = LSelection_GetNext(selectedInital);
 			counter++;
 		}
 		LDisplay_Refresh();
+	}
+
+	void MirrorObject(LObject selectedObject, LPoint mirrorPoint, double rad)
+	{
+		
+		LCell Cell_Now = LCell_GetVisible();
+		LFile File_Now = LCell_GetFile(Cell_Now);
+		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+
+		LShapeType selectedShapeType = LObject_GetShape(selectedObject);
+
+		switch (selectedShapeType)
+		{
+			case 0://LBox
+			{
+				//get rect xmin
+				LRect rect = LBox_GetRect(selectedObject);
+
+				LPoint p1 = LPoint_Set(rect.x0, rect.y0);
+				LPoint p2 = LPoint_Set(rect.x0, rect.y1);
+				LPoint p3 = LPoint_Set(rect.x1, rect.y1);
+				LPoint p4 = LPoint_Set(rect.x1, rect.y0);
+				LPoint points[4];
+				points[0] = MirrorCoordinates(p1, mirrorPoint, rad);
+				points[1] = MirrorCoordinates(p2, mirrorPoint, rad);
+				points[2] = MirrorCoordinates(p3, mirrorPoint, rad);
+				points[3] = MirrorCoordinates(p4, mirrorPoint, rad);
+				LPolygon_New( Cell_Now, LLayer_Now, points, 4);
+				
+				break;
+			}
+			case 1://LCircle
+			{
+				LPoint center = LCircle_GetCenter(selectedObject);
+				LCoord r = LCircle_GetRadius(selectedObject);
+
+				LPoint newPoint = MirrorCoordinates(center, mirrorPoint, rad);
+				
+				LCircle_New(Cell_Now, LLayer_Now, newPoint, r);
+				
+				break;
+			}
+			case 3://LPolygon
+			{
+				LVertex vertex = LObject_GetVertexList(selectedObject);
+				long cnt = LVertex_GetCount(selectedObject);
+				LPoint	*points;
+				points = (LPoint *)malloc((cnt) * sizeof(LPoint));
+				int j = 0;
+				while (vertex != NULL)
+				{
+					LPoint point = LVertex_GetPoint(vertex);
+					LPoint newPoint = MirrorCoordinates(point, mirrorPoint, rad);
+
+					points[j] = newPoint;
+					j++;
+					vertex = LVertex_GetNext(vertex);
+				}
+				LPolygon_New( Cell_Now, LLayer_Now, points, cnt  );
+				break;
+				
+			}
+			case 4://LTorus
+			{
+				LTorusParams tParams;
+				LStatus lStatus = LTorus_GetParams(selectedObject, &tParams);
+				if (lStatus == 0)
+				{
+					/* Define parameters for a torus */
+					LTorusParams _tParams;
+
+					LPoint newPoint = MirrorCoordinates(tParams.ptCenter, mirrorPoint, rad);
+
+					_tParams.ptCenter = newPoint;
+					_tParams.nInnerRadius = tParams.nInnerRadius;
+					_tParams.nOuterRadius = tParams.nOuterRadius;
+
+					double angle = tParams.dStopAngle - tParams.dStartAngle;
+					angle = angle < 0 ? 2 * 180 + angle : angle;
+
+					double startAngle = tParams.dStartAngle > 180 ? tParams.dStartAngle - 2 * 180: tParams.dStartAngle;
+					double stopAngle = tParams.dStopAngle > 180 ? tParams.dStopAngle - 2 * 180 : tParams.dStopAngle;
+
+					_tParams.dStartAngle = 2 * rad * 180 / PI - startAngle - angle;
+					_tParams.dStopAngle = 2 * rad * 180 / PI - startAngle;
+					LTorus_CreateNew(Cell_Now, LLayer_Now, &_tParams);
+				}
+				break;
+			}
+			case 5://LPie
+			{
+				LPieParams pParams;
+				LStatus lStatus = LPie_GetParams(selectedObject, &pParams);
+				if (lStatus == 0)
+				{
+					LPieParams _pParams;
+					LPoint newPoint = MirrorCoordinates(pParams.ptCenter, mirrorPoint, rad);
+	
+					_pParams.ptCenter = newPoint;
+					_pParams.nRadius = pParams.nRadius;
+
+					double angle = pParams.dStopAngle - pParams.dStartAngle;
+					angle = angle < 0 ? 2 * 180 + angle : angle;
+
+					double startAngle = pParams.dStartAngle > 180 ? pParams.dStartAngle - 2 * 180  : pParams.dStartAngle;
+					double stopAngle = pParams.dStopAngle > 180 ? pParams.dStopAngle - 2 * 180 : pParams.dStopAngle;
+
+					_pParams.dStartAngle = 2 * rad * 180 / PI - startAngle - angle;
+					_pParams.dStopAngle = 2 * rad * 180 / PI - startAngle;
+					LPie_CreateNew(Cell_Now, LLayer_Now, &_pParams);
+				}
+				break;
+			}
+			default:
+				break;
+		}
 	}
 
 	void RotateObjectsByPoint()
@@ -106,12 +215,12 @@ module Array_Module
 		{ "Rotate degree (0-360)", "0" }};
 		long xcoord;
 		long ycoord;
-		int rotate;
+		double rotate;
 		if(LDialog_MultiLineInputBox("Array By Ring Set Distance", Dialog_Items, 3))
 		{
 			xcoord = atol(Dialog_Items[0].value); // get the xcoord
 			ycoord = atol(Dialog_Items[1].value); // get the ycoord
-			rotate = atoi(Dialog_Items[2].value); // get the rotate
+			rotate = atof(Dialog_Items[2].value); // get the rotate
 		}
 		else{
 			return;
@@ -126,24 +235,119 @@ module Array_Module
 			LObject selectedObject = LSelection_GetObject(selectedInital);
 			LShapeType selectedShapeType = LObject_GetShape(selectedObject);//
 
-			LPoint selectedObjectCenter = LCircle_GetCenter(selectedObject);
-			LPoint rotateCenter = LPoint_Set(xcoord, ycoord);
-			double distance = GetPointDistance(selectedObjectCenter, rotateCenter);
-
-			LPoint newPoint = RotatePoint(selectedObjectCenter, rotateCenter, rad);
-			
-			long xoffset = newPoint.x - selectedObjectCenter.x;
-			long yoffset = newPoint.y - selectedObjectCenter.y;
-
-			CopyObject(selectedObject, 2, xoffset, yoffset); // 2 means create new object 		
-
 			//LDialog_AlertBox(LFormat("%d",selectedShapeType));
+			LPoint rotateCenter = LPoint_Set(xcoord, ycoord);
+			RotateObject(selectedObject, rotateCenter, rad);
 			selectedInital = LSelection_GetNext(selectedInital);
 			counter++;
 		}
 		LDisplay_Refresh();
 	}
 
+	void RotateObject(LObject selectedObject, LPoint rotateCenter, double rad)
+	{
+		
+		LCell Cell_Now = LCell_GetVisible();
+		LFile File_Now = LCell_GetFile(Cell_Now);
+		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+
+		LShapeType selectedShapeType = LObject_GetShape(selectedObject);
+
+		switch (selectedShapeType)
+		{
+			case 0://LBox
+			{
+				//get rect xmin
+				LRect rect = LBox_GetRect(selectedObject);
+
+				LPoint p1 = LPoint_Set(rect.x0, rect.y0);
+				LPoint p2 = LPoint_Set(rect.x0, rect.y1);
+				LPoint p3 = LPoint_Set(rect.x1, rect.y1);
+				LPoint p4 = LPoint_Set(rect.x1, rect.y0);
+				LPoint points[4];
+				points[0] = RotatePoint(p1, rotateCenter, rad);
+				points[1] = RotatePoint(p2, rotateCenter, rad);
+				points[2] = RotatePoint(p3, rotateCenter, rad);
+				points[3] = RotatePoint(p4, rotateCenter, rad);
+				LPolygon_New( Cell_Now, LLayer_Now, points, 4);
+				
+				break;
+			}
+			case 1://LCircle
+			{
+				LPoint center = LCircle_GetCenter(selectedObject);
+				LCoord r = LCircle_GetRadius(selectedObject);
+
+				LPoint newPoint = RotatePoint(center, rotateCenter, rad);
+				
+				LCircle_New(Cell_Now, LLayer_Now, newPoint, r);
+				
+				break;
+			}
+			case 3://LPolygon
+			{
+				LVertex vertex = LObject_GetVertexList(selectedObject);
+				long cnt = LVertex_GetCount(selectedObject);
+				LPoint	*points;
+				points = (LPoint *)malloc((cnt) * sizeof(LPoint));
+				int j = 0;
+				while (vertex != NULL)
+				{
+					LPoint point = LVertex_GetPoint(vertex);
+					LPoint newPoint = RotatePoint(point, rotateCenter, rad);
+
+					points[j] = newPoint;
+					j++;
+					vertex = LVertex_GetNext(vertex);
+				}
+				LPolygon_New( Cell_Now, LLayer_Now, points, cnt  );
+				break;
+				
+			}
+			case 4://LTorus
+			{
+				LTorusParams tParams;
+				LStatus lStatus = LTorus_GetParams(selectedObject, &tParams);
+				if (lStatus == 0)
+				{
+					/* Define parameters for a torus */
+					LTorusParams _tParams;
+
+					LPoint newPoint = RotatePoint(tParams.ptCenter, rotateCenter, rad);
+
+					_tParams.ptCenter = newPoint;
+					_tParams.nInnerRadius = tParams.nInnerRadius;
+					_tParams.nOuterRadius = tParams.nOuterRadius;
+
+					_tParams.dStartAngle = tParams.dStartAngle + rad * 180 / PI;
+					_tParams.dStopAngle = tParams.dStopAngle + rad * 180 / PI;
+					LTorus_CreateNew(Cell_Now, LLayer_Now, &_tParams);
+				}
+				break;
+			}
+			case 5://LPie
+			{
+				LPieParams pParams;
+				LStatus lStatus = LPie_GetParams(selectedObject, &pParams);
+				if (lStatus == 0)
+				{
+					LPieParams _pParams;
+					LPoint newPoint = RotatePoint(pParams.ptCenter, rotateCenter, rad);
+	
+					_pParams.ptCenter = newPoint;
+					_pParams.nRadius = pParams.nRadius;
+					
+					_pParams.dStartAngle = pParams.dStartAngle + rad * 180 / PI;
+					_pParams.dStopAngle = pParams.dStopAngle + rad * 180 / PI;
+					LPie_CreateNew(Cell_Now, LLayer_Now, &_pParams);
+				}
+				break;
+			}
+			default:
+				break;
+		}
+	}
+	//This method is temporarily deprecated
 	void ArrayInObjectByDistanceHexagonAutoFixEdgeSize()
 	{
     	double startAngle = PI / 3.0;
@@ -228,7 +432,7 @@ module Array_Module
 		if(LDialog_MultiLineInputBox("Array By Ring Set Distance", Dialog_Items, 3))
 		{
 			distance = atol(Dialog_Items[0].value); // get the distance
-			deg = atoi(Dialog_Items[1].value); // get the deg
+			deg = atof(Dialog_Items[1].value); // get the deg
 			radius = atol(Dialog_Items[2].value); // get the radius
 		}
 		else{
@@ -299,7 +503,7 @@ module Array_Module
 		if(LDialog_MultiLineInputBox("Array In Object By Ring", Dialog_Items, 2))
 		{
 			distance = atol(Dialog_Items[0].value); // get the distance
-			deg = atoi(Dialog_Items[1].value); // get the deg
+			deg = atof(Dialog_Items[1].value); // get the deg
 		}
 		else{
 			return;
@@ -821,7 +1025,7 @@ module Array_Module
 			}
 			default:
 				break;
-			}
+		}
 		//
 	}
 
@@ -965,7 +1169,8 @@ module Array_Module
 		LMacro_Register("ArrayByEdgeDistanceOneDimension_func", "ArrayByEdgeDistanceOneDimension");
 		LMacro_Register("ArrayInObjectByDistanceHexagon_func", "ArrayInObjectByDistanceHexagon");
 		LMacro_Register("ArrayInObjectByRing_func","ArrayInObjectByRing");
-		LMacro_Register("ArrayInObjectByDistanceHexagonAutoFixEdgeSize_func","ArrayInObjectByDistanceHexagonAutoFixEdgeSize");
+		//This method is temporarily deprecated
+		//LMacro_Register("ArrayInObjectByDistanceHexagonAutoFixEdgeSize_func","ArrayInObjectByDistanceHexagonAutoFixEdgeSize");
 		LMacro_Register("RotateObjectsByPoint_func", "RotateObjectsByPoint");
 		LMacro_Register("MirrorObjectsByPointAndRad_func", "MirrorObjectsByPointAndRad");
 	}
