@@ -1116,7 +1116,8 @@ module Array_Module
 
 		// Use the arctangent function to calculate the polar angle
 		double angle = atan2(deltaY, deltaX);
-
+        if(angle < 0)
+            angle = 2 * PI + angle;
 		return angle;
 	}
 
