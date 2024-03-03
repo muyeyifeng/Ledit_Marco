@@ -24,10 +24,42 @@ module Polygon_Module
 	#include "ldata.h"     /* Main UPI header. */
 
 	#define PI 3.14159265358979323846
+	void DrawEllipse();
+	LPoint* CalculateEllipsePoints(long a, long b, int n, double rad);
 	void DrawPolygonByCenterRadiusAndEdgeNumber(LPoint center, long radius, int edgeNum, double rad);
 	void DrawPolygonByEdgeLenght();
 	void DrawPolygonByRadius();
 	void Polygon_func(void);
+
+	void DrawEllipse()
+	{
+		//****************************Input Params****************************//
+		LDialogItem Dialog_Items[4] = {{ "Ellipse a", "1000" },
+		{ "Ellipse b", "1000" },
+		{ "Rota Deg (0-360)","0" },
+		{ "Polygon number", "100" }};
+		long a;
+		long b;
+		double deg;
+		int n;
+		if(LDialog_MultiLineInputBox(" Draw Ellipse", Dialog_Items, 4))
+		{
+			a = atol(Dialog_Items[0].value); // get the a
+			b = atol(Dialog_Items[1].value); // get the b
+			deg = atof(Dialog_Items[2].value); // get the deg
+			n = atoi(Dialog_Items[3].value); // get the n
+		}
+		else{
+			return;
+		}
+		//****************************Input Params****************************//
+		double rad = deg * PI / 180;
+		LCell Cell_Now = LCell_GetVisible();
+		LFile File_Now = LCell_GetFile(Cell_Now);
+		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+		LPoint	*points = CalculateEllipsePoints(a, b, n, rad);
+		LPolygon_New( Cell_Now, LLayer_Now, points, n );
+	}
 
 	void DrawPolygonByEdgeLenght()
 	{
@@ -114,11 +146,34 @@ module Polygon_Module
 		}
 		LPolygon_New( Cell_Now, LLayer_Now, points, edgeNum );
 	}
+
+	LPoint* CalculateEllipsePoints(long a, long b, int n, double rad)
+	{
+		double angle, x, y;
+		LPoint	*points;
+		points = (LPoint *)malloc((n) * sizeof(LPoint));
+
+		double step = 2 * PI / n;
+		int i;
+		for ( i = 0; i < n; i++)
+		{
+			angle = i * step;
+			x = a * cos(angle);
+			y = b * sin(angle);
+
+			double l = sqrt(x * x + y * y);
+			double xx = x * cos(rad) - y * sin(rad);
+			double yy = x * sin(rad) + y * cos(rad);
+			points[i] = LPoint_Set((long)xx, (long)yy);
+		}
+		return points;
+	}
 	
 	void Polygon_func(void)
 	{
 		LMacro_Register("DrawPolygonByEdgeLenght_func", "DrawPolygonByEdgeLenght");
 		LMacro_Register("DrawPolygonByRadius_func", "DrawPolygonByRadius");
+		LMacro_Register("DrawEllipse_func", "DrawEllipse");
 	}
 } /* end of module Array_Module */
 
