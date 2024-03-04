@@ -40,7 +40,7 @@ Contributions to this project are welcome! If you have ideas for additional feat
 
 Please note that these Marco scripts are currently in development, and additional features may be added over time. Always ensure compatibility with your specific version of Tanner L-Edit before integrating the scripts into your workflow.
 
-Thank you for choosing our Tanner L-Edit Macro Scripts. We hope they enhance your layout design experience! If you have any questions or issues, feel free to open an [issue](https://github.com/your-username/your-repo/issues) on GitHub. Happy designing!
+Thank you for choosing our Tanner L-Edit Macro Scripts. We hope they enhance your layout design experience! If you have any questions or issues, feel free to open an [issue](https://github.com/muyeyifeng/Ledit_Marco/issues) on GitHub. Happy designing!
 
 
 
@@ -87,4 +87,4 @@ Thank you for choosing our Tanner L-Edit Macro Scripts. We hope they enhance you
 
 请注意，这些Marco脚本目前仍在开发中，随着时间的推移可能会添加更多功能。在将脚本集成到工作流程之前，请始终确保其与您的具体版本的Tanner L-Edit兼容。
 
-感谢选择我们的Tanner L-Edit Marco脚本。希望它们能够提升您的布局设计体验！如果有任何问题或疑虑，请随时在GitHub上提出 [issue](https://github.com/your-username/your-repo/issues)。祝设计愉快！
+感谢选择我们的Tanner L-Edit Marco脚本。希望它们能够提升您的布局设计体验！如果有任何问题或疑虑，请随时在GitHub上提出 [issue](https://github.com/muyeyifeng/Ledit_Marco/issues)。祝设计愉快！
