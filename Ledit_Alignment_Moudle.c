@@ -28,7 +28,7 @@ module Alignment_Moudle
 		long* xRight = -WORLD_MAX;
 		long* yBottom = WORLD_MAX;
 		long* yTop = -WORLD_MAX;
-		GetObjectListCoordRange(&xLeft,&xRight,&yBottom,&yTop);
+		GetObjectListCoordRange(&xLeft, &xRight, &yBottom, &yTop);
 		//LDialog_AlertBox(LFormat("xLeft:%d, xRight:%d, yBottom:%d, yTop:%d",xLeft,xRight,yBottom,yTop));
 		MoveObjectListLeft(&xLeft);
 		LDisplay_Refresh();
@@ -39,7 +39,7 @@ module Alignment_Moudle
 		long* xRight = -WORLD_MAX;
 		long* yBottom = WORLD_MAX;
 		long* yTop = -WORLD_MAX;
-		GetObjectListCoordRange(&xLeft,&xRight,&yBottom,&yTop);
+		GetObjectListCoordRange(&xLeft, &xRight, &yBottom, &yTop);
 		//LDialog_AlertBox(LFormat("xLeft:%d, xRight:%d, yBottom:%d, yTop:%d",xLeft,xRight,yBottom,yTop));
 		MoveObjectListRight(&xRight);
 		LDisplay_Refresh();
@@ -50,7 +50,7 @@ module Alignment_Moudle
 		long* xRight = -WORLD_MAX;
 		long* yBottom = WORLD_MAX;
 		long* yTop = -WORLD_MAX;
-		GetObjectListCoordRange(&xLeft,&xRight,&yBottom,&yTop);
+		GetObjectListCoordRange(&xLeft, &xRight, &yBottom, &yTop);
 		//LDialog_AlertBox(LFormat("xLeft:%d, xRight:%d, yBottom:%d, yTop:%d",xLeft,xRight,yBottom,yTop));
 		MoveObjectListBottom(&yBottom);
 		LDisplay_Refresh();
@@ -61,7 +61,7 @@ module Alignment_Moudle
 		long* xRight = -WORLD_MAX;
 		long* yBottom = WORLD_MAX;
 		long* yTop = -WORLD_MAX;
-		GetObjectListCoordRange(&xLeft,&xRight,&yBottom,&yTop);
+		GetObjectListCoordRange(&xLeft, &xRight, &yBottom, &yTop);
 		//LDialog_AlertBox(LFormat("xLeft:%d, xRight:%d, yBottom:%d, yTop:%d",xLeft,xRight,yBottom,yTop));
 		MoveObjectListTop(&yTop);
 		LDisplay_Refresh();
@@ -72,13 +72,13 @@ module Alignment_Moudle
 		long* xRight = -WORLD_MAX;
 		long* yBottom = WORLD_MAX;
 		long* yTop = -WORLD_MAX;
-		GetObjectListCoordRange(&xLeft,&xRight,&yBottom,&yTop);
+		GetObjectListCoordRange(&xLeft, &xRight, &yBottom, &yTop);
 		//LDialog_AlertBox(LFormat("xLeft:%d, xRight:%d, yBottom:%d, yTop:%d",xLeft,xRight,yBottom,yTop));
-		MoveObjectListCenter(&xLeft,&xRight,&yBottom,&yTop);
+		MoveObjectListCenter(&xLeft, &xRight, &yBottom, &yTop);
 		LDisplay_Refresh();
 	}
 	
-	void MoveObjectListCenter(long* xLeftTarget,long* xRightTarget,long* yBottomTarget,long* yTopTarget) {
+	void MoveObjectListCenter(long* xLeftTarget, long* xRightTarget, long* yBottomTarget, long* yTopTarget) {
 		//LDialog_AlertBox(LFormat("xLeftTarget:%d",*xLeftTarget));
 		int counter = 0;
 		LSelection selectedInital = LSelection_GetList();
@@ -91,22 +91,22 @@ module Alignment_Moudle
 			long* xRight = -WORLD_MAX;
 			long* yBottom = WORLD_MAX;
 			long* yTop = -WORLD_MAX;
-			GetObjectCoord(selectedObject,&xLeft,&xRight,&yBottom,&yTop);//Function for selectedObject
+			GetObjectCoord(selectedObject, &xLeft, &xRight, &yBottom, &yTop);//Function for selectedObject
 			//LDialog_AlertBox(LFormat("xLeft:%d, xRight:%d, yBottom:%d, yTop:%d",xLeft,xRight,yBottom,yTop));
 			if (xLeft != WORLD_MAX)
 			{
-				long _xTarget = (*xLeftTarget+*xRightTarget)/2;
+				long _xTarget = (*xLeftTarget + *xRightTarget)/2;
 				long _xL = xLeft;
 				long _xR = xRight;
-				long _x = (_xL+_xR)/2;
+				long _x = (_xL + _xR) / 2;
 				long xOffset = _xTarget - _x;
 				
-				long _yTarget = (*yBottomTarget+*yTopTarget)/2;
+				long _yTarget = (*yBottomTarget + *yTopTarget)/2;
 				long _yB = yBottom;
 				long _yT = yTop;
-				long _y = (_yB+_yT)/2;
+				long _y = (_yB + _yT) / 2;
 				long yOffset = _yTarget - _y;
-				MoveObject(selectedObject,xOffset,yOffset);
+				MoveObject(selectedObject, xOffset, yOffset);
 			}
 			//LDialog_AlertBox(LFormat("%d",selectedShapeType));
 			selectedInital = LSelection_GetNext(selectedInital);
@@ -128,7 +128,7 @@ module Alignment_Moudle
 			long* xRight = -WORLD_MAX;
 			long* yBottom = WORLD_MAX;
 			long* yTop = -WORLD_MAX;
-			GetObjectCoord(selectedObject,&xLeft,&xRight,&yBottom,&yTop);//Function for selectedObject
+			GetObjectCoord(selectedObject, &xLeft, &xRight, &yBottom, &yTop);//Function for selectedObject
 			//LDialog_AlertBox(LFormat("xLeft:%d, xRight:%d, yBottom:%d, yTop:%d",xLeft,xRight,yBottom,yTop));
 			if (xLeft != WORLD_MAX)
 			{
@@ -136,7 +136,7 @@ module Alignment_Moudle
 				long _xLeftTarget = *xLeftTarget;
 				long _xLeft = xLeft;
 				long xOffset = _xLeftTarget - _xLeft;
-				MoveObject(selectedObject,xOffset,0);
+				MoveObject(selectedObject, xOffset, 0);
 			}
 			//LDialog_AlertBox(LFormat("%d",selectedShapeType));
 			selectedInital = LSelection_GetNext(selectedInital);
@@ -158,7 +158,7 @@ module Alignment_Moudle
 			long* xRight = -WORLD_MAX;
 			long* yBottom = WORLD_MAX;
 			long* yTop = -WORLD_MAX;
-			GetObjectCoord(selectedObject,&xLeft,&xRight,&yBottom,&yTop);//Function for selectedObject
+			GetObjectCoord(selectedObject, &xLeft, &xRight, &yBottom, &yTop);//Function for selectedObject
 			//LDialog_AlertBox(LFormat("xLeft:%d, xRight:%d, yBottom:%d, yTop:%d",xLeft,xRight,yBottom,yTop));
 			if (xRight != WORLD_MAX)
 			{
@@ -166,7 +166,7 @@ module Alignment_Moudle
 				long _xRightTarget = *xRightTarget;
 				long _xRight = xRight;
 				long xOffset = _xRightTarget - _xRight;
-				MoveObject(selectedObject,xOffset,0);
+				MoveObject(selectedObject, xOffset, 0);
 			}
 			//LDialog_AlertBox(LFormat("%d",selectedShapeType));
 			selectedInital = LSelection_GetNext(selectedInital);
@@ -188,7 +188,7 @@ module Alignment_Moudle
 			long* xRight = -WORLD_MAX;
 			long* yBottom = WORLD_MAX;
 			long* yTop = -WORLD_MAX;
-			GetObjectCoord(selectedObject,&xLeft,&xRight,&yBottom,&yTop);//Function for selectedObject
+			GetObjectCoord(selectedObject, &xLeft, &xRight, &yBottom, &yTop);//Function for selectedObject
 			//LDialog_AlertBox(LFormat("xLeft:%d, xRight:%d, yBottom:%d, yTop:%d",xLeft,xRight,yBottom,yTop));
 			if (yBottom != WORLD_MAX)
 			{
@@ -196,7 +196,7 @@ module Alignment_Moudle
 				long _yBottomTarget = *yBottomTarget;
 				long _yBottom = yBottom;
 				long yOffset = _yBottomTarget - _yBottom;
-				MoveObject(selectedObject,0,yOffset);
+				MoveObject(selectedObject, 0, yOffset);
 			}
 			//LDialog_AlertBox(LFormat("%d",selectedShapeType));
 			selectedInital = LSelection_GetNext(selectedInital);
@@ -218,7 +218,7 @@ module Alignment_Moudle
 			long* xRight = -WORLD_MAX;
 			long* yBottom = WORLD_MAX;
 			long* yTop = -WORLD_MAX;
-			GetObjectCoord(selectedObject,&xLeft,&xRight,&yBottom,&yTop);//Function for selectedObject
+			GetObjectCoord(selectedObject, &xLeft, &xRight, &yBottom, &yTop);//Function for selectedObject
 			//LDialog_AlertBox(LFormat("xLeft:%d, xRight:%d, yBottom:%d, yTop:%d",xLeft,xRight,yBottom,yTop));
 			if (yTop != WORLD_MAX)
 			{
@@ -226,7 +226,7 @@ module Alignment_Moudle
 				long _yTopTarget = *yTopTarget;
 				long _yTop = yTop;
 				long yOffset = _yTopTarget - _yTop;
-				MoveObject(selectedObject,0,yOffset);
+				MoveObject(selectedObject, 0, yOffset);
 			}
 			//LDialog_AlertBox(LFormat("%d",selectedShapeType));
 			selectedInital = LSelection_GetNext(selectedInital);
@@ -235,7 +235,7 @@ module Alignment_Moudle
 		//LDialog_AlertBox(LFormat("Completed.\nTotal %d Object.\nxLeft:%d",counter,xLeft));
 	}
 	
-	void  MoveObject(LObject selectedObject,long xOffset,long yOffset)
+	void  MoveObject(LObject selectedObject, long xOffset, long yOffset)
 	{
 		LCell Cell_Now = LCell_GetVisible();
 		LShapeType selectedShapeType = LObject_GetShape(selectedObject);
@@ -248,7 +248,7 @@ module Alignment_Moudle
 				LRect rect = LBox_GetRect(selectedObject);
 				rect.x0 += xOffset; rect.y0 += yOffset;
 				rect.x1 += xOffset; rect.y1 += yOffset;
-				LBox_Set(Cell_Now,selectedObject,rect);
+				LBox_Set(Cell_Now, selectedObject, rect);
 				break;
 			}
 			case 1://LCircle
@@ -257,9 +257,10 @@ module Alignment_Moudle
 				LCoord r = LCircle_GetRadius(selectedObject);
 				center.x += xOffset;
 				center.y += yOffset;
-				LCircle_Set(Cell_Now,selectedObject,center,r);
+				LCircle_Set(Cell_Now, selectedObject, center, r);
 				break;
 			}
+			case 2://LWire
 			case 3://LPolygon
 			{
 				LVertex vertex = LObject_GetVertexList(selectedObject);
@@ -268,7 +269,7 @@ module Alignment_Moudle
 					LPoint point = LVertex_GetPoint(vertex);
 					point.x += xOffset;
 					point.y += yOffset;
-					LVertex_SetPoint(vertex,point);
+					LVertex_SetPoint(vertex, point);
 					vertex = LVertex_GetNext(vertex);
 				}
 				break;
@@ -303,7 +304,7 @@ module Alignment_Moudle
 		//
 	}
 
-	void GetObjectListCoordRange(long* xLeft,long* xRight,long* yBottom,long* yTop)
+	void GetObjectListCoordRange(long* xLeft, long* xRight, long* yBottom, long* yTop)
 	{
 		int counter = 0;
 		LSelection selectedInital = LSelection_GetList();
@@ -311,7 +312,7 @@ module Alignment_Moudle
 		{
 			LObject selectedObject = LSelection_GetObject(selectedInital);
 			LShapeType selectedShapeType = LObject_GetShape(selectedObject);
-			GetObjectCoord(selectedObject,xLeft,xRight,yBottom,yTop);//Function for selectedObject xcoord
+			GetObjectCoord(selectedObject, xLeft, xRight, yBottom, yTop);//Function for selectedObject xcoord
 
 			//LDialog_AlertBox(LFormat("%d",selectedShapeType));
 			selectedInital = LSelection_GetNext(selectedInital);
@@ -320,7 +321,7 @@ module Alignment_Moudle
 		//LDialog_AlertBox(LFormat("Completed.\nTotal %d Object.\nxLeft:%d",counter,xLeft));
 	}
 
-	void GetObjectCoord(LObject selectedObject,long* xLeft,long* xRight,long* yBottom,long* yTop)
+	void GetObjectCoord(LObject selectedObject, long* xLeft, long* xRight, long* yBottom, long* yTop)
 	{
 		LShapeType selectedShapeType = LObject_GetShape(selectedObject);
 		//Function for selectedObject exmple get the left xcoord
@@ -369,6 +370,7 @@ module Alignment_Moudle
 					*yTop = center.y + r;
 				break;
 			}
+			case 2://LWire
 			case 3://LPolygon
 			{
 				LVertex vertex = LObject_GetVertexList(selectedObject);
@@ -435,8 +437,7 @@ module Alignment_Moudle
 			}
 			default:
 				break;
-			}
-		//
+		}
 	}
 
 	void  Register_Alignment_func(void)

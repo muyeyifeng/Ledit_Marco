@@ -34,8 +34,8 @@ module Polygon_Module
 	void DrawEllipse()
 	{
 		//****************************Input Params****************************//
-		LDialogItem Dialog_Items[4] = {{ "Ellipse a", "1000" },
-		{ "Ellipse b", "1000" },
+		LDialogItem Dialog_Items[4] = {{ "Ellipse a (um)", "1" },
+		{ "Ellipse b (um)", "1" },
 		{ "Rota Deg (0-360)","0" },
 		{ "Polygon number", "100" }};
 		long a;
@@ -44,8 +44,8 @@ module Polygon_Module
 		int n;
 		if(LDialog_MultiLineInputBox(" Draw Ellipse", Dialog_Items, 4))
 		{
-			a = atol(Dialog_Items[0].value); // get the a
-			b = atol(Dialog_Items[1].value); // get the b
+			a = (long)(atof(Dialog_Items[0].value) * 1000); // get the a
+			b = (long)(atof(Dialog_Items[1].value) * 1000); // get the b
 			deg = atof(Dialog_Items[2].value); // get the deg
 			n = atoi(Dialog_Items[3].value); // get the n
 		}
@@ -59,13 +59,14 @@ module Polygon_Module
 		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
 		LPoint	*points = CalculateEllipsePoints(a, b, n, rad);
 		LPolygon_New( Cell_Now, LLayer_Now, points, n );
+		LDisplay_Refresh();
 	}
 
 	void DrawPolygonByEdgeLenght()
 	{
 		//****************************Input Params****************************//
-		LDialogItem Dialog_Items[3] = {{ "Edge Number(>=3)", "3" },
-		{ "EdgeLenght (nm)", "1000" },
+		LDialogItem Dialog_Items[3] = {{ "Edge Number (>=3)", "3" },
+		{ "EdgeLenght (um)", "1" },
 		{ "Rota Deg (0-360)","0" }};
 		int edgeNum;
 		long edgeLen;
@@ -73,7 +74,7 @@ module Polygon_Module
 		if(LDialog_MultiLineInputBox(" Draw Polygon By Edge Lenght", Dialog_Items, 3))
 		{
 			edgeNum = atoi(Dialog_Items[0].value); // get the edgeNum
-			edgeLen = atol(Dialog_Items[1].value); // get the edgeLen
+			edgeLen = (long)(atof(Dialog_Items[1].value) * 1000); // get the edgeLen
 			deg = atof(Dialog_Items[2].value); // get the deg
 		}
 		else{
@@ -99,8 +100,8 @@ module Polygon_Module
 	void DrawPolygonByRadius()
 	{
 		//****************************Input Params****************************//
-		LDialogItem Dialog_Items[3] = {{ "Edge Number(>=3)", "3" },
-		{ "Radius (Outer)", "1000" },
+		LDialogItem Dialog_Items[3] = {{ "Edge Number (>=3)", "3" },
+		{ "Radius (Outer, um)", "1" },
 		{ "Rota Deg (0-360)","0" }};
 		int edgeNum;
 		long radius;
@@ -108,7 +109,7 @@ module Polygon_Module
 		if(LDialog_MultiLineInputBox("Draw Polygon By Radius", Dialog_Items, 3))
 		{
 			edgeNum = atoi(Dialog_Items[0].value); // get the edgeNum
-			radius = atol(Dialog_Items[1].value); // get the radius
+			radius = (long)(atof(Dialog_Items[1].value) * 1000); // get the radius
 			deg = atof(Dialog_Items[2].value); // get the deg
 		}
 		else{

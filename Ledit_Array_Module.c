@@ -49,21 +49,17 @@ module Array_Module
 
 	void MirrorObjectsByPointAndRad()
 	{
-		LCell Cell_Now = LCell_GetVisible();
-		LFile File_Now = LCell_GetFile(Cell_Now);
-		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
-
 		//****************************Input Params****************************//
-		LDialogItem Dialog_Items[3] = {{ "Mirror Center X Coordinate (nm)", "0" },
-		{ "Mirror Center Y Coordinate (nm)", "0" },
+		LDialogItem Dialog_Items[3] = {{ "Mirror Center X Coordinate (um)", "0" },
+		{ "Mirror Center Y Coordinate (um)", "0" },
 		{ "Mirror degree (0-180)", "0" }};
 		long xcoord;
 		long ycoord;
 		double rotate;
 		if(LDialog_MultiLineInputBox("Array By Ring Set Distance", Dialog_Items, 3))
 		{
-			xcoord = atol(Dialog_Items[0].value); // get the xcoord
-			ycoord = atol(Dialog_Items[1].value); // get the ycoord
+			xcoord = (long)(atof(Dialog_Items[0].value) * 1000); // get the xcoord
+			ycoord = (long)(atof(Dialog_Items[1].value) * 1000); // get the ycoord
 			rotate = atof(Dialog_Items[2].value); // get the rotate
 		}
 		else{
@@ -91,8 +87,10 @@ module Array_Module
 	{
 		
 		LCell Cell_Now = LCell_GetVisible();
-		LFile File_Now = LCell_GetFile(Cell_Now);
-		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+		//LFile File_Now = LCell_GetFile(Cell_Now);
+		//LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+
+		LLayer LLayer_Now = LObject_GetLayer( Cell_Now, selectedObject);
 
 		LShapeType selectedShapeType = LObject_GetShape(selectedObject);
 
@@ -205,21 +203,17 @@ module Array_Module
 
 	void RotateObjectsByPoint()
 	{
-		LCell Cell_Now = LCell_GetVisible();
-		LFile File_Now = LCell_GetFile(Cell_Now);
-		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
-
 		//****************************Input Params****************************//
-		LDialogItem Dialog_Items[3] = {{ "Rotate Center X Coordinate (nm)", "0" },
-		{ "Rotate Center Y Coordinate (nm)", "0" },
+		LDialogItem Dialog_Items[3] = {{ "Rotate Center X Coordinate (um)", "0" },
+		{ "Rotate Center Y Coordinate (um)", "0" },
 		{ "Rotate degree (0-360)", "0" }};
 		long xcoord;
 		long ycoord;
 		double rotate;
 		if(LDialog_MultiLineInputBox("Array By Ring Set Distance", Dialog_Items, 3))
 		{
-			xcoord = atol(Dialog_Items[0].value); // get the xcoord
-			ycoord = atol(Dialog_Items[1].value); // get the ycoord
+			xcoord = (long)(atof(Dialog_Items[0].value) * 1000); // get the xcoord
+			ycoord = (long)(atof(Dialog_Items[1].value) * 1000); // get the ycoord
 			rotate = atof(Dialog_Items[2].value); // get the rotate
 		}
 		else{
@@ -248,8 +242,10 @@ module Array_Module
 	{
 		
 		LCell Cell_Now = LCell_GetVisible();
-		LFile File_Now = LCell_GetFile(Cell_Now);
-		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+		//LFile File_Now = LCell_GetFile(Cell_Now);
+		//LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+		
+		LLayer LLayer_Now = LObject_GetLayer( Cell_Now, selectedObject);
 
 		LShapeType selectedShapeType = LObject_GetShape(selectedObject);
 
@@ -353,10 +349,6 @@ module Array_Module
     	double startAngle = PI / 3.0;
     	double interval = PI / 3.0; 
 
-		LCell Cell_Now = LCell_GetVisible();
-		LFile File_Now = LCell_GetFile(Cell_Now);
-		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
-
 		LPoint *circlePoints = NULL;;
 		int *num = 0;
 		long *_distance = 0;
@@ -372,6 +364,13 @@ module Array_Module
 
 		LObject smallerObject = area1 > area2 ? object2 : object1;
 		LObject biggerObject = area1 > area2 ? object1 : object2;
+
+		LCell Cell_Now = LCell_GetVisible();
+		//LFile File_Now = LCell_GetFile(Cell_Now);
+		//LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+
+		LLayer LLayer_Now = LObject_GetLayer( Cell_Now, smallerObject);
+
 		int i, j;
 		for(i = 0; i< num; i++)
 		{
@@ -391,6 +390,8 @@ module Array_Module
 				long dist = _distance;
 				long offset2 = deltaL * 1 / 4 + 2 * r_new + dist;
 				
+
+
 				//Not considering non-axial movement direction, and the distance of movement is insufficient
 				LPoint centerOffset = LPoint_Set((long)(circlePoints[i].x - cos(direction) * offset1), (long)(circlePoints[i].y - sin(direction) * offset1));
 				LCircle_New(Cell_Now, LLayer_Now, centerOffset, r_new);
@@ -423,27 +424,29 @@ module Array_Module
 		}
 
 		//****************************Input Params****************************//
-		LDialogItem Dialog_Items[3] = {{ "Array Edge Distance(nm)", "1000" },
+		LDialogItem Dialog_Items[3] = {{ "Array Edge Distance(um)", "1" },
 		{ "Array Start Dimension deg (0-360)", "0" },
-		{ "Ring Radius(nm)", "1000" }};
+		{ "Ring Radius(um)", "1" }};
 		long distance;
 		double deg;
 		long radius;
 		if(LDialog_MultiLineInputBox("Array By Ring Set Distance", Dialog_Items, 3))
 		{
-			distance = atol(Dialog_Items[0].value); // get the distance
+			distance = (long)(atof(Dialog_Items[0].value) * 1000); // get the distance
 			deg = atof(Dialog_Items[1].value); // get the deg
-			radius = atol(Dialog_Items[2].value); // get the radius
+			radius = (long)(atof(Dialog_Items[2].value) * 1000);; // get the radius
 		}
 		else{
 			return;
 		}
 		//****************************Input Params****************************//
 		double rad = deg * PI / 180;
-		//if small one inner big one
 		LCell Cell_Now = LCell_GetVisible();
-		LFile File_Now = LCell_GetFile(Cell_Now);
-		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+		//LFile File_Now = LCell_GetFile(Cell_Now);
+		//LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+		
+		LLayer LLayer_Now = LObject_GetLayer( Cell_Now, object1);
+
 		LPoint center = LCircle_GetCenter(object1);
 		LCoord r = LCircle_GetRadius(object1);
 		if(2 * r + distance <= 0)
@@ -496,13 +499,13 @@ module Array_Module
 		}
 
 		//****************************Input Params****************************//
-		LDialogItem Dialog_Items[2] = {{ "Array Edge Distance(nm)", "1000" },
+		LDialogItem Dialog_Items[2] = {{ "Array Edge Distance(um)", "1" },
 		{ "Array Start Dimension deg (0-360)", "0" }};
 		long distance;
 		double deg;
 		if(LDialog_MultiLineInputBox("Array In Object By Ring", Dialog_Items, 2))
 		{
-			distance = atol(Dialog_Items[0].value); // get the distance
+			distance = (long)(atof(Dialog_Items[0].value) * 1000); // get the distance
 			deg = atof(Dialog_Items[1].value); // get the deg
 		}
 		else{
@@ -511,10 +514,12 @@ module Array_Module
 		//****************************Input Params****************************//
 
 		double rad = deg * PI / 180;
-		//if small one inner big one
 		LCell Cell_Now = LCell_GetVisible();
 		LFile File_Now = LCell_GetFile(Cell_Now);
-		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+		//LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+		
+		LLayer LLayer_Now = LObject_GetLayer( Cell_Now, smallerObject);
+
 		long box[4] ;
 		box[0] = WORLD_MAX;	//x0
 		box[1] = WORLD_MAX;	//y0
@@ -599,12 +604,12 @@ module Array_Module
 		}
 
 		//****************************Input Params****************************//
-		LDialogItem Dialog_Items[1] = {{ "Array Edge Distance(nm)", "1000" }};
+		LDialogItem Dialog_Items[1] = {{ "Array Edge Distance(um)", "1" }};
 		long distance;
 		double deg = 60;
 		if (LDialog_MultiLineInputBox ("Hexagon Properties", Dialog_Items, 1))
 		{
-			distance = atol(Dialog_Items[0].value); // get the distance
+			distance = (long)(atof(Dialog_Items[0].value) * 1000); // get the distance
 			*_distance = distance;
 		}
 		else{
@@ -612,10 +617,12 @@ module Array_Module
 		}
 		//****************************Input Params****************************//
 		double rad = deg * PI / 180;
-		//if small one inner big one
 		LCell Cell_Now = LCell_GetVisible();
 		LFile File_Now = LCell_GetFile(Cell_Now);
-		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+		//LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+		
+		LLayer LLayer_Now = LObject_GetLayer( Cell_Now, smallerObject);
+
 		long box[4] ;
 		box[0] = WORLD_MAX;	//x0
 		box[1] = WORLD_MAX;	//y0
@@ -771,9 +778,9 @@ module Array_Module
 
 	void ArrayByEdgeDistanceOneDimension()
 	{
-		//**************************************************//
+		//****************************Input Params****************************//
 		
-		LDialogItem Dialog_Items[3] = {{ "Array Edge Distance(nm)", "1000" },
+		LDialogItem Dialog_Items[3] = {{ "Array Edge Distance(um)", "1" },
 		{ "Array Number", "2" },
 		{ "Array Dimension deg (0-360)", "0" }};
 		long distance;
@@ -781,7 +788,7 @@ module Array_Module
 		double deg;
 		if(LDialog_MultiLineInputBox("Array By Edge Distance One Dimension", Dialog_Items, 3))
 		{
-			distance = atol(Dialog_Items[0].value); // get the distance
+			distance = (long)(atof(Dialog_Items[0].value) * 1000); // get the distance
 			arrayNumber = atoi(Dialog_Items[1].value); // get the arrayNumber
 			deg = atof(Dialog_Items[2].value); // get the deg
 		}
@@ -789,7 +796,7 @@ module Array_Module
 			return;
 		}
 		
-		//**************************************************//
+		//****************************Input Params****************************//
 		if((distance >= 0 || arrayNumber > 1) || (deg >= 0 && deg <= 360))
 		{
 			CopySelectedObjectsByEdgeDistance(arrayNumber, distance, deg);
@@ -871,9 +878,9 @@ module Array_Module
 	
 	void ArrayByOffsetOneDimension()
 	{
-		//**************************************************//
+		//****************************Input Params****************************//
 		
-		LDialogItem Dialog_Items[3] = {{ "Array Center Distance(nm)", "1000" },
+		LDialogItem Dialog_Items[3] = {{ "Array Center Distance(um)", "1" },
 		{ "Array Number", "2" },
 		{ "Array Dimension deg (0-360)", "0" }};
 		long distance;
@@ -881,7 +888,7 @@ module Array_Module
 		double deg;
 		if(LDialog_MultiLineInputBox("Array By Offset One Dimension", Dialog_Items, 3))
 		{
-			distance = atol(Dialog_Items[0].value); // get the distance
+			distance = (long)(atof(Dialog_Items[0].value) * 1000); // get the distance
 			arrayNumber = atoi(Dialog_Items[1].value); // get the arrayNumber
 			deg = atof(Dialog_Items[2].value); // get the deg
 		}
@@ -889,7 +896,7 @@ module Array_Module
 			return;
 		}
 		
-		//**************************************************//
+		//****************************Input Params****************************//
 		if((distance >= 0 || arrayNumber > 1) || (deg >= 0 && deg <= 360)){
 			double rad = deg * PI / 180;
 			double xOffset = distance * cos(rad);
@@ -916,10 +923,12 @@ module Array_Module
 	}
 	
 	void CopyObject(LObject selectedObject, int arrayNumber, double xOffset, double yOffset)
-	{
+	{	
 		LCell Cell_Now = LCell_GetVisible();
-		LFile File_Now = LCell_GetFile(Cell_Now);
-		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+		//LFile File_Now = LCell_GetFile(Cell_Now);
+		//LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+		
+		LLayer LLayer_Now = LObject_GetLayer( Cell_Now, selectedObject);
 		//LDialog_AlertBox(LFormat("xOffset:%f, yOffset:%f",xOffset, yOffset));
 		LShapeType selectedShapeType = LObject_GetShape(selectedObject);
 		//Function for selectedObject exmple get the left xcoord

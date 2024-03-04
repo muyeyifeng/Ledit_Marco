@@ -24,8 +24,8 @@ module Special_Polygon_Module
 	#include "ldata.h"     /* Main UPI header. */
 
     #define PI 3.14159265358979323846
-    int CalculateIntersection_Circle2Circle(LPoint centerp1, long R1, LPoint centerp2, long R2, LObject *torus1, LObject *torus2);
-    int CalculateIntersection_Circle2Wire(LObject object1, LObject object2, long radius, LObject *torus1, LObject *torus2, LObject *torus3, LObject *torus4);
+    int CalculateIntersection_Circle2Circle(LObject object1, LObject object2, long radius, LObject **torus);
+    int CalculateIntersection_Circle2Wire(LObject object1, LObject object2, long radius, LObject **torus);
     double CalculatePolarAngle(LPoint p1, LPoint p2);
     void DrawTangentRing();
     void FindLineEquation(LPoint p1, LPoint p2, double **abc);
@@ -47,14 +47,15 @@ module Special_Polygon_Module
 		LObject object2 = LSelection_GetObject(selectedInital);
 
 		//****************************Input Params****************************//
-		LDialogItem Dialog_Items[2] = {{ "Tangent Circle InnerRadius (nm)", "1000" },
-        { "Tangent Circle OuterRadius-InnerRadius (nm)", "1000" }};
+		LDialogItem Dialog_Items[2] = {{ "Tangent Circle InnerRadius (um)", "1" },
+        { "Tangent Circle OuterRadius-InnerRadius (um)", "1" }};
 		long radius;
         long thickness;
 		if(LDialog_MultiLineInputBox("Tangent Circle Radius", Dialog_Items, 2))
 		{
-			radius = atol(Dialog_Items[0].value); // get the radius
-            thickness = atol(Dialog_Items[1].value); // get the thickness
+            //To make sure torus inner other objects: radius - 5 nm 
+			radius = (long)(atof(Dialog_Items[0].value) * 1000) - 5; // get the radius
+            thickness = (long)(atof(Dialog_Items[1].value) * 1000); // get the thickness
 		}
 		else{
 			return;
@@ -65,63 +66,39 @@ module Special_Polygon_Module
         long *y1;
         long *x2;
         long *y2;
-        LObject *torus1;
-        LObject *torus2;
-        LObject *torus3;
-        LObject *torus4;
+        LObject *torus;
         int rootPoints = 0;
         if(LObject_GetShape(object1) == 1 && LObject_GetShape(object2) == 1)
 		{
-            LPoint centerp1 = LCircle_GetCenter(object1);
-            LPoint centerp2 = LCircle_GetCenter(object2);
-            long R1 = LCircle_GetRadius(object1) + radius;
-            long R2 = LCircle_GetRadius(object2) + radius;
-            rootPoints = CalculateIntersection_Circle2Circle(centerp1, R1, centerp2, R2, &torus1, &torus2);
-
+            rootPoints = CalculateIntersection_Circle2Circle(object1, object2, radius, &torus);
         }
         if((LObject_GetShape(object1) == 1 && LObject_GetShape(object2) == 2) || (LObject_GetShape(object1) == 2 && LObject_GetShape(object2) == 1))
         {
-            rootPoints = CalculateIntersection_Circle2Wire(object1, object2, radius, &torus1, &torus2, &torus3, &torus4);
+            rootPoints = CalculateIntersection_Circle2Wire(object1, object2, radius, &torus);
         }
-        if(rootPoints == 2)
+        while(rootPoints > 0)
         {
             LTorusParams tParams;
-            LTorus_GetParams(torus1, &tParams);
+            LTorus_GetParams(torus[rootPoints-1], &tParams);
             tParams.nInnerRadius = radius;
             tParams.nOuterRadius = radius + thickness;
-            LTorus_SetParams(Cell_Now, torus1, &tParams);
-
-            LTorusParams tParams2;
-            LTorus_GetParams(torus2, &tParams2);
-            tParams2.nInnerRadius = radius;
-            tParams2.nOuterRadius = radius + thickness;
-            LTorus_SetParams(Cell_Now, torus2, &tParams2);
-        }
-        if(rootPoints == 4)
-        {
-            LTorusParams tParams3;
-            LTorus_GetParams(torus3, &tParams3);
-            tParams3.nInnerRadius = radius;
-            tParams3.nOuterRadius = radius + thickness;
-            LTorus_SetParams(Cell_Now, torus3, &tParams3);
-
-            LTorusParams tParam4;
-            LTorus_GetParams(torus4, &tParam4);
-            tParam4.nInnerRadius = radius;
-            tParam4.nOuterRadius = radius + thickness;
-            LTorus_SetParams(Cell_Now, torus4, &tParam4);
+            LTorus_SetParams(Cell_Now, torus[rootPoints-1], &tParams);
+            rootPoints--;
         }
         LDisplay_Refresh();
     }
 
-    int CalculateIntersection_Circle2Wire(LObject object1, LObject object2, long radius, LObject *torus1, LObject *torus2, LObject *torus3, LObject *torus4)
+    int CalculateIntersection_Circle2Wire(LObject object1, LObject object2, long radius, LObject **torus)
     {
-        LCell Cell_Now = LCell_GetVisible();
-		LFile File_Now = LCell_GetFile(Cell_Now);
-		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
-
+        *torus = (LObject*) malloc(4 * sizeof(LObject));
         LObject circle = LObject_GetShape(object1) == 1 ? object1 : object2;
         LObject wire = LObject_GetShape(object1) == 2 ? object1 : object2;
+
+        LCell Cell_Now = LCell_GetVisible();
+		//LFile File_Now = LCell_GetFile(Cell_Now);
+		//LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+		
+		LLayer LLayer_Now = LObject_GetLayer( Cell_Now, circle);
 		
         if(LVertex_GetCount(wire) != 2)
         {
@@ -179,7 +156,7 @@ module Special_Polygon_Module
         tParams1.ptCenter = p1;
         tParams1.nInnerRadius = 1000;
         tParams1.nOuterRadius = 2000;
-        //set in DrawTangentRing()
+        //reset in DrawTangentRing()
         if(fabs(rad1 - rad2) > PI)
         {
             tParams1.dStartAngle = fmax(fabs(rad1), fabs(rad2)) * 180 / PI;
@@ -189,8 +166,8 @@ module Special_Polygon_Module
             tParams1.dStartAngle = fmin(fabs(rad1), fabs(rad2)) * 180 / PI;
             tParams1.dStopAngle = fmax(fabs(rad1), fabs(rad2)) * 180 / PI;
         }
-        *torus1 = LTorus_CreateNew(Cell_Now, LLayer_Now, &tParams1);
-        
+
+        (*torus)[0] = LTorus_CreateNew(Cell_Now, LLayer_Now, &tParams1);
         LPoint p2 = LPoint_Set(xx2, yy2);
         double rad3 = rho2 + PI;
         double rad4 = rad2 ;
@@ -210,8 +187,8 @@ module Special_Polygon_Module
             tParams2.dStartAngle = fmin(fabs(rad3), fabs(rad4)) * 180 / PI;
             tParams2.dStopAngle = fmax(fabs(rad3), fabs(rad4)) * 180 / PI;
         }
-        *torus2 = LTorus_CreateNew(Cell_Now, LLayer_Now, &tParams2);
-        
+
+        (*torus)[1] = LTorus_CreateNew(Cell_Now, LLayer_Now, &tParams2);
         //specially line cross circle
         if(r > distance)
         {
@@ -232,7 +209,7 @@ module Special_Polygon_Module
             tParams3.ptCenter = p3;
             tParams3.nInnerRadius = 1000;
             tParams3.nOuterRadius = 2000;
-            //set in DrawTangentRing()
+            //reset in DrawTangentRing()
             if(fabs(rad5 - rad6) > PI)
             {
                 tParams3.dStartAngle = fmax(fabs(rad5), fabs(rad6)) * 180 / PI;
@@ -242,8 +219,9 @@ module Special_Polygon_Module
                 tParams3.dStartAngle = fmin(fabs(rad5), fabs(rad6)) * 180 / PI;
                 tParams3.dStopAngle = fmax(fabs(rad5), fabs(rad6)) * 180 / PI;
             }
-            *torus3 = LTorus_CreateNew(Cell_Now, LLayer_Now, &tParams3);
-            
+
+            (*torus)[2] = LTorus_CreateNew(Cell_Now, LLayer_Now, &tParams3);
+
             LPoint p4 = LPoint_Set(xx4, yy4);
             double rad7 = rho4 + PI;
             double rad8 = rad6 ;
@@ -253,7 +231,7 @@ module Special_Polygon_Module
             tParams4.ptCenter = p4;
             tParams4.nInnerRadius = 1000;
             tParams4.nOuterRadius = 2000;
-            //set in DrawTangentRing()
+            //reset in DrawTangentRing()
             if(fabs(rad7 - rad8) > PI)
             {
                 tParams4.dStartAngle = fmax(fabs(rad7), fabs(rad8)) * 180 / PI;
@@ -263,17 +241,26 @@ module Special_Polygon_Module
                 tParams4.dStartAngle = fmin(fabs(rad7), fabs(rad8)) * 180 / PI;
                 tParams4.dStopAngle = fmax(fabs(rad7), fabs(rad8)) * 180 / PI;
             }
-            *torus4 = LTorus_CreateNew(Cell_Now, LLayer_Now, &tParams4);
+
+            (*torus)[3] = LTorus_CreateNew(Cell_Now, LLayer_Now, &tParams4);
             return 4;
         }
         return 2;
     }
 
-    int CalculateIntersection_Circle2Circle(LPoint centerp1, long R1, LPoint centerp2, long R2, LObject *torus1, LObject *torus2)
+    int CalculateIntersection_Circle2Circle(LObject object1, LObject object2, long radius, LObject **torus)
     {
+        *torus = (LObject*) malloc(2 * sizeof(LObject));
         LCell Cell_Now = LCell_GetVisible();
-		LFile File_Now = LCell_GetFile(Cell_Now);
-		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+		//LFile File_Now = LCell_GetFile(Cell_Now);
+		//LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+		
+		LLayer LLayer_Now = LObject_GetLayer( Cell_Now, object1);
+        
+        LPoint centerp1 = LCircle_GetCenter(object1);
+        LPoint centerp2 = LCircle_GetCenter(object2);
+        long R1 = LCircle_GetRadius(object1) + radius;
+        long R2 = LCircle_GetRadius(object2) + radius;
 
         long x1 = centerp1.x;
         long y1 = centerp1.y;
@@ -281,7 +268,7 @@ module Special_Polygon_Module
         long x2 = centerp2.x;
         long y2 = centerp2.y;
 
-        double d = sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1)); 
+        double d = sqrt((double)(x2 - x1) * (x2 - x1) + (double)(y2 - y1) * (y2 - y1)); 
 
         if (d > R1 + R2 || d < fabs(R1 - R2)) 
         {
@@ -305,7 +292,6 @@ module Special_Polygon_Module
             long xx2 = (long)(xMid - h * (y2 - y1) / d);
             long yy2 = (long)(yMid + h * (x2 - x1) / d);
 
-            // 
             LPoint p1 = LPoint_Set(xx1, yy1);
             double rad1 = CalculatePolarAngle(p1, centerp1);
             double rad2 = CalculatePolarAngle(p1, centerp2);
@@ -313,7 +299,7 @@ module Special_Polygon_Module
             tParams1.ptCenter = p1;
             tParams1.nInnerRadius = 1000;
             tParams1.nOuterRadius = 2000;
-            //set in DrawTangentRing()
+            //reset in DrawTangentRing()
             if(fabs(rad1 - rad2) > PI)
             {
                 tParams1.dStartAngle = fmax(fabs(rad1), fabs(rad2)) * 180 / PI;
@@ -323,8 +309,8 @@ module Special_Polygon_Module
                 tParams1.dStartAngle = fmin(fabs(rad1), fabs(rad2)) * 180 / PI;
                 tParams1.dStopAngle = fmax(fabs(rad1), fabs(rad2)) * 180 / PI;
             }
-            *torus1 = LTorus_CreateNew(Cell_Now, LLayer_Now, &tParams1);
-            
+
+            (*torus)[0] = LTorus_CreateNew(Cell_Now, LLayer_Now, &tParams1);
             LPoint p2 = LPoint_Set(xx2, yy2);
             double rad3 = CalculatePolarAngle(p2, centerp1);
             double rad4 = CalculatePolarAngle(p2, centerp2);
@@ -332,7 +318,7 @@ module Special_Polygon_Module
             tParams2.ptCenter = p2;
             tParams2.nInnerRadius = 1000;
             tParams2.nOuterRadius = 2000;
-            //set in DrawTangentRing()
+            //reset in DrawTangentRing()
             if(fabs(rad3 - rad4) > PI)
             {
                 tParams2.dStartAngle = fmax(fabs(rad3), fabs(rad4)) * 180 / PI;
@@ -342,7 +328,8 @@ module Special_Polygon_Module
                 tParams2.dStartAngle = fmin(fabs(rad3), fabs(rad4)) * 180 / PI;
                 tParams2.dStopAngle = fmax(fabs(rad3), fabs(rad4)) * 180 / PI;
             }
-            *torus2 = LTorus_CreateNew(Cell_Now, LLayer_Now, &tParams2);
+
+            (*torus)[1] = LTorus_CreateNew(Cell_Now, LLayer_Now, &tParams2);
             return 2;
         }
     }

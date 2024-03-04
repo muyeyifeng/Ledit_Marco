@@ -172,11 +172,11 @@ module ShapeCenter_Module
 		return;
 		}
       //****************************Input Params****************************//
-		LDialogItem Dialog_Items[1] = {{ "Radius (nm)", "1000" }};
+		LDialogItem Dialog_Items[1] = {{ "Radius (um)", "1" }};
 		long radius;
 		if(LDialog_MultiLineInputBox("Draw Circle At Shape Center", Dialog_Items, 1))
 		{
-			radius = atol(Dialog_Items[0].value); // get the radius
+			radius = (long)(atof(Dialog_Items[0].value) * 1000); // get the radius
 		}
 		else{
 			return;
