@@ -40,9 +40,9 @@ module Array_Module
 	double GetPointDistance(LPoint point1, LPoint point2);
 	int LSelection_GetNumber(LSelection selectedInital);
 	LPoint MirrorCoordinates(LPoint p1, LPoint p2, double rad);
-	void MirrorObject(LObject selectedObject, LPoint mirrorPoint, double rad);
+	void MirrorObject(LObject selectedObject, LPoint mirrorPoint, double rad, int keep);
 	void MirrorObjectsByPointAndRad();
-	void RotateObject(LObject selectedObject, LPoint rotateCenter, double rad);
+	void RotateObject(LObject selectedObject, LPoint rotateCenter, double rad, int keep);
 	void RotateObjectsByPoint();
 	LPoint RotatePoint(LPoint p1, LPoint p2, double rad);
 	
@@ -50,17 +50,20 @@ module Array_Module
 	void MirrorObjectsByPointAndRad()
 	{
 		//****************************Input Params****************************//
-		LDialogItem Dialog_Items[3] = {{ "Mirror Center X Coordinate (um)", "0" },
+		LDialogItem Dialog_Items[4] = {{ "Mirror Center X Coordinate (um)", "0" },
 		{ "Mirror Center Y Coordinate (um)", "0" },
-		{ "Mirror degree (0-180)", "0" }};
+		{ "Mirror Degree (0-180)", "0" },
+		{ "Keep Original Objects (1 = yes, 0 = no)" , "1"}};
 		long xcoord;
 		long ycoord;
 		double rotate;
-		if(LDialog_MultiLineInputBox("Array By Ring Set Distance", Dialog_Items, 3))
+		int keep;
+		if(LDialog_MultiLineInputBox("Mirror Objects By Point And Rad", Dialog_Items, 4))
 		{
 			xcoord = (long)(atof(Dialog_Items[0].value) * 1000); // get the xcoord
 			ycoord = (long)(atof(Dialog_Items[1].value) * 1000); // get the ycoord
 			rotate = atof(Dialog_Items[2].value); // get the rotate
+			keep = atoi(Dialog_Items[3].value); // get the rotate
 		}
 		else{
 			return;
@@ -75,7 +78,7 @@ module Array_Module
 			LShapeType selectedShapeType = LObject_GetShape(selectedObject);
 
 			LPoint mirrorPoint = LPoint_Set(xcoord, ycoord);
-			MirrorObject(selectedObject, mirrorPoint, rad);
+			MirrorObject(selectedObject, mirrorPoint, rad, keep);
 			//LDialog_AlertBox(LFormat("%d",selectedShapeType));
 			selectedInital = LSelection_GetNext(selectedInital);
 			counter++;
@@ -83,14 +86,14 @@ module Array_Module
 		LDisplay_Refresh();
 	}
 
-	void MirrorObject(LObject selectedObject, LPoint mirrorPoint, double rad)
+	void MirrorObject(LObject selectedObject, LPoint mirrorPoint, double rad, int keep)
 	{
 		
 		LCell Cell_Now = LCell_GetVisible();
 		//LFile File_Now = LCell_GetFile(Cell_Now);
 		//LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
 
-		LLayer LLayer_Now = LObject_GetLayer( Cell_Now, selectedObject);
+		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, selectedObject);
 
 		LShapeType selectedShapeType = LObject_GetShape(selectedObject);
 
@@ -199,22 +202,27 @@ module Array_Module
 			default:
 				break;
 		}
+		if(keep != 1)
+			LObject_Delete(Cell_Now, selectedObject);
 	}
 
 	void RotateObjectsByPoint()
 	{
 		//****************************Input Params****************************//
-		LDialogItem Dialog_Items[3] = {{ "Rotate Center X Coordinate (um)", "0" },
+		LDialogItem Dialog_Items[4] = {{ "Rotate Center X Coordinate (um)", "0" },
 		{ "Rotate Center Y Coordinate (um)", "0" },
-		{ "Rotate degree (0-360)", "0" }};
+		{ "Rotate degree (0-360)", "0" },
+		{ "Keep Original Objects (1 = yes, 0 = no)" , "1"}};
 		long xcoord;
 		long ycoord;
 		double rotate;
-		if(LDialog_MultiLineInputBox("Array By Ring Set Distance", Dialog_Items, 3))
+		int keep;
+		if(LDialog_MultiLineInputBox("Rotate Objects By Point", Dialog_Items, 4))
 		{
 			xcoord = (long)(atof(Dialog_Items[0].value) * 1000); // get the xcoord
 			ycoord = (long)(atof(Dialog_Items[1].value) * 1000); // get the ycoord
 			rotate = atof(Dialog_Items[2].value); // get the rotate
+			keep = atoi(Dialog_Items[3].value); // get the rotate
 		}
 		else{
 			return;
@@ -231,21 +239,21 @@ module Array_Module
 
 			//LDialog_AlertBox(LFormat("%d",selectedShapeType));
 			LPoint rotateCenter = LPoint_Set(xcoord, ycoord);
-			RotateObject(selectedObject, rotateCenter, rad);
+			RotateObject(selectedObject, rotateCenter, rad, keep);
 			selectedInital = LSelection_GetNext(selectedInital);
 			counter++;
 		}
 		LDisplay_Refresh();
 	}
 
-	void RotateObject(LObject selectedObject, LPoint rotateCenter, double rad)
+	void RotateObject(LObject selectedObject, LPoint rotateCenter, double rad, int keep)
 	{
 		
 		LCell Cell_Now = LCell_GetVisible();
 		//LFile File_Now = LCell_GetFile(Cell_Now);
 		//LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
 		
-		LLayer LLayer_Now = LObject_GetLayer( Cell_Now, selectedObject);
+		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, selectedObject);
 
 		LShapeType selectedShapeType = LObject_GetShape(selectedObject);
 
@@ -342,6 +350,8 @@ module Array_Module
 			default:
 				break;
 		}
+		if(keep != 1)
+			LObject_Delete(Cell_Now, selectedObject);
 	}
 	//This method is temporarily deprecated
 	void ArrayInObjectByDistanceHexagonAutoFixEdgeSize()
