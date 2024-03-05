@@ -53,8 +53,8 @@ module Special_Polygon_Module
         long thickness;
 		if(LDialog_MultiLineInputBox("Tangent Circle Radius", Dialog_Items, 2))
 		{
-            //To make sure torus inner other objects: radius - 5 nm 
-			radius = (long)(atof(Dialog_Items[0].value) * 1000) - 5; // get the radius
+            //To make sure torus inner other objects: radius + 10 nm 
+			radius = (long)(atof(Dialog_Items[0].value) * 1000) + 10; // get the radius
             thickness = (long)(atof(Dialog_Items[1].value) * 1000); // get the thickness
 		}
 		else{
@@ -367,7 +367,7 @@ module Special_Polygon_Module
             // Convert to standard form ax + by + c = 0
             (*abc)[0] = (double)(p2.y - p1.y) / (p1.x - p2.x);
             (*abc)[1] = 1.0;
-            (*abc)[2] = (double)(p2.y * p1.x - p1.y * p2.x) / (p2.x - p1.x);
+            (*abc)[2] = ((double)p2.y * p1.x - (double)p1.y * p2.x) / (p2.x - p1.x);
         } else {
             // If slope does not exist, the line is vertical, and the equation is x = x1
             (*abc)[0] = 1.0;
