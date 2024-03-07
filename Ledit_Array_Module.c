@@ -494,7 +494,7 @@ module Array_Module
 		LDialogItem Dialog_Items[4] = {{ "Array Edge Distance(um)", "1" },
 		{ "Array Start Dimension deg (0-360)", "0" },
 		{ "Ring Radius(um)", "1" },
-		{ "Adaptive Distance (1 = yes, 0 = no)", "0"}};
+		{ "Adaptive Distance (1 = yes, 0 = no)", "1"}};
 		long distance;
 		double deg;
 		long radius;
@@ -528,7 +528,7 @@ module Array_Module
 		double radius_ring = radius;
 		int maxCircle = 2 * PI * radius_ring / (2 * r + distance);
 		double rad_offset = 2 * PI / maxCircle;
-		if(adapDis != 0)
+		if(adapDis != 1)
 		{
 			rad_offset = asin(2 * distance / PI);
 			maxCircle = ceil(2 * PI / rad_offset);
