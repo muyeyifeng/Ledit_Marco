@@ -51,12 +51,8 @@ module ShapeCenter_Module
         long x2 = p2->x - globalReferencePoint.x;
         long y2 = p2->y - globalReferencePoint.y;
 
-        // double angle1 = atan2(p1->y, p1->x);
         double angle1 = atan2(y1, x1);
-        // LDialog_AlertBox(LFormat("angle1:%f", angle1));
-        // double angle2 = atan2(p2->y, p2->x);
         double angle2 = atan2(y2, x2);
-        // LDialog_AlertBox(LFormat("angle2:%f", angle2));
         //  If the polar angles are the same, sort by distance from the origin from smallest to largest.
         if (angle1 == angle2)
         {
@@ -104,12 +100,9 @@ module ShapeCenter_Module
             long y2 = points[next].y - points[0].y;
 
             // Calculate the cross product
-            // double crossProduct = points[i].x * points[next].y - points[next].x * points[i].y;
             double crossProduct = x1 * y2 - x2 * y1;
 
             // Update centroid coordinates and total area
-            // cx += (points[i].x + points[next].x) * crossProduct;
-            // cy += (points[i].y + points[next].y) * crossProduct;
             cx += (x1 + x2) * crossProduct;
             cy += (y1 + y2) * crossProduct;
             totalArea += crossProduct;
@@ -148,7 +141,6 @@ module ShapeCenter_Module
             LObject object1 = LSelection_GetObject(selectedInital);
             LPoint center = LCircle_GetCenter(object1);
             centerPoints[i] = center;
-            // LDialog_AlertBox(LFormat("x:%d, y:%d", center.x, center.y));
             if (LObject_GetShape(object1) != 1)
             {
                 return false;
@@ -202,7 +194,6 @@ module ShapeCenter_Module
         }
 
         LPoint center = CalculateCentroid(centerPoints, selectedObjectNumber);
-        // LDialog_AlertBox(LFormat("x:%d, y:%d", center.x, center.y));
         LCircle_New(Cell_Now, LLayer_Now, center, radius);
 
         LDisplay_Refresh();

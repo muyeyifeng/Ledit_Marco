@@ -382,6 +382,26 @@ module Special_Polygon_Module
         // k = -a / b
     }
 
+    bool CircleCorssWire(LPoint p1, LPoint p2, LObject circleLike)
+    {
+        LShapeType objectShape = LObject_GetShape(circleLike);
+        switch (objectShape)
+        {
+        case 1: // LCircle
+        {
+            return ;
+        }
+        case 4: // LTorus
+        {
+            return ;
+        }
+        case 5: // LPie
+        {
+            return ;
+        }
+        }
+    }
+
     void SpecialPolygon_func(void)
     {
         LMacro_Register("DrawTangentRing_func", "DrawTangentRing");

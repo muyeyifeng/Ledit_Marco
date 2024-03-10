@@ -24,3 +24,4 @@ LPoint CalculateCentroid(LPoint * points, int n);
 int LSelection_GetNumber(LSelection selectedInital);
 bool CheckIsCircles(LSelection selectedInital, LPoint * centerPoints);
 void DrawCircleAtShapeCenter();
+bool CircleCorssWire(LPoint p1, LPoint p2, LObject circleLike);

@@ -56,7 +56,6 @@ module Array_Module
 
 			LPoint mirrorPoint = LPoint_Set(xcoord, ycoord);
 			MirrorObject(selectedObject, mirrorPoint, rad, keep);
-			// LDialog_AlertBox(LFormat("%d",selectedShapeType));
 			selectedInital = LSelection_GetNext(selectedInital);
 			counter++;
 		}
@@ -133,7 +132,6 @@ module Array_Module
 			angle = angle < 0 ? 2 * 180 + angle : angle;
 
 			double startAngle = tParams.dStartAngle > 180 ? tParams.dStartAngle - 2 * 180 : tParams.dStartAngle;
-			// double stopAngle = tParams.dStopAngle > 180 ? tParams.dStopAngle - 2 * 180 : tParams.dStopAngle;
 
 			_tParams.dStartAngle = 2 * rad * 180 / M_PI - startAngle - angle;
 			_tParams.dStopAngle = 2 * rad * 180 / M_PI - startAngle;
@@ -160,7 +158,6 @@ module Array_Module
 			angle = angle < 0 ? 2 * 180 + angle : angle;
 
 			double startAngle = pParams.dStartAngle > 180 ? pParams.dStartAngle - 2 * 180 : pParams.dStartAngle;
-			// double stopAngle = pParams.dStopAngle > 180 ? pParams.dStopAngle - 2 * 180 : pParams.dStopAngle;
 
 			_pParams.dStartAngle = 2 * rad * 180 / M_PI - startAngle - angle;
 			_pParams.dStopAngle = 2 * rad * 180 / M_PI - startAngle;
@@ -234,7 +231,6 @@ module Array_Module
 		{
 			LObject selectedObject = LSelection_GetObject(selectedInital);
 
-			// LDialog_AlertBox(LFormat("%d",selectedShapeType));
 			LPoint rotateCenter = LPoint_Set(xcoord, ycoord);
 			RotateObject(selectedObject, rotateCenter, rad, keep);
 			selectedInital = LSelection_GetNext(selectedInital);
@@ -425,12 +421,6 @@ module Array_Module
 			int yOffset = radius * sin(rad + rad_offset * j);
 			int xOffset = radius * cos(rad + rad_offset * j);
 			CopyObject(object1, xOffset, yOffset);
-			/*
-			long center_x = center.x + xOffset;
-			long center_y = center.y + yOffset;
-			LPoint centerOffset = LPoint_Set((long)center_x, (long)center_y);
-			LCircle_New(Cell_Now, LLayer_Now, centerOffset, r);
-			*/
 		}
 		LDisplay_Refresh();
 	}
@@ -498,12 +488,6 @@ module Array_Module
 			int yOffset = radius * sin(rad + rad_offset * j);
 			int xOffset = radius * cos(rad + rad_offset * j);
 			CopyObject(object1, xOffset, yOffset);
-			/*
-			long center_x = center.x + xOffset;
-			long center_y = center.y + yOffset;
-			LPoint centerOffset = LPoint_Set((long)center_x, (long)center_y);
-			LCircle_New(Cell_Now, LLayer_Now, centerOffset, r);
-			*/
 		}
 		LDisplay_Refresh();
 	}
@@ -553,7 +537,6 @@ module Array_Module
 		double rad = deg * M_PI / 180;
 		LCell Cell_Now = LCell_GetVisible();
 		LFile File_Now = LCell_GetFile(Cell_Now);
-		// LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
 
 		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, smallerObject);
 
@@ -657,7 +640,6 @@ module Array_Module
 		double rad = deg * M_PI / 180;
 		LCell Cell_Now = LCell_GetVisible();
 		LFile File_Now = LCell_GetFile(Cell_Now);
-		// LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
 
 		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, smallerObject);
 
@@ -862,7 +844,6 @@ module Array_Module
 			{
 				double xOffset = offset[0]; //
 				double yOffset = offset[1]; //
-				// LDialog_AlertBox(LFormat("xOffset:%f, yOffset:%f", xOffset, yOffset));
 				int i;
 				for (i = 1; i < arrayNumber; i++)
 				{
@@ -1202,7 +1183,6 @@ module Array_Module
 		// Calculate the tangent value of the line's angle
 		double slopeTan = tan(rad);
 		// Handle the case when tan(pi/2) is encountered
-		// LDialog_AlertBox(LFormat("slopeTan: %f, rad: %f, fabs(rad - M_PI/2): %f", slopeTan, rad, fabs(rad - M_PI/2)));
 		if (fabs(rad - M_PI / 2) < 1e-6)
 		{
 			LPoint mirrorPoint;
