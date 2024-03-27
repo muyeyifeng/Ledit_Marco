@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 module Array_Module
 {
 #include <stdio.h>
@@ -40,7 +41,7 @@ module Array_Module
 			xcoord = (long)(atof(Dialog_Items[0].value) * 1000); // get the xcoord
 			ycoord = (long)(atof(Dialog_Items[1].value) * 1000); // get the ycoord
 			rotate = atof(Dialog_Items[2].value);				 // get the rotate
-			keep = atoi(Dialog_Items[3].value);					 // get the rotate
+			keep = atoi(Dialog_Items[3].value);					 // get the keep
 		}
 		else
 		{
