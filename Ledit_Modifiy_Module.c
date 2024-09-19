@@ -437,8 +437,9 @@ module Modifiy_Module
 			LObject selectedObject = LSelection_GetObject(selectedInital);
 			switch (LObject_GetShape(selectedObject))
 			{
+				long tar_radius;
 			case 1: // LCircle
-				long tar_radius = LCircle_GetRadius(selectedObject) + radiusChange;
+				tar_radius = LCircle_GetRadius(selectedObject) + radiusChange;
 				Modifiy_Circle(selectedObject, tar_radius);
 				break;
 			default:
