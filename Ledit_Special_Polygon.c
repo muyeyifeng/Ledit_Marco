@@ -389,15 +389,15 @@ module Special_Polygon_Module
         {
         case 1: // LCircle
         {
-            return ;
+            return;
         }
         case 4: // LTorus
         {
-            return ;
+            return;
         }
         case 5: // LPie
         {
-            return ;
+            return;
         }
         }
     }

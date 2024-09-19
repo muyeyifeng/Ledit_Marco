@@ -17,5 +17,15 @@
  */
 #include "ldata.h"
 
-void Modifiy_Selected_Object();
+void Route_Circle();
+int GetCrossPoint(LObject polygon, LPoint *crossPoint);
+int calculateIntersection(LPoint a, LPoint b, LPoint c, LPoint d, LPoint *intersection);
+int calculateCircleSegmentIntersection(LPoint a, LPoint b, LPoint center, double radius, LPoint *intersection1, LPoint *intersection2);
+double GetPointsDistance(LPoint point1, LPoint point2);
+void DrawCircleByRouteDistance(double distance, long radius, int circleNumber, LPoint start, LObject route); // LPolygon
+int isClockwise(LPoint a, LPoint b, LPoint c);
+void GetObjectCoord(LObject selectedObject, long *xLeft, long *xRight, long *yBottom, long *yTop);
+double GetPointsDistance(LPoint point1, LPoint point2);
+void Modifiy_Selected_Object_UnionSize();
+void Modifiy_Selected_Object_Offset();
 void Modifiy_Circle(LObject circle, long target_radius);

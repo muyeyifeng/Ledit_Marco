@@ -17,11 +17,11 @@
  */
 #include "ldata.h"
 
-void swap(LPoint * a, LPoint * b);
+void swap(LPoint *a, LPoint *b);
 double distance(LPoint p1, LPoint p2);
 int compare(const void *a, const void *b);
-LPoint CalculateCentroid(LPoint * points, int n);
+LPoint CalculateCentroid(LPoint *points, int n);
 int LSelection_GetNumber(LSelection selectedInital);
-bool CheckIsCircles(LSelection selectedInital, LPoint * centerPoints);
+bool CheckIsCircles(LSelection selectedInital, LPoint *centerPoints);
 void DrawCircleAtShapeCenter();
 bool CircleCorssWire(LPoint p1, LPoint p2, LObject circleLike);

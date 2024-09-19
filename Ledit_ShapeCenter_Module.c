@@ -25,7 +25,7 @@ module ShapeCenter_Module
 #include "ldata.h" /* Main UPI header. */
 
     LPoint globalReferencePoint; // global
-    
+
     // swap two point
     void swap(LPoint * a, LPoint * b)
     {
