@@ -409,22 +409,28 @@ module Modifiy_Module
 		LCircle_Set(Cell_Now, circle, center, target_radius);
 	}
 
-	void Scale_Object(LObject selectedObject, double scaleFactor)
+	void Scale_Object(LObject selectedObject,LPoint polygonCenter, double scaleFactor)
 	{
 		LCell Cell_Now = LCell_GetVisible();
 		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, selectedObject);
-		long xLeft = WORLD_MAX;
-		long xRight = -WORLD_MAX;
-		long yBottom = WORLD_MAX;
-		long yTop = -WORLD_MAX;
-		GetObjectCoord(selectedObject, &xLeft, &xRight, &yBottom, &yTop);
-
-		LPoint polygonCenter = LPoint_Set((long)((xLeft + xRight) / 2), (long)((yBottom + yTop) / 2));
 
 		LShapeType selectedShapeType = LObject_GetShape(selectedObject);
 		// Function for selectedObject exmple get the left xcoord
 		switch (selectedShapeType)
 		{
+			case 0: // LBox
+			{
+			}
+			case 1: // LCircle
+			{
+				LPoint center = LCircle_GetCenter(selectedObject);
+				LCoord r = LCircle_GetRadius(selectedObject);
+				long point_x = (long)(polygonCenter.x + (center.x- polygonCenter.x)*scaleFactor);
+				long point_y = (long)(polygonCenter.y + (center.y- polygonCenter.y)*scaleFactor);
+				LPoint newPoint = LPoint_Set(point_x, point_y);
+				LCoord r_Scaled=(long)(r*scaleFactor);
+				LCircle_New(Cell_Now, LLayer_Now, newPoint, r_Scaled);
+			}
 			case 3: // LPolygon
 			{
 				LVertex vertex = LObject_GetVertexList(selectedObject);
@@ -446,12 +452,52 @@ module Modifiy_Module
 				LPolygon_New(Cell_Now, LLayer_Now, points, cnt);
 				break;
 			}
+			case 4: // LTorus
+			{
+				LTorusParams tParams;
+				LStatus lStatus = LTorus_GetParams(selectedObject, &tParams);
+				if (lStatus == 0)
+				{
+					/* Define parameters for a torus */
+					LTorusParams _tParams;
+					long point_x = (long)(polygonCenter.x + (tParams.ptCenter.x- polygonCenter.x)*scaleFactor);
+					long point_y = (long)(polygonCenter.y + (tParams.ptCenter.y- polygonCenter.y)*scaleFactor);
+					LPoint newPoint = LPoint_Set(point_x, point_y);
+
+					_tParams.ptCenter = newPoint;
+					_tParams.nInnerRadius = tParams.nInnerRadius*scaleFactor;
+					_tParams.nOuterRadius = tParams.nOuterRadius*scaleFactor;
+					_tParams.dStartAngle = tParams.dStartAngle;
+					_tParams.dStopAngle = tParams.dStopAngle;
+
+					LTorus_CreateNew(Cell_Now, LLayer_Now, &_tParams);
+				}
+			}
+			case 5: // LPie
+			{
+				LPieParams pParams;
+				LStatus lStatus = LPie_GetParams(selectedObject, &pParams);
+				if (lStatus == 0)
+				{
+					LPieParams _pParams;
+					long point_x = (long)(polygonCenter.x + (_pParams.ptCenter.x- polygonCenter.x)*scaleFactor);
+					long point_y = (long)(polygonCenter.y + (_pParams.ptCenter.y- polygonCenter.y)*scaleFactor);
+					LPoint newPoint = LPoint_Set(point_x, point_y);
+
+					_pParams.ptCenter = newPoint;
+					_pParams.nRadius = pParams.nRadius*scaleFactor;
+					_pParams.dStartAngle = pParams.dStartAngle;
+					_pParams.dStopAngle = pParams.dStopAngle;
+					
+					LPie_CreateNew(Cell_Now, LLayer_Now, &_pParams);
+				}
+			}
 			default:
 				break;
 		}
 	}
 
-	void Scale_Selected_Object(){
+	void Scale_SelectedObject_ByZero(){
 		LCell Cell_Now = LCell_GetVisible();
 		//****************************Input Params****************************//
 		LDialogItem Dialog_Items[1] = {{"Scale Factor (>0)", "1"}};
@@ -470,7 +516,40 @@ module Modifiy_Module
 		while (selectedInital != NULL)
 		{
 			LObject selectedObject = LSelection_GetObject(selectedInital);
-			Scale_Object(selectedObject, scaleFactor);
+			LPoint polygonCenter = LPoint_Set(0,0);
+			Scale_Object(selectedObject, polygonCenter, scaleFactor);
+			selectedInital = LSelection_GetNext(selectedInital);
+		}
+		LDisplay_Refresh();
+	}
+
+	void Scale_SelectedObject_ByObjectCenter(){
+		LCell Cell_Now = LCell_GetVisible();
+		//****************************Input Params****************************//
+		LDialogItem Dialog_Items[1] = {{"Scale Factor (>0)", "1"}};
+		double scaleFactor;
+		int keep;
+		if (LDialog_MultiLineInputBox("Scale Selected Object", Dialog_Items, 1))
+		{
+			scaleFactor = (double)(atof(Dialog_Items[0].value)); // get the Scale Factor
+		}
+		else
+		{
+			return;
+		}
+		//****************************Input Params****************************//
+		LSelection selectedInital = LSelection_GetList();
+		while (selectedInital != NULL)
+		{
+			LObject selectedObject = LSelection_GetObject(selectedInital);
+			long xLeft = WORLD_MAX;
+			long xRight = -WORLD_MAX;
+			long yBottom = WORLD_MAX;
+			long yTop = -WORLD_MAX;
+			GetObjectCoord(selectedObject, &xLeft, &xRight, &yBottom, &yTop);
+
+			LPoint polygonCenter = LPoint_Set((long)((xLeft + xRight) / 2), (long)((yBottom + yTop) / 2));
+			Scale_Object(selectedObject, polygonCenter, scaleFactor);
 			selectedInital = LSelection_GetNext(selectedInital);
 		}
 		LDisplay_Refresh();
@@ -561,7 +640,8 @@ module Modifiy_Module
 		LMacro_Register("Modifiy_Selected_Object_UnionSize_func", "Modifiy_Selected_Object_UnionSize");
 		LMacro_Register("Modifiy_Selected_Object_Offset", "Modifiy_Selected_Object_Offset");
 		LMacro_Register("Route_Circle_func", "Route_Circle");
-		LMacro_Register("Scale_Selected_Object_func","Scale_Selected_Object");
+		LMacro_Register("Scale_SelectedObject_ByObjectCenter_func","Scale_SelectedObject_ByObjectCenter");
+		LMacro_Register("Scale_SelectedObject_ByZero_func","Scale_SelectedObject_ByZero");
 	}
 } /* end of module Array_Module */
 
