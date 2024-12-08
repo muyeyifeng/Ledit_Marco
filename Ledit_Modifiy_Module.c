@@ -596,6 +596,112 @@ module Modifiy_Module
 		LDisplay_Refresh();
 	}
 
+	bool Compare_Objects(LObject object1, LObject lobject2)
+	{
+		if(LObject_GetShape(object1) != LObject_GetShape(object2))
+		{
+			return false;
+		}
+		switch (LObject_GetShape(object1))
+		{
+			case 0: // LBox
+			{
+				LRect rect1 = LBox_GetRect(object1);
+				LRect rect2 = LBox_GetRect(object2);
+				return rect1.x0 == rect2.x0 && rect1.x1 == rect2.x1 && rect1.y0 == rect2.y0 && rect1.y1 == rect2.y1;
+			}
+			case 1: // LCircle
+			{
+				LPoint center1 = LCircle_GetCenter(object1);
+				LCoord r1 = LCircle_GetRadius(object1);
+				LPoint center2 = LCircle_GetCenter(object2);
+				LCoord r2 = LCircle_GetRadius(object2);
+				return center1.x == center2.x && center1.y == center2.y && r1 == r2;
+			}
+			case 3: // LPolygon
+			{
+				LVertex vertex1 = LObject_GetVertexList(object1);
+				long cnt1 = LVertex_GetCount(object1);
+				LVertex vertex2 = LObject_GetVertexList(object2);
+				long cnt2 = LVertex_GetCount(object2);
+				if(cnt1 != cnt2) return false;
+
+				while (vertex1 != NULL)
+				{
+					LPoint point1 = LVertex_GetPoint(vertex1);
+					LPoint point2 = LVertex_GetPoint(vertex2);
+					if(point1.x != point2.x || point1.y != point2.y) return false;
+					vertex1 = LVertex_GetNext(vertex1);
+					vertex2 = LVertex_GetNext(vertex2);
+				}
+				return true;
+			}
+			case 4: // LTorus
+			{
+				LTorusParams tParams1;
+				LStatus lStatus1 = LTorus_GetParams(object1, &tParams1);
+
+				LTorusParams tParams2;
+				LStatus lStatus2 = LTorus_GetParams(object2, &tParams2);
+				if (lStatus1 == 0 && lStatus2 == 0)
+				{
+					return tParams1.ptCenter == tParams2.ptCenter && tParams1.nInnerRadius == tParams2.nInnerRadius && tParams1.nOuterRadius == tParams2.nOuterRadius && tParams1.dStartAngle == tParams2.dStartAngle && tParams1.dStopAngle == tParams2.dStopAngle;
+				}else{
+					return false
+				}
+			}
+			case 5: // LPie
+			{
+				LPieParams pParams1;
+				LStatus lStatus1 = LPie_GetParams(object1, &pParams1);
+				LPieParams pParams2;
+				LStatus lStatus2 = LPie_GetParams(object2, &pParams2);
+				if (lStatus1 == 0 && lStatus2 == 0)
+				{
+					return 	pParams1.ptCenter == pParams2.ptCenter && pParams1.nRadius == pParams2.nRadius && pParams1.dStartAngle == pParams2.dStartAngle && pParams1.dStopAngle == pParams2.dStopAngle;
+				}else{
+					return false;
+				}
+			}
+			default:
+				return false;
+		}
+	}
+
+	void Modifiy_Delete_Duplicates()
+	{
+		LCell Cell_Now = LCell_GetVisible();
+		//****************************Input Params****************************//
+		LSelection loop1SelectionPoint = LSelection_GetList();
+
+		LObject* selectedObjects;
+		selectedObjects = (LObject *)malloc(sizeof(LObject));
+		int j = 0;
+		while(loop1SelectionPoint != NULL)
+		{
+			LSelection loop2SelectionPoint = loop1SelectionPoint;
+			LObject loop1Object = LSelection_GetObject(loop1SelectionPoint);
+			while(loop2SelectionPoint != NULL)
+			{
+				LObject loop2Object = LSelection_GetObject(loop2SelectionPoint);
+				if(Compare_Objects(loop1Object,loop2Object))
+				{
+					selectedObjects[j]= loop2Object;
+					selectedObjects = (LObject *)realloc(selectedObjects, (j + 2) * sizeof(LObject));  // 将内存大小扩展到20个整数
+					j++;
+				}
+				loop2SelectionPoint = LSelection_GetNext(loop2SelectionPoint);
+			}
+			loop1SelectionPoint = LSelection_GetNext(loop1SelectionPoint);
+		}
+		int i;
+		for(i = 0;i < j; i++)
+		{
+			LObject_Delete(Cell_Now, selectedObjects[i]);
+		}
+		LDisplay_Refresh();
+	}
+
 	void Modifiy_Selected_Object_UnionSize()
 	{
 		LCell Cell_Now = LCell_GetVisible();
@@ -642,6 +748,7 @@ module Modifiy_Module
 		LMacro_Register("Route_Circle_func", "Route_Circle");
 		LMacro_Register("Scale_SelectedObject_ByObjectCenter_func","Scale_SelectedObject_ByObjectCenter");
 		LMacro_Register("Scale_SelectedObject_ByZero_func","Scale_SelectedObject_ByZero");
+		LMacro_Register("Modifiy_Delete_Duplicates_func","Modifiy_Delete_Duplicates");
 	}
 } /* end of module Array_Module */
 
