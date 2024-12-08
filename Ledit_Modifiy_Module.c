@@ -497,7 +497,8 @@ module Modifiy_Module
 		}
 	}
 
-	void Scale_SelectedObject_ByZero(){
+	void Scale_SelectedObject_ByZero()
+	{
 		LCell Cell_Now = LCell_GetVisible();
 		//****************************Input Params****************************//
 		LDialogItem Dialog_Items[1] = {{"Scale Factor (>0)", "1"}};
@@ -523,7 +524,8 @@ module Modifiy_Module
 		LDisplay_Refresh();
 	}
 
-	void Scale_SelectedObject_ByObjectCenter(){
+	void Scale_SelectedObject_ByObjectCenter()
+	{
 		LCell Cell_Now = LCell_GetVisible();
 		//****************************Input Params****************************//
 		LDialogItem Dialog_Items[1] = {{"Scale Factor (>0)", "1"}};
@@ -596,7 +598,7 @@ module Modifiy_Module
 		LDisplay_Refresh();
 	}
 
-	bool Compare_Objects(LObject object1, LObject lobject2)
+	bool Compare_Objects(LObject object1, LObject object2)
 	{
 		if(LObject_GetShape(object1) != LObject_GetShape(object2))
 		{
@@ -645,9 +647,9 @@ module Modifiy_Module
 				LStatus lStatus2 = LTorus_GetParams(object2, &tParams2);
 				if (lStatus1 == 0 && lStatus2 == 0)
 				{
-					return tParams1.ptCenter == tParams2.ptCenter && tParams1.nInnerRadius == tParams2.nInnerRadius && tParams1.nOuterRadius == tParams2.nOuterRadius && tParams1.dStartAngle == tParams2.dStartAngle && tParams1.dStopAngle == tParams2.dStopAngle;
+					return tParams1.ptCenter.x == tParams2.ptCenter.x && tParams1.ptCenter.y == tParams2.ptCenter.y && tParams1.nInnerRadius == tParams2.nInnerRadius && tParams1.nOuterRadius == tParams2.nOuterRadius && tParams1.dStartAngle == tParams2.dStartAngle && tParams1.dStopAngle == tParams2.dStopAngle;
 				}else{
-					return false
+					return false;
 				}
 			}
 			case 5: // LPie
@@ -658,7 +660,7 @@ module Modifiy_Module
 				LStatus lStatus2 = LPie_GetParams(object2, &pParams2);
 				if (lStatus1 == 0 && lStatus2 == 0)
 				{
-					return 	pParams1.ptCenter == pParams2.ptCenter && pParams1.nRadius == pParams2.nRadius && pParams1.dStartAngle == pParams2.dStartAngle && pParams1.dStopAngle == pParams2.dStopAngle;
+					return 	pParams1.ptCenter.x == pParams2.ptCenter.x && pParams1.ptCenter.y == pParams2.ptCenter.y && pParams1.nRadius == pParams2.nRadius && pParams1.dStartAngle == pParams2.dStartAngle && pParams1.dStopAngle == pParams2.dStopAngle;
 				}else{
 					return false;
 				}
@@ -679,15 +681,18 @@ module Modifiy_Module
 		int j = 0;
 		while(loop1SelectionPoint != NULL)
 		{
-			LSelection loop2SelectionPoint = loop1SelectionPoint;
 			LObject loop1Object = LSelection_GetObject(loop1SelectionPoint);
+
+			LSelection loop2SelectionPoint = loop1SelectionPoint;
+			loop2SelectionPoint = LSelection_GetNext(loop2SelectionPoint);
 			while(loop2SelectionPoint != NULL)
 			{
 				LObject loop2Object = LSelection_GetObject(loop2SelectionPoint);
 				if(Compare_Objects(loop1Object,loop2Object))
 				{
+					//LDialog_MsgBox(LFormat("object1: %d, object2: %d", LObject_GetShape(loop1Object), LObject_GetShape(loop2Object)));
 					selectedObjects[j]= loop2Object;
-					selectedObjects = (LObject *)realloc(selectedObjects, (j + 2) * sizeof(LObject));  // 将内存大小扩展到20个整数
+					selectedObjects = (LObject *)realloc(selectedObjects, (j + 2) * sizeof(LObject));  // 将内存大小扩展
 					j++;
 				}
 				loop2SelectionPoint = LSelection_GetNext(loop2SelectionPoint);
