@@ -746,14 +746,32 @@ module Modifiy_Module
 		LDisplay_Refresh();
 	}
 
+	void TestFunc()
+	{
+		LCell Cell_Now = LCell_GetVisible();
+		LFile File_Now = LCell_GetFile(Cell_Now);
+		LPoint zero = LPoint_Set(0,0);
+		LSelection selectedInital = LSelection_GetList();
+		while (selectedInital != NULL)
+		{
+			LObject selectedObject = LSelection_GetObject(selectedInital);
+			LCoord distance = LObject_DistanceToPoint(selectedObject, zero, File_Now);
+			LCoord a = WORLD_MAX + distance;
+			double c =1.0*distance;
+			LDialog_AlertBox(LFormat("distance: %ld, %ld, %ld, %f", distance, WORLD_MAX, a ,c));
+			selectedInital = LSelection_GetNext(selectedInital);
+		}
+	}
+
 	void Modifiy_func(void)
 	{
 		LMacro_Register("Modifiy_Selected_Object_UnionSize_func", "Modifiy_Selected_Object_UnionSize");
 		LMacro_Register("Modifiy_Selected_Object_Offset", "Modifiy_Selected_Object_Offset");
+		LMacro_Register("Modifiy_Delete_Duplicates_func","Modifiy_Delete_Duplicates");
 		LMacro_Register("Route_Circle_func", "Route_Circle");
 		LMacro_Register("Scale_SelectedObject_ByObjectCenter_func","Scale_SelectedObject_ByObjectCenter");
 		LMacro_Register("Scale_SelectedObject_ByZero_func","Scale_SelectedObject_ByZero");
-		LMacro_Register("Modifiy_Delete_Duplicates_func","Modifiy_Delete_Duplicates");
+		LMacro_Register("TestFunc_func","TestFunc");
 	}
 } /* end of module Array_Module */
 
