@@ -1211,6 +1211,101 @@ module Array_Module
 		return LPoint_Set(mirrorx, mirrory);
 	}
 
+	void Diffusion_Selected_Object_ByOffset()
+	{
+		LCell Cell_Now = LCell_GetVisible();
+		//****************************Input Params****************************//
+		LDialogItem Dialog_Items[3] = {	{"Offset (um) (Inf)", "0"},
+										{"Center Coord X (um)","0"},
+										{"Center Coord Y (um)","0"}};
+		double offset;
+		double center_x,center_y;
+		int keep;
+		if (LDialog_MultiLineInputBox("Scale Selected Object", Dialog_Items, 3))
+		{
+			offset = (double)(atof(Dialog_Items[0].value)); // get the Scale Factor
+			center_x = (double)(atof(Dialog_Items[1].value));
+			center_y = (double)(atof(Dialog_Items[2].value));
+		}
+		else
+		{
+			return;
+		}
+		//****************************Input Params****************************//
+		LSelection selectedInital = LSelection_GetList();
+		while (selectedInital != NULL)
+		{
+			LObject selectedObject = LSelection_GetObject(selectedInital);
+			LPoint polygonCenter = LPoint_Set((long)(center_x*1000),(long)(center_y*1000));
+			long box[4];
+			box[0] = WORLD_MAX;	 // x0
+			box[1] = WORLD_MAX;	 // y0
+			box[2] = -WORLD_MAX; // x1
+			box[3] = -WORLD_MAX; // y1
+			GetObjectCoord(selectedObject, box);
+			//calculate object center (box)
+			long objectCenterX = (box[2]+box[0])/2;
+			long objectCenterY = (box[3]+box[1])/2;
+			long vectoryX = objectCenterX-(long)(center_x*1000);
+			long vectoryY = objectCenterY-(long)(center_y*1000);
+			double angle = atan2(vectoryY, vectoryX);
+			long xOffset = cos(angle)*offset*1000;
+			long yOffset = sin(angle)*offset*1000;
+			CopyObject(selectedObject, xOffset, yOffset);
+
+			selectedInital = LSelection_GetNext(selectedInital);
+		}
+		LDisplay_Refresh();
+	}
+
+	void Diffusion_Selected_Object_ByRadius()
+	{
+		LCell Cell_Now = LCell_GetVisible();
+		//****************************Input Params****************************//
+		LDialogItem Dialog_Items[3] = {	{"Radius (um) (Inf)", "0"},
+										{"Center Coord X (um)","0"},
+										{"Center Coord Y (um)","0"}};
+		double radius;
+		double center_x,center_y;
+		int keep;
+		if (LDialog_MultiLineInputBox("Scale Selected Object", Dialog_Items, 3))
+		{
+			radius = (double)(atof(Dialog_Items[0].value)); // get the Scale Factor
+			center_x = (double)(atof(Dialog_Items[1].value));
+			center_y = (double)(atof(Dialog_Items[2].value));
+		}
+		else
+		{
+			return;
+		}
+		//****************************Input Params****************************//
+		LSelection selectedInital = LSelection_GetList();
+		while (selectedInital != NULL)
+		{
+			LObject selectedObject = LSelection_GetObject(selectedInital);
+			LPoint polygonCenter = LPoint_Set((long)(center_x*1000),(long)(center_y*1000));
+			long box[4];
+			box[0] = WORLD_MAX;	 // x0
+			box[1] = WORLD_MAX;	 // y0
+			box[2] = -WORLD_MAX; // x1
+			box[3] = -WORLD_MAX; // y1
+			GetObjectCoord(selectedObject, box);
+			//calculate object center (box)
+			long objectCenterX = (box[2]+box[0])/2;
+			long objectCenterY = (box[3]+box[1])/2;
+			long vectoryX = objectCenterX-(long)(center_x*1000);
+			long vectoryY = objectCenterY-(long)(center_y*1000);
+			double distanceToCenter=sqrt(1.0 * vectoryX * vectoryX + 1.0 * vectoryY * vectoryY);
+			double angle = atan2(vectoryY, vectoryX);
+			long xOffset = cos(angle)*(radius*1000-distanceToCenter);
+			long yOffset = sin(angle)*(radius*1000-distanceToCenter);
+			CopyObject(selectedObject, xOffset, yOffset);
+
+			selectedInital = LSelection_GetNext(selectedInital);
+		}
+		LDisplay_Refresh();
+	}
+
 	void Array_func(void)
 	{
 		// LMacro_BindToMenu( const char* menu, const char* macro_desc, const char* function_name );
@@ -1222,6 +1317,8 @@ module Array_Module
 		LMacro_Register("ArrayInObjectByRing_func", "ArrayInObjectByRing");
 		LMacro_Register("RotateObjectsByPoint_func", "RotateObjectsByPoint");
 		LMacro_Register("MirrorObjectsByPointAndRad_func", "MirrorObjectsByPointAndRad");
+		LMacro_Register("Diffusion_Selected_Object_ByOffset_func","Diffusion_Selected_Object_ByOffset");
+		LMacro_Register("Diffusion_Selected_Object_ByRadius_func","Diffusion_Selected_Object_ByRadius");
 	}
 } /* end of module Array_Module */
 

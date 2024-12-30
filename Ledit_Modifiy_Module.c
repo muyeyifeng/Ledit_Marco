@@ -497,16 +497,21 @@ module Modifiy_Module
 		}
 	}
 
-	void Scale_SelectedObject_ByZero()
+	void Scale_SelectedObject_SetCenter()
 	{
 		LCell Cell_Now = LCell_GetVisible();
 		//****************************Input Params****************************//
-		LDialogItem Dialog_Items[1] = {{"Scale Factor (>0)", "1"}};
+		LDialogItem Dialog_Items[3] = {	{"Scale Factor (>0)", "1"},
+										{"Center Coord X (um)","0"},
+										{"Center Coord Y (um)","0"}};
 		double scaleFactor;
+		double center_x,center_y;
 		int keep;
-		if (LDialog_MultiLineInputBox("Scale Selected Object", Dialog_Items, 1))
+		if (LDialog_MultiLineInputBox("Scale Selected Object", Dialog_Items, 3))
 		{
 			scaleFactor = (double)(atof(Dialog_Items[0].value)); // get the Scale Factor
+			center_x = (double)(atof(Dialog_Items[1].value));
+			center_y = (double)(atof(Dialog_Items[2].value));
 		}
 		else
 		{
@@ -517,7 +522,7 @@ module Modifiy_Module
 		while (selectedInital != NULL)
 		{
 			LObject selectedObject = LSelection_GetObject(selectedInital);
-			LPoint polygonCenter = LPoint_Set(0,0);
+			LPoint polygonCenter = LPoint_Set((long)(center_x*1000),(long)(center_y*1000));
 			Scale_Object(selectedObject, polygonCenter, scaleFactor);
 			selectedInital = LSelection_GetNext(selectedInital);
 		}
@@ -763,6 +768,8 @@ module Modifiy_Module
 		}
 	}
 
+
+
 	void Modifiy_func(void)
 	{
 		LMacro_Register("Modifiy_Selected_Object_UnionSize_func", "Modifiy_Selected_Object_UnionSize");
@@ -770,7 +777,7 @@ module Modifiy_Module
 		LMacro_Register("Modifiy_Delete_Duplicates_func","Modifiy_Delete_Duplicates");
 		LMacro_Register("Route_Circle_func", "Route_Circle");
 		LMacro_Register("Scale_SelectedObject_ByObjectCenter_func","Scale_SelectedObject_ByObjectCenter");
-		LMacro_Register("Scale_SelectedObject_ByZero_func","Scale_SelectedObject_ByZero");
+		LMacro_Register("Scale_SelectedObject_SetCenter_func","Scale_SelectedObject_SetCenter");
 		LMacro_Register("TestFunc_func","TestFunc");
 	}
 } /* end of module Array_Module */
