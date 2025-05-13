@@ -387,24 +387,86 @@ module Special_Polygon_Module
         LShapeType objectShape = LObject_GetShape(circleLike);
         switch (objectShape)
         {
-        case 1: // LCircle
+            case 1: // LCircle
+            {
+                return;
+            }
+            case 4: // LTorus
+            {
+                return;
+            }
+            case 5: // LPie
+            {
+                return;
+            }
+        }
+    }
+
+    double GetPointDistance(LPoint point1, LPoint point2)
+	{
+		return sqrt((double)(point1.x - point2.x) * (double)(point1.x - point2.x) + (double)(point1.y - point2.y) * (point1.y - point2.y));
+	}
+
+    LObject* Select_Boundry_Object(LSelection selectedInital, long search_radius)
+	{
+		//LSelection selectedInital = LSelection_GetList();
+        while (selectedInital != NULL)
+		{
+			LObject selectedObject = LSelection_GetObject(selectedInital);
+			LShapeType selectedShapeType = LObject_GetShape(selectedObject);
+            if(selectedShapeType != 1)
+                return;
+			selectedInital = LSelection_GetNext(selectedInital);
+		}
+
+        selectedInital = LSelection_GetList();
+        int objectNum = LSelection_GetNumber(selectedInital);
+        LObject* objects = (LObject *)malloc(objectNum * sizeof(LObject));
+
+        int i, j;
+        for(i = 0; i < objectNum; i++)
         {
-            return;
+            objects[i] = LSelection_GetObject(selectedInital);
+            selectedInital = LSelection_GetNext(selectedInital);
         }
-        case 4: // LTorus
+
+        LSelection_DeselectAll();
+        
+        LObject* boundryObjects = (LObject *)malloc(objectNum * sizeof(LObject));
+        int boundryObjectNum = 0;
+        for(i = 0; i < objectNum; i++)
         {
-            return;
+            int counter = 0;
+            LObject object1 = objects[i];
+            LPoint center1 = LCircle_GetCenter(object1);
+            for(j = 0; j < objectNum; j++)
+            {
+                LObject object2 = objects[j];
+                LPoint center2 = LCircle_GetCenter(object2);
+                if(GetPointDistance(center1, center2) < search_radius){
+                    counter++;
+                }
+            }
+            if(counter < 7){
+                boundryObjects[boundryObjectNum] = object1;
+                boundryObjectNum++;
+                LSelection_AddObject(object1);
+            }
+            counter = 0;
         }
-        case 5: // LPie
-        {
-            return;
-        }
-        }
+		LDisplay_Refresh();
+	}
+
+    void Select_Boundry_Circles()
+    {
+        LSelection selectedInital = LSelection_GetList();
+        Select_Boundry_Object(selectedInital, 1000*50);
     }
 
     void SpecialPolygon_func(void)
     {
         LMacro_Register("DrawTangentRing_func", "DrawTangentRing");
+        LMacro_Register("Select_Boundry_Circles_func", "Select_Boundry_Circles");
     }
 } /* end of module Special_Polygon_Module */
 
