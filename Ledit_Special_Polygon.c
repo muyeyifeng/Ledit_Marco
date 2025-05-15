@@ -459,8 +459,20 @@ module Special_Polygon_Module
 
     void Select_Boundry_Circles()
     {
+        //****************************Input Params****************************//
+		LDialogItem Dialog_Items[1] = {	{"Radius (um) (Inf)", "0"}};
+		double search_radius;
+		if (LDialog_MultiLineInputBox("Select Boundry Circles", Dialog_Items, 1))
+		{
+			search_radius = (long)(atof(Dialog_Items[0].value) * 1000); // get the Scale Factor
+		}
+		else
+		{
+			return;
+		}
+		//****************************Input Params****************************//
         LSelection selectedInital = LSelection_GetList();
-        Select_Boundry_Object(selectedInital, 1000*50);
+        Select_Boundry_Object(selectedInital, search_radius);
     }
 
     void SpecialPolygon_func(void)
