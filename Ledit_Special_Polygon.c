@@ -475,10 +475,142 @@ module Special_Polygon_Module
         Select_Boundry_Object(selectedInital, search_radius);
     }
 
+    bool Find_Next_Circle(LObject* orderedObjects, int orderedObjectNum, LObject* objects, int objectNum, double search_max_radius, double search_min_radius)
+    {
+        int i;
+        LObject thisObject = orderedObjects[orderedObjectNum - 1];
+        LPoint center1 = LCircle_GetCenter(thisObject);
+        for( i = 0; i < objectNum; i++)
+        {
+            LPoint center2 = LCircle_GetCenter(objects[i]);
+            if(GetPointDistance(center1, center2) < search_max_radius && GetPointDistance(center1, center2) > search_min_radius)
+            {
+                orderedObjects[orderedObjectNum] = objects[i];
+                orderedObjectNum++;
+                if(Find_Next_Circle(orderedObjects, orderedObjectNum, objects, objectNum, search_max_radius, search_min_radius))
+                {
+                    return true;
+                }
+                else
+                {
+                    orderedObjectNum--;
+                }
+            }
+            if(orderedObjectNum == objectNum)
+            {
+                LPoint firstObjectCenter = LCircle_GetCenter(orderedObjects[0]);
+                LPoint lastObjectCenter = LCircle_GetCenter(orderedObjects[orderedObjectNum - 1]);
+                double distance = GetPointDistance(firstObjectCenter, lastObjectCenter);
+                if(distance < search_max_radius && distance > search_min_radius)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+                
+            }
+        }
+        return false;
+    }
+
+    void Order_Circle(LObject* objects, int objectNum)
+    {
+        
+        //put the left bottom circle to the first
+        int i;
+        for( i = 1; i < objectNum; i++)
+        {
+            LPoint center1 = LCircle_GetCenter(objects[0]);
+            LPoint center2 = LCircle_GetCenter(objects[i]);
+            if(center1.x > center2.x || (center1.x == center2.x && center1.y > center2.y))
+            {
+                LObject temp = objects[0];
+                objects[0] = objects[i];
+                objects[i] = temp;
+            }
+        }
+        
+        //get the minimun circle distance
+        double minDistance = WORLD_MAX;
+        for(i = 1; i < objectNum; i++)
+        {
+            LPoint center1 = LCircle_GetCenter(objects[0]);
+            LPoint center2 = LCircle_GetCenter(objects[i]);
+            double distance = GetPointDistance(center1, center2);
+            if(distance < minDistance)
+            {
+                minDistance = distance;
+            }
+        }
+
+        double search_max_radius = minDistance * 1.2;
+        double search_min_radius = minDistance * 0.8;
+
+        // create a new array to store the ordered circles
+        LObject* orderedObjects = (LObject *)malloc(objectNum * sizeof(LObject));
+        orderedObjects[0] = objects[0];
+        int orderedObjectNum = 1;
+        Find_Next_Circle(orderedObjects, orderedObjectNum, objects, objectNum, search_max_radius, search_min_radius);
+        
+        //deselect all objects
+        LSelection_DeselectAll();
+        // test: change the size of the selected objects by order
+        LCell Cell_Now = LCell_GetVisible();
+        for(i = 0; i < objectNum; i++)
+        {   
+            LObject object = orderedObjects[i];
+            LPoint center = LCircle_GetCenter(object);
+            long radius = LCircle_GetRadius(object);
+            radius = radius + 1000*i;
+            LCircle_Set(Cell_Now, object, center, radius);
+        }
+    }
+
+    void Order_Boundry_Circles()
+    {
+        //****************************Input Params****************************//
+		// LDialogItem Dialog_Items[1] = {	{"Radius (um) (Inf)", "0"}};
+		// double search_radius;
+		// if (LDialog_MultiLineInputBox("Select Boundry Circles", Dialog_Items, 1))
+		// {
+		// 	search_radius = (long)(atof(Dialog_Items[0].value) * 1000); // get the Scale Factor
+		// }
+		// else
+		// {
+		// 	return;
+		// }
+		//****************************Input Params****************************//
+        LSelection selectedInital = LSelection_GetList();
+        while (selectedInital != NULL)
+		{
+			LObject selectedObject = LSelection_GetObject(selectedInital);
+			LShapeType selectedShapeType = LObject_GetShape(selectedObject);
+            if(selectedShapeType != 1)
+                return;
+			selectedInital = LSelection_GetNext(selectedInital);
+		}
+
+        selectedInital = LSelection_GetList();
+        int objectNum = LSelection_GetNumber(selectedInital);
+        LObject* objects = (LObject *)malloc(objectNum * sizeof(LObject));
+
+        int i, j;
+        for(i = 0; i < objectNum; i++)
+        {
+            objects[i] = LSelection_GetObject(selectedInital);
+            selectedInital = LSelection_GetNext(selectedInital);
+        }
+        Order_Circle(objects, objectNum);
+    }
+
+
     void SpecialPolygon_func(void)
     {
         LMacro_Register("DrawTangentRing_func", "DrawTangentRing");
         LMacro_Register("Select_Boundry_Circles_func", "Select_Boundry_Circles");
+        LMacro_Register("Order_Boundry_Circles_func", "Order_Boundry_Circles");
     }
 } /* end of module Special_Polygon_Module */
 
