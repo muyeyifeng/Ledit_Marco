@@ -477,12 +477,26 @@ module Special_Polygon_Module
 
     bool Find_Next_Circle(LObject* orderedObjects, int orderedObjectNum, LObject* objects, int objectNum, double search_max_radius, double search_min_radius)
     {
-        int i;
+        //LDialog_MsgBox(LFormat("find_level %d", orderedObjectNum));
+        //debug
+        if(orderedObjectNum > objectNum)return false;
+        int i,j;
         LObject thisObject = orderedObjects[orderedObjectNum - 1];
         LPoint center1 = LCircle_GetCenter(thisObject);
         for( i = 0; i < objectNum; i++)
         {
             LPoint center2 = LCircle_GetCenter(objects[i]);
+            bool isExist = false;
+            for( j = 0; j < orderedObjectNum; j++)
+            {
+                LPoint center3 = LCircle_GetCenter(orderedObjects[j]);
+                if(center3.x == center2.x && center3.y == center2.y)
+                {
+                    isExist=true;
+                    break;
+                }
+            }
+            if(isExist) continue;
             if(GetPointDistance(center1, center2) < search_max_radius && GetPointDistance(center1, center2) > search_min_radius)
             {
                 orderedObjects[orderedObjectNum] = objects[i];
@@ -496,10 +510,11 @@ module Special_Polygon_Module
                     orderedObjectNum--;
                 }
             }
-            if(orderedObjectNum == objectNum)
+            if(orderedObjectNum == objectNum - 1)
             {
+                //LDialog_MsgBox(LFormat("find_level %d", orderedObjectNum));
                 LPoint firstObjectCenter = LCircle_GetCenter(orderedObjects[0]);
-                LPoint lastObjectCenter = LCircle_GetCenter(orderedObjects[orderedObjectNum - 1]);
+                LPoint lastObjectCenter = LCircle_GetCenter(orderedObjects[orderedObjectNum]);
                 double distance = GetPointDistance(firstObjectCenter, lastObjectCenter);
                 if(distance < search_max_radius && distance > search_min_radius)
                 {
@@ -509,13 +524,28 @@ module Special_Polygon_Module
                 {
                     return false;
                 }
-                
             }
         }
         return false;
     }
+    
+    LPoint CalculateCentroid(LPoint * points, int n)
+    {
+        // Find the bottom and leftmost point as the pole
+        long xSum = 0, ySum = 0;
+        int i;
+        for (i = 0; i < n; i++)
+        {
+          xSum += points[i].x;
+          ySum += points[i].y;
+        }
 
-    void Order_Circle(LObject* objects, int objectNum)
+        // Return centroid coordinates
+        LPoint centroid = LPoint_Set((long)(xSum / n), (long)(ySum / n));
+        return centroid;
+    }
+
+    void Order_Circle(LObject* objects, int objectNum, long innerDistance, long outterDistance, long standerRadius)
     {
         
         //put the left bottom circle to the first
@@ -531,7 +561,7 @@ module Special_Polygon_Module
                 objects[i] = temp;
             }
         }
-        
+        //LDialog_MsgBox(LFormat("objects.x: %d, objects.y: %d", LCircle_GetCenter(objects[0]).x, LCircle_GetCenter(objects[0]).y));
         //get the minimun circle distance
         double minDistance = WORLD_MAX;
         for(i = 1; i < objectNum; i++)
@@ -548,41 +578,312 @@ module Special_Polygon_Module
         double search_max_radius = minDistance * 1.2;
         double search_min_radius = minDistance * 0.8;
 
+        //LDialog_MsgBox(LFormat("search_max_radius: %f, search_min_radius: %f", search_max_radius, search_min_radius));
         // create a new array to store the ordered circles
         LObject* orderedObjects = (LObject *)malloc(objectNum * sizeof(LObject));
         orderedObjects[0] = objects[0];
         int orderedObjectNum = 1;
-        Find_Next_Circle(orderedObjects, orderedObjectNum, objects, objectNum, search_max_radius, search_min_radius);
-        
-        //deselect all objects
-        LSelection_DeselectAll();
-        // test: change the size of the selected objects by order
-        LCell Cell_Now = LCell_GetVisible();
-        for(i = 0; i < objectNum; i++)
-        {   
-            LObject object = orderedObjects[i];
-            LPoint center = LCircle_GetCenter(object);
-            long radius = LCircle_GetRadius(object);
-            radius = radius + 1000*i;
-            LCircle_Set(Cell_Now, object, center, radius);
+        bool findSatus = Find_Next_Circle(orderedObjects, orderedObjectNum, objects, objectNum, search_max_radius, search_min_radius);
+        if(!findSatus)
+        {
+            LDialog_MsgBox("Order Fail");
+            return;
         }
+        //calcu
+        LPoint *centerPoints;
+        centerPoints = (LPoint *)malloc((objectNum) * sizeof(LPoint));
+        CheckIsCircles(objects, objectNum, centerPoints);
+        LPoint center ;
+        center = CalculateCentroid(centerPoints, objectNum);
+
+        Draw_Boundry(orderedObjects, objectNum, innerDistance, outterDistance, standerRadius, (long)minDistance, center);        
+    }
+
+    int Calculate_Outside_Circle(LPoint A, LPoint B, long L, LPoint* results)
+    {
+        // 检查L是否为正
+        if (L < 0) {
+            return 0; // 距离不能为负
+        }
+
+        double dx = B.x - A.x;
+        double dy = B.y - A.y;
+
+        // 计算AB两点之间的距离的平方
+        double d_AB_sq = dx * dx + dy * dy;
+
+        // 如果两点重合，没有明确的垂直平分线
+        if (d_AB_sq < 1e-9) { // 使用一个小的 epsilon 值来比较浮点数是否接近0
+            // 如果L为0，则P就是A点，但通常这种情况不满足"垂直平分线"的定义
+            // 如果L不为0，则无解
+            return 0;
+        }
+
+        double d_AB = sqrt(d_AB_sq);
+
+        // 检查L是否足够大，确保有解
+        // L必须大于或等于AB长度的一半
+        if (L * L < d_AB_sq / 4.0 - 1e-9) { // L^2 < (AB/2)^2 => L < AB/2
+            return 0; // 无解
+        }
+
+        // 计算AB的中点M
+        LPoint M;
+        M.x = (A.x + B.x) / 2.0;
+        M.y = (A.y + B.y) / 2.0;
+
+        // 计算PM的长度（M到P的距离）
+        double d_M_sq = L * L - d_AB_sq / 4.0;
+        double d_M = sqrt(d_M_sq);
+
+        // 单位方向向量 (垂直于AB)
+        // 向量AB: (dx, dy)
+        // 垂直向量: (-dy, dx) 或 (dy, -dx)
+        double unit_perp_x1 = -dy / d_AB;
+        double unit_perp_y1 = dx / d_AB;
+
+        double unit_perp_x2 = dy / d_AB;
+        double unit_perp_y2 = -dx / d_AB;
+
+        // 计算第一个解P1
+        results[0].x = (long)(M.x + d_M * unit_perp_x1);
+        results[0].y = (long)(M.y + d_M * unit_perp_y1);
+
+        // 计算第二个解P2
+        results[1].x = (long)(M.x + d_M * unit_perp_x2);
+        results[1].y = (long)(M.y + d_M * unit_perp_y2);
+
+        // 理论上，如果L == d_AB / 2，那么d_M将为0，两个点会重合。
+        // 但是在浮点数计算中，直接比较可能不准确，所以我们总是返回2个点，
+        // 调用者可以检查这两个点是否重合。
+        if (d_M < 1e-9) { // 如果PM长度接近0，则只有一个解（两个点重合）
+            return 1;
+        }
+        return 2;
+    }
+
+    bool CheckIsCircles(LObject* objects, int objectNum, LPoint * centerPoints)
+    {
+        int i;
+        for( i = 0 ; i< objectNum ; i++)
+        {
+            LObject object1 = objects[i];
+            if (LObject_GetShape(object1) != 1)
+            {
+                return false;
+            }
+            LPoint center = LCircle_GetCenter(object1);
+            centerPoints[i] = center;
+        }
+        return true;
+    }
+
+    double calculateAngleP1ToP2(LPoint P1, LPoint P2) 
+    {
+        // 构建从 P1 到 P2 的向量
+        double vec_x = P2.x - P1.x;
+        double vec_y = P2.y - P1.y;
+
+        // 计算向量与正x轴的夹角 (弧度, 范围 -PI 到 PI)
+        // atan2(y, x)
+        double angle_rad = atan2(vec_y, vec_x);
+
+        // 将弧度转换为度数
+        double angle_degrees = angle_rad * 180.0 / M_PI;
+
+        return angle_degrees;
+    }
+    
+    double normalize_angle(double angle) {
+        while (angle <= -180.0) angle += 360.0;
+        while (angle > 180.0) angle -= 360.0;
+        return angle;
+    }
+
+    void Draw_Boundry(LObject* orderedObjects, int orderedObjectNum, long innerDistance, long outterDistance, long standerRadius, long minDistance, LPoint shapeCenter)
+    {
+        LCell Cell_Now = LCell_GetVisible();
+        LLayer LLayer_Now = LObject_GetLayer(Cell_Now, orderedObjects[0]);
+        double startAngle = -135; // start from left bottom circle
+        double angle1, angle2;
+        int i,j;
+        int currentSize = 0;
+        int capacity = 1000;
+        LPoint* totalPolygon = (LPoint*)malloc(capacity * sizeof(LPoint));
+        for( i = 0 ;i < orderedObjectNum; i++)
+        {
+            LPoint circle1 = LCircle_GetCenter(orderedObjects[i % orderedObjectNum]);
+            long radius1 = LCircle_GetRadius(orderedObjects[i % orderedObjectNum]);
+            LPoint circle2 = LCircle_GetCenter(orderedObjects[(i+1) % orderedObjectNum]);
+            long radius2 = LCircle_GetRadius(orderedObjects[(i+1) % orderedObjectNum]);
+            long L = innerDistance + outterDistance + standerRadius * 2;
+            //LDialog_MsgBox(LFormat("x1: %d, y1: %d\nx2: %d, y2: %d",circle1.x,circle1.y,circle2.x,circle2.y));
+            LPoint results1[2];
+            int resultNum = Calculate_Outside_Circle(circle1, circle2, L, results1);
+            //LDialog_MsgBox(LFormat("resultNum1: %d",resultNum));
+            LPoint result1;
+            if(resultNum == 0) continue;
+            if(resultNum == 1) result1 = results1[0];
+            if(resultNum == 2)
+            {
+                result1 = GetPointDistance(shapeCenter, results1[0]) > GetPointDistance(shapeCenter, results1[1]) ? results1[0] :  results1[1];
+            } 
+            //LDialog_MsgBox(LFormat("x1: %d, y1: %d",result1.x,result1.y));
+
+            LPoint circle3 = LCircle_GetCenter(orderedObjects[(i+2) % orderedObjectNum]);
+            long radius3 = LCircle_GetRadius(orderedObjects[(i+2) % orderedObjectNum]);
+            LPoint results2[2];
+            resultNum = Calculate_Outside_Circle(circle2, circle3, L, results2);
+            //LDialog_MsgBox(LFormat("resultNum2: %d",resultNum));
+            LPoint result2;
+            if(resultNum == 0) continue;
+            if(resultNum == 1) result2 = results2[0];
+            if(resultNum == 2)
+            {
+                result2 = GetPointDistance(shapeCenter, results2[0]) > GetPointDistance(shapeCenter, results2[1]) ? results2[0] :  results2[1];
+            } 
+
+
+            LPoint* part1;
+            LPoint* part2;
+            if(GetPointDistance(result1, result2) < minDistance * 0.9 ) 
+            {
+                LPoint results3[2];
+                LPoint result3;
+                resultNum = Calculate_Outside_Circle(circle1, circle3, L, results3);
+                if(resultNum == 0) continue;
+                if(resultNum == 1) result3 = results3[0];
+                if(resultNum == 2)
+                {
+                    result3 = GetPointDistance(shapeCenter, results3[0]) > GetPointDistance(shapeCenter, results3[1]) ? results3[0] :  results3[1];
+                } 
+                // LCircle_New(Cell_Now, LLayer_Now, result3, standerRadius);
+                
+                angle1 = calculateAngleP1ToP2(circle1, result3);    
+                angle2 = calculateAngleP1ToP2(circle3, result3);
+                //LDialog_MsgBox(LFormat("a1: %f, a2: %f, a3: %f", startAngle, angle1, angle2));
+                double _angle1 = normalize_angle(angle1 + 180);
+                double _angle2 = normalize_angle(angle2 + 180);
+                //start - >angle1
+                //_angle1 -> _angle2
+                //
+                int cnt1 = calculate_arc_points(circle1.x, circle1.y, radius1 + innerDistance, startAngle, angle1, &part1);
+                //LPolygon_New(Cell_Now, LLayer_Now, part1, cnt1);
+                int cnt2 = calculate_arc_points(result3.x, result3.y, radius1 + outterDistance, _angle1, _angle2, &part2);
+                //LPolygon_New(Cell_Now, LLayer_Now, part2, cnt2);
+                if(capacity < 1.5 * (cnt1 + cnt2 + currentSize))
+                {
+                    int newCapacity = 1.5 * (cnt1 + cnt2 + currentSize);
+                    LPoint* tempArray = (LPoint*)realloc(totalPolygon, newCapacity * sizeof(LPoint));
+                    totalPolygon = tempArray; // 更新指针指向新的内存区域
+                    capacity = newCapacity;   // 更新容量
+                }
+
+                // 添加新的元素
+                for (j = 0; j < cnt1 ; j++) {
+                    totalPolygon[currentSize] = part1[j];
+                    currentSize++;
+                }
+
+                for (j = 0; j < cnt2 ; j++) {
+                    totalPolygon[currentSize] = part2[j];
+                    currentSize++;
+                }
+
+                startAngle = angle2;
+                i++;
+                continue;
+                //special area
+            }; 
+            angle1 = calculateAngleP1ToP2(circle1, result1);
+            angle2 = calculateAngleP1ToP2(circle2, result1);
+            //LDialog_MsgBox(LFormat("a1: %f, a2: %f, a3: %f", startAngle, angle1, angle2));
+            double _angle1 = normalize_angle(angle1 + 180);
+            double _angle2 = normalize_angle(angle2 + 180);
+            
+            int cnt3 = calculate_arc_points(circle1.x, circle1.y, radius1 + innerDistance, startAngle, angle1, &part1);
+            int cnt4 = calculate_arc_points(result1.x, result1.y, radius1 + outterDistance, _angle1, _angle2, &part2);
+            if(capacity < 1.5 * (cnt3 + cnt4 + currentSize))
+            {
+                int newCapacity = 1.5 * (cnt3 + cnt4 + currentSize);
+                LPoint* tempArray = (LPoint*)realloc(totalPolygon, newCapacity * sizeof(LPoint));
+                totalPolygon = tempArray; // 更新指针指向新的内存区域
+                capacity = newCapacity;   // 更新容量
+            }
+
+            // 添加新的元素
+            for (j = 0; j < cnt3 ; j++) {
+                totalPolygon[currentSize] = part1[j];
+                currentSize++;
+            }
+
+            for (j = 0; j < cnt4 ; j++) {
+                totalPolygon[currentSize] = part2[j];
+                currentSize++;
+            }
+            startAngle = angle2;
+            //break;//debug
+        }
+        LPoint* partSmall;
+        LPoint circle0 = LCircle_GetCenter(orderedObjects[0]);
+        long radius0 = LCircle_GetRadius(orderedObjects[0]);
+        int small = calculate_arc_points(circle0.x, circle0.y, radius0 + innerDistance, startAngle, -135.0, &partSmall);
+        
+        if(capacity < small + currentSize)
+        {
+            int newCapacity = 1.5 * (small + currentSize);
+            LPoint* tempArray = (LPoint*)realloc(totalPolygon, newCapacity * sizeof(LPoint));
+            totalPolygon = tempArray; // 更新指针指向新的内存区域
+            capacity = newCapacity;   // 更新容量
+        }
+
+        // 添加新的元素
+        for (j = 0; j < small ; j++) {
+            totalPolygon[currentSize] = partSmall[j];
+            currentSize++;
+        }
+
+
+        LPolygon_New(Cell_Now, LLayer_Now, totalPolygon, currentSize-1);
+    }
+
+    double get_short_arc_interpolated_angle(double start_angle, double end_angle) {
+        double diff = end_angle - start_angle;
+    
+        // 如果差值大于180度，调整方向以走短弧
+        diff = normalize_angle(diff);
+        return diff;
+    }
+
+    int calculate_arc_points(long center_x, long center_y, long radius,
+                                double start_angle_deg, double end_angle_deg,
+                                LPoint **result) {
+        //LPoint result;
+        double diff= get_short_arc_interpolated_angle(start_angle_deg, end_angle_deg);
+        double curve = diff * (M_PI / 180.0) * radius;
+        int num_segments = (int)abs(curve / 100);   //10 nm 精度
+        *result = (LPoint *)malloc(num_segments * sizeof(LPoint));
+        int i;
+        for (i = 0; i < num_segments; ++i) {
+            double t = (double)i / num_segments;
+            
+            double current_angle_deg = start_angle_deg + diff * t;
+            // 将角度从度转换为弧度
+            double current_angle_rad = current_angle_deg * (M_PI / 180.0);
+
+            // 计算点的坐标
+            (*result)[i].x = (long)(center_x + radius * cos(current_angle_rad));
+            (*result)[i].y = (long)(center_y + radius * sin(current_angle_rad));
+        }
+        //LDialog_MsgBox(LFormat("num_segments: %d", num_segments));
+        //LDialog_MsgBox(LFormat("a1: %d, a2: %d", (*result)[0].x, (*result)[0].y));
+        return num_segments;
     }
 
     void Order_Boundry_Circles()
-    {
-        //****************************Input Params****************************//
-		// LDialogItem Dialog_Items[1] = {	{"Radius (um) (Inf)", "0"}};
-		// double search_radius;
-		// if (LDialog_MultiLineInputBox("Select Boundry Circles", Dialog_Items, 1))
-		// {
-		// 	search_radius = (long)(atof(Dialog_Items[0].value) * 1000); // get the Scale Factor
-		// }
-		// else
-		// {
-		// 	return;
-		// }
-		//****************************Input Params****************************//
+    {   
         LSelection selectedInital = LSelection_GetList();
+        if(LSelection_GetNumber(selectedInital)==0)return;
         while (selectedInital != NULL)
 		{
 			LObject selectedObject = LSelection_GetObject(selectedInital);
@@ -602,7 +903,32 @@ module Special_Polygon_Module
             objects[i] = LSelection_GetObject(selectedInital);
             selectedInital = LSelection_GetNext(selectedInital);
         }
-        Order_Circle(objects, objectNum);
+
+        char str[21];
+        sprintf(str, "%.3f", LCircle_GetRadius(objects[0])/1000.0);
+        //LDialog_MsgBox(str);
+        /****************************Input Params****************************/
+		LDialogItem Dialog_Items[3] = {	{"innerDistance (um)", "3.9"},
+                                        {"outterDistance (um)", "2.3"},
+                                        {"standerRadius (um)", *str}};
+		long innerDistance;
+        long outterDistance;
+        long standerRadius;
+		if (LDialog_MultiLineInputBox("Draw Boundry", Dialog_Items, 3))
+		{
+			innerDistance = (long)(atof(Dialog_Items[0].value) * 1000); 
+            outterDistance = (long)(atof(Dialog_Items[1].value) * 1000); 
+            standerRadius = (long)(atof(Dialog_Items[2].value) * 1000); 
+		}
+		else
+		{
+			return;
+		}
+		/****************************Input Params****************************/
+
+        //void Order_Circle(LObject* objects, int objectNum, long innerDistance, long outterDistance, long standerRadius)
+        Order_Circle(objects, objectNum, innerDistance, outterDistance, standerRadius);
+        LDisplay_Refresh();
     }
 
 
