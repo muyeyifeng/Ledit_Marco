@@ -480,10 +480,28 @@ module Special_Polygon_Module
         //LDialog_MsgBox(LFormat("find_level %d", orderedObjectNum));
         //debug
         if(orderedObjectNum > objectNum)return false;
+        if(orderedObjectNum == objectNum)
+        {
+            //LDialog_MsgBox(LFormat("find_level %d", orderedObjectNum));
+            LPoint firstObjectCenter = LCircle_GetCenter(orderedObjects[0]);
+            //LDialog_MsgBox(LFormat("firstObjectCenter %d", firstObjectCenter.x));
+            LPoint lastObjectCenter = LCircle_GetCenter(orderedObjects[orderedObjectNum-1]);
+            //LDialog_MsgBox(LFormat("lastObjectCenter %d", lastObjectCenter.x));
+            double distance = GetPointDistance(firstObjectCenter, lastObjectCenter);
+            //LDialog_MsgBox(LFormat("distance %f", distance));
+            if(distance < search_max_radius && distance > search_min_radius)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
         int i,j;
         LObject thisObject = orderedObjects[orderedObjectNum - 1];
         LPoint center1 = LCircle_GetCenter(thisObject);
-        for( i = 0; i < objectNum; i++)
+        for( i = 1; i < objectNum; i++)
         {
             LPoint center2 = LCircle_GetCenter(objects[i]);
             bool isExist = false;
@@ -510,21 +528,24 @@ module Special_Polygon_Module
                     orderedObjectNum--;
                 }
             }
-            if(orderedObjectNum == objectNum - 1)
-            {
-                //LDialog_MsgBox(LFormat("find_level %d", orderedObjectNum));
-                LPoint firstObjectCenter = LCircle_GetCenter(orderedObjects[0]);
-                LPoint lastObjectCenter = LCircle_GetCenter(orderedObjects[orderedObjectNum]);
-                double distance = GetPointDistance(firstObjectCenter, lastObjectCenter);
-                if(distance < search_max_radius && distance > search_min_radius)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
+            // if(orderedObjectNum == objectNum)
+            // {
+            //     LDialog_MsgBox(LFormat("find_level %d", orderedObjectNum));
+            //     LPoint firstObjectCenter = LCircle_GetCenter(orderedObjects[0]);
+            //     LDialog_MsgBox(LFormat("firstObjectCenter %d", firstObjectCenter.x));
+            //     LPoint lastObjectCenter = LCircle_GetCenter(orderedObjects[orderedObjectNum-1]);
+            //     LDialog_MsgBox(LFormat("lastObjectCenter %d", lastObjectCenter.x));
+            //     double distance = GetPointDistance(firstObjectCenter, lastObjectCenter);
+            //     LDialog_MsgBox(LFormat("distance %f", distance));
+            //     if(distance < search_max_radius && distance > search_min_radius)
+            //     {
+            //         return true;
+            //     }
+            //     else
+            //     {
+            //         return false;
+            //     }
+            // }
         }
         return false;
     }
@@ -575,16 +596,21 @@ module Special_Polygon_Module
             }
         }
 
-        double search_max_radius = minDistance * 1.2;
-        double search_min_radius = minDistance * 0.8;
+        double search_max_radius = minDistance + 100;
+        double search_min_radius = minDistance - 100;
 
         //LDialog_MsgBox(LFormat("search_max_radius: %f, search_min_radius: %f", search_max_radius, search_min_radius));
         // create a new array to store the ordered circles
         LObject* orderedObjects = (LObject *)malloc(objectNum * sizeof(LObject));
         orderedObjects[0] = objects[0];
         int orderedObjectNum = 1;
+        //LDialog_MsgBox(LFormat("search_max_radius: %f, search_min_radius: %f", search_max_radius, search_min_radius));
         bool findSatus = Find_Next_Circle(orderedObjects, orderedObjectNum, objects, objectNum, search_max_radius, search_min_radius);
-        if(!findSatus)
+        if(findSatus)
+        {
+            LDialog_MsgBox("Order Success");
+        }
+        else
         {
             LDialog_MsgBox("Order Fail");
             return;
@@ -596,7 +622,18 @@ module Special_Polygon_Module
         LPoint center ;
         center = CalculateCentroid(centerPoints, objectNum);
 
-        Draw_Boundry(orderedObjects, objectNum, innerDistance, outterDistance, standerRadius, (long)minDistance, center);        
+        Draw_Boundry(orderedObjects, objectNum, innerDistance, outterDistance, standerRadius, (long)minDistance, center);
+        
+        // test: change the size of the selected objects by order
+        // LCell Cell_Now = LCell_GetVisible();
+        // for(i = 0; i < objectNum; i++)
+        // {   
+        //     LObject object = orderedObjects[i];
+        //     LPoint center = LCircle_GetCenter(object);
+        //     long radius = LCircle_GetRadius(object);
+        //     radius = radius + 1000*i;
+        //     LCircle_Set(Cell_Now, object, center, radius);
+        // }     
     }
 
     int Calculate_Outside_Circle(LPoint A, LPoint B, long L, LPoint* results)
@@ -928,6 +965,7 @@ module Special_Polygon_Module
 
         //void Order_Circle(LObject* objects, int objectNum, long innerDistance, long outterDistance, long standerRadius)
         Order_Circle(objects, objectNum, innerDistance, outterDistance, standerRadius);
+        LSelection_DeselectAll();
         LDisplay_Refresh();
     }
 
