@@ -17,12 +17,31 @@
  */
 module Modifiy_Module
 {
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-#include "Ledit_Modifiy.h"
-#include "ldata.h" /* Main UPI header. */
+	#include <stdio.h>
+	#include <stdlib.h>
+	#include <string.h>
+	#include <math.h>
+	//#include "Ledit_Modifiy.h"
+	#include "ldata.h" /* Main UPI header. */
+
+	void Route_Circle();
+	int GetCrossPoint(LObject polygon, LPoint * crossPoint);
+	int calculateIntersection(LPoint a, LPoint b, LPoint c, LPoint d, LPoint * intersection);
+	int calculateCircleSegmentIntersection(LPoint a, LPoint b, LPoint center, double radius, LPoint *intersection1, LPoint *intersection2);
+	void DrawCircleByRouteDistance(double distance, long radius, int circleNumber, LPoint start, LObject route);
+	int isClockwise(LPoint a, LPoint b, LPoint c);
+	double GetPointsDistance(LPoint point1, LPoint point2);
+	void GetObjectCoord(LObject selectedObject, long *xLeft, long *xRight, long *yBottom, long *yTop);
+	void Modifiy_Circle(LObject circle, long target_radius);
+	void Scale_Object(LObject selectedObject, LPoint polygonCenter, double scaleFactor);
+	void Scale_SelectedObject_SetCenter();
+	void Scale_SelectedObject_ByObjectCenter();
+	void Modifiy_Selected_Object_Offset();
+	bool Compare_Objects(LObject object1, LObject object2);
+	void Modifiy_Delete_Duplicates();
+	void Modifiy_Selected_Object_UnionSize();
+	void TestFunc();
+	void Modifiy_func(void);
 
 	void Route_Circle()
 	{

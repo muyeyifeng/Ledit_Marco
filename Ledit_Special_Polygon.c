@@ -17,13 +17,51 @@
  */
 module Special_Polygon_Module
 {
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-#include "Ledit_Special.h"
-#include "ldata.h" /* Main UPI header. */
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <string.h>
+    #include <math.h>
+    //#include "Ledit_Special.h"
+    #include "ldata.h" /* Main UPI header. */
 
+    
+    void DrawTangentRing();
+    int CalculateIntersection_Circle2Wire(LObject object1, LObject object2, long radius, LObject **torus);
+    int CalculateIntersection_Circle2Circle(LObject object1, LObject object2, long radius, LObject **torus);
+    double CalculatePolarAngle(LPoint p1, LPoint p2);
+    int LSelection_GetNumber(LSelection selectedInital);
+    void FindLineEquation(LPoint p1, LPoint p2, double **abc);
+    bool CircleCorssWire(LPoint p1, LPoint p2, LObject circleLike);
+    double GetPointDistance(LPoint point1, LPoint point2);
+    LObject* Select_Boundry_Object(LSelection selectedInital, long search_radius);
+    void Select_Boundry_Circles();
+    bool Find_Next_Circle(LObject* orderedObjects, int orderedObjectNum, LObject* objects, int objectNum, double search_max_radius, double search_min_radius);
+    LPoint CalculateCentroid(LPoint * points, int n);
+    void Order_Circle(LObject* objects, int objectNum, long innerDistance, long outterDistance, long standerRadius);
+    int Calculate_Outside_Circle(LPoint A, LPoint B, long L, LPoint* results);
+    bool CheckIsCircles(LObject* objects, int objectNum, LPoint * centerPoints);
+    double calculateAngleP1ToP2(LPoint P1, LPoint P2);
+    double normalize_angle(double angle);
+    void Draw_Boundry(LObject* orderedObjects, int orderedObjectNum, long innerDistance, long outterDistance, long standerRadius, long minDistance, LPoint shapeCenter);
+    double get_short_arc_interpolated_angle(double start_angle, double end_angle);
+    int calculate_arc_points(long center_x, long center_y, long radius, double start_angle_deg, double end_angle_deg, LPoint **result);
+    void Order_Boundry_Circles();
+
+
+    void SpecialPolygon_func(void);
+    /**
+     * @brief Draws a tangent ring on the current drawing context.
+     *
+     * This function is responsible for rendering a ring that is tangent to a specified
+     * shape or set of points. The exact behavior depends on the implementation details
+     * within the function body.
+     *
+     * Typical use cases include visualizing geometric constructions or highlighting
+     * tangency relationships in polygonal shapes.
+     *
+     * @note Ensure that the necessary drawing context and parameters are set up before
+     * calling this function.
+     */
     void DrawTangentRing()
     {
         LCell Cell_Now = LCell_GetVisible();
@@ -82,6 +120,18 @@ module Special_Polygon_Module
         LDisplay_Refresh();
     }
 
+    /**
+     * @brief Calculates the intersection points between a circle and a wire.
+     *
+     * This function computes the intersection(s) between a circle (defined by one object and a radius)
+     * and a wire (defined by another object). The results are stored in the torus parameter.
+     *
+     * @param object1 The first LObject, representing the circle's center or definition.
+     * @param object2 The second LObject, representing the wire.
+     * @param radius The radius of the circle.
+     * @param torus Pointer to a pointer where the resulting intersection objects will be stored.
+     * @return int Returns the number of intersection points found, or a negative value on error.
+     */
     int CalculateIntersection_Circle2Wire(LObject object1, LObject object2, long radius, LObject **torus)
     {
         *torus = (LObject *)malloc(4 * sizeof(LObject));
@@ -94,6 +144,17 @@ module Special_Polygon_Module
 
         LLayer LLayer_Now = LObject_GetLayer(Cell_Now, circle);
 
+        /**
+         * Checks if the number of vertices in the 'wire' object is not equal to 2.
+         *
+         * This condition is typically used to ensure that the 'wire' object represents
+         * a valid segment or edge, which should consist of exactly two vertices.
+         * If the count is not 2, the subsequent code may handle this as an error or
+         * special case.
+         *
+         * @param wire The object whose vertices are being counted.
+         * @return True if the number of vertices is not 2, false otherwise.
+         */
         if (LVertex_GetCount(wire) != 2)
         {
             LDialog_AlertBox("Just Support 2 Point Wire");
@@ -125,7 +186,18 @@ module Special_Polygon_Module
 
         double distance = fabs(delta) / sqrt(a * a + b * b);
         long r = LCircle_GetRadius(circle);
-        // if line outside of circle
+        /**
+         * Checks if the distance between two points is greater than the sum of 'r' and twice 'radius',
+         * and also verifies that 'r' is less than 'distance'.
+         *
+         * This condition can be used, for example, to determine if two circles (or a circle and another shape)
+         * are sufficiently far apart, considering their radii and an additional margin.
+         *
+         * @param distance The measured distance between two points or objects.
+         * @param r The radius or relevant size of the first object.
+         * @param radius The radius or relevant size of the second object.
+         * @return true if the objects are sufficiently far apart based on the condition; false otherwise.
+         */
         if (distance > r + 2 * radius && r < distance)
         {
             LDialog_AlertBox(LFormat("%fx + %fy + %f = 0", a, b, c));
@@ -151,29 +223,15 @@ module Special_Polygon_Module
         tParams1.ptCenter = p1;
         tParams1.nInnerRadius = 1000;
         tParams1.nOuterRadius = 2000;
-        // reset in DrawTangentRing()
-        if (fabs(rad1 - rad2) > M_PI)
-        {
-            tParams1.dStartAngle = fmax(fabs(rad1), fabs(rad2)) * 180 / M_PI;
-            tParams1.dStopAngle = fmin(fabs(rad1), fabs(rad2)) * 180 / M_PI;
-        }
-        else
-        {
-            tParams1.dStartAngle = fmin(fabs(rad1), fabs(rad2)) * 180 / M_PI;
-            tParams1.dStopAngle = fmax(fabs(rad1), fabs(rad2)) * 180 / M_PI;
-        }
-
-        (*torus)[0] = LTorus_CreateNew(Cell_Now, LLayer_Now, &tParams1);
-        LPoint p2 = LPoint_Set(xx2, yy2);
-        double rad3 = rho2 + M_PI;
-        double rad4 = rad2;
-        rad3 = fmod(rad3, 2 * M_PI);
-        rad4 = fmod(rad4, 2 * M_PI);
-        LTorusParams tParams2;
-        tParams2.ptCenter = p2;
-        tParams2.nInnerRadius = 1000;
-        tParams2.nOuterRadius = 2000;
-        // set in DrawTangentRing()
+        /**
+         * Checks if the absolute difference between two angles (rad1 and rad2) 
+         * is greater than π (M_PI). This is typically used to determine if the 
+         * angular distance between two points on a circle exceeds half a rotation.
+         *
+         * @param rad1 The first angle in radians.
+         * @param rad2 The second angle in radians.
+         * @return true if the absolute difference is greater than π, false otherwise.
+         */
         if (fabs(rad3 - rad4) > M_PI)
         {
             tParams2.dStartAngle = fmax(fabs(rad3), fabs(rad4)) * 180 / M_PI;
@@ -187,6 +245,16 @@ module Special_Polygon_Module
 
         (*torus)[1] = LTorus_CreateNew(Cell_Now, LLayer_Now, &tParams2);
         // specially line cross circle
+        /**
+         * Checks if the value of 'r' is greater than 'distance'.
+         *
+         * This conditional statement is typically used to determine whether a certain
+         * radius or measurement ('r') exceeds a specified threshold ('distance').
+         *
+         * @param r The value to compare, often representing a radius or length.
+         * @param distance The threshold value to compare against.
+         * @return true if 'r' is greater than 'distance', false otherwise.
+         */
         if (r > distance)
         {
             theta = acos((distance + radius) / (r + radius));
@@ -206,7 +274,16 @@ module Special_Polygon_Module
             tParams3.ptCenter = p3;
             tParams3.nInnerRadius = 1000;
             tParams3.nOuterRadius = 2000;
-            // reset in DrawTangentRing()
+            /**
+             * Checks if the absolute difference between rad5 and rad6 is greater than π (M_PI).
+             * This is typically used to determine if the angular distance between two angles
+             * exceeds half a full rotation, which can be useful for handling angle wrapping
+             * or detecting if two directions are on opposite sides of a circle.
+             *
+             * @param rad5 First angle in radians.
+             * @param rad6 Second angle in radians.
+             * @return true if the absolute difference is greater than π, false otherwise.
+             */
             if (fabs(rad5 - rad6) > M_PI)
             {
                 tParams3.dStartAngle = fmax(fabs(rad5), fabs(rad6)) * 180 / M_PI;
@@ -229,7 +306,16 @@ module Special_Polygon_Module
             tParams4.ptCenter = p4;
             tParams4.nInnerRadius = 1000;
             tParams4.nOuterRadius = 2000;
-            // reset in DrawTangentRing()
+            /**
+             * Checks if the absolute difference between rad7 and rad8 exceeds π (M_PI).
+             * This is typically used to determine if the angular difference between two angles
+             * (in radians) crosses the -π/π boundary, which is important in angle normalization
+             * or when handling circular measurements.
+             *
+             * @param rad7 First angle in radians.
+             * @param rad8 Second angle in radians.
+             * @return true if the absolute difference is greater than π, false otherwise.
+             */
             if (fabs(rad7 - rad8) > M_PI)
             {
                 tParams4.dStartAngle = fmax(fabs(rad7), fabs(rad8)) * 180 / M_PI;
@@ -247,6 +333,25 @@ module Special_Polygon_Module
         return 2;
     }
 
+    /**
+     * @brief Calculates the intersection points of two circles and creates torus objects at those points.
+     *
+     * This function computes the intersection points between two circles defined by `object1` and `object2`,
+     * each with their own center and radius. An additional `radius` parameter is added to both circles' radii.
+     * If the circles intersect, two torus objects are created at the intersection points and returned via the `torus` pointer.
+     *
+     * @param object1      The first circle object.
+     * @param object2      The second circle object.
+     * @param radius       The additional radius to be added to both circles.
+     * @param torus        Output parameter. On success, points to an array of two LObject pointers representing the created torus objects.
+     *
+     * @return
+     *   - 2  : If two intersection points (and torus objects) are found and created.
+     *   - 0  : If there are no intersection points (the circles do not intersect).
+     *   - -1 : If the circles are coincident (infinite intersection points).
+     *
+     * @note The caller is responsible for freeing the memory allocated for the torus array.
+     */
     int CalculateIntersection_Circle2Circle(LObject object1, LObject object2, long radius, LObject **torus)
     {
         *torus = (LObject *)malloc(2 * sizeof(LObject));
@@ -269,6 +374,13 @@ module Special_Polygon_Module
 
         double d = sqrt((double)(x2 - x1) * (x2 - x1) + (double)(y2 - y1) * (y2 - y1));
 
+        /**
+         * Checks if two circles with radii R1 and R2 and center distance d do not intersect.
+         *
+         * The condition is true if:
+         * - The distance between centers (d) is greater than the sum of the radii (R1 + R2), meaning the circles are separate.
+         * - The distance between centers (d) is less than the absolute difference of the radii (|R1 - R2|), meaning one circle is completely inside the other without touching.
+         */
         if (d > R1 + R2 || d < fabs(R1 - R2))
         {
             return 0;
@@ -298,27 +410,17 @@ module Special_Polygon_Module
             tParams1.ptCenter = p1;
             tParams1.nInnerRadius = 1000;
             tParams1.nOuterRadius = 2000;
-            // reset in DrawTangentRing()
-            if (fabs(rad1 - rad2) > M_PI)
-            {
-                tParams1.dStartAngle = fmax(fabs(rad1), fabs(rad2)) * 180 / M_PI;
-                tParams1.dStopAngle = fmin(fabs(rad1), fabs(rad2)) * 180 / M_PI;
-            }
-            else
-            {
-                tParams1.dStartAngle = fmin(fabs(rad1), fabs(rad2)) * 180 / M_PI;
-                tParams1.dStopAngle = fmax(fabs(rad1), fabs(rad2)) * 180 / M_PI;
-            }
-
-            (*torus)[0] = LTorus_CreateNew(Cell_Now, LLayer_Now, &tParams1);
-            LPoint p2 = LPoint_Set(xx2, yy2);
-            double rad3 = CalculatePolarAngle(p2, centerp1);
-            double rad4 = CalculatePolarAngle(p2, centerp2);
-            LTorusParams tParams2;
-            tParams2.ptCenter = p2;
-            tParams2.nInnerRadius = 1000;
-            tParams2.nOuterRadius = 2000;
-            // reset in DrawTangentRing()
+            
+            /**
+             * Checks if the absolute difference between two angles (rad1 and rad2) is greater than π (M_PI).
+             * This is typically used to determine if the angular distance between two points on a circle
+             * exceeds half a revolution, which may be relevant for handling angle wrapping or special
+             * polygonal calculations.
+             *
+             * @param rad1 First angle in radians.
+             * @param rad2 Second angle in radians.
+             * @return true if the absolute difference is greater than π, false otherwise.
+             */
             if (fabs(rad3 - rad4) > M_PI)
             {
                 tParams2.dStartAngle = fmax(fabs(rad3), fabs(rad4)) * 180 / M_PI;
@@ -335,6 +437,16 @@ module Special_Polygon_Module
         }
     }
 
+    /**
+     * @brief Calculates the polar angle (in radians) between two points.
+     *
+     * This function computes the angle formed by the line segment from point p1 to point p2
+     * with respect to the positive x-axis. The result is given in radians, typically in the range [-π, π].
+     *
+     * @param p1 The starting point (of type LPoint).
+     * @param p2 The ending point (of type LPoint).
+     * @return The polar angle in radians between p1 and p2.
+     */
     double CalculatePolarAngle(LPoint p1, LPoint p2)
     {
         // Calculate the differences between the two points
@@ -348,6 +460,15 @@ module Special_Polygon_Module
         return angle;
     }
 
+    /**
+     * @brief Retrieves the number associated with the given selection.
+     *
+     * This function takes a LSelection object as input and returns an integer
+     * representing the number associated with the specified selection.
+     *
+     * @param selectedInital The LSelection object for which the number is to be retrieved.
+     * @return int The number associated with the given selection.
+     */
     int LSelection_GetNumber(LSelection selectedInital)
     {
         int counter = 0;
@@ -359,6 +480,15 @@ module Special_Polygon_Module
         return counter;
     }
 
+    /**
+     * @brief Calculates the coefficients (a, b, c) of the line equation ax + by + c = 0
+     *        passing through two points p1 and p2.
+     *
+     * @param p1    The first point defining the line.
+     * @param p2    The second point defining the line.
+     * @param abc   Output parameter. Pointer to an array of three doubles where the
+     *              computed coefficients (a, b, c) will be stored.
+     */
     void FindLineEquation(LPoint p1, LPoint p2, double **abc)
     {
         *abc = (double *)malloc(3 * sizeof(double));
@@ -382,6 +512,17 @@ module Special_Polygon_Module
         // k = -a / b
     }
 
+    /**
+     * @brief Determines if a line segment crosses a circle-like object.
+     *
+     * This function checks whether the line segment defined by points p1 and p2
+     * intersects or crosses the given circle-like object.
+     *
+     * @param p1 The first endpoint of the line segment.
+     * @param p2 The second endpoint of the line segment.
+     * @param circleLike The circle-like object to check for intersection.
+     * @return true if the line segment crosses the circle-like object, false otherwise.
+     */
     bool CircleCorssWire(LPoint p1, LPoint p2, LObject circleLike)
     {
         LShapeType objectShape = LObject_GetShape(circleLike);
@@ -402,11 +543,33 @@ module Special_Polygon_Module
         }
     }
 
+    /**
+     * @brief Calculates the Euclidean distance between two points.
+     *
+     * This function computes the straight-line distance between two points
+     * represented by the LPoint structure.
+     *
+     * @param point1 The first point.
+     * @param point2 The second point.
+     * @return The distance between point1 and point2 as a double.
+     */
     double GetPointDistance(LPoint point1, LPoint point2)
 	{
 		return sqrt((double)(point1.x - point2.x) * (double)(point1.x - point2.x) + (double)(point1.y - point2.y) * (point1.y - point2.y));
 	}
 
+    /**
+     * Select_Boundry_Object - Finds and returns the boundary object from a given selection.
+     *
+     * @param selectedInital: The initial selection of objects to search within.
+     * @param search_radius: The radius within which to search for the boundary object.
+     *
+     * @return A pointer to the LObject representing the boundary object if found, or NULL otherwise.
+     *
+     * This function searches for a boundary object within the specified search radius
+     * from the initial selection. It is typically used to identify the outermost or
+     * edge object in a selection set.
+     */
     LObject* Select_Boundry_Object(LSelection selectedInital, long search_radius)
 	{
 		//LSelection selectedInital = LSelection_GetList();
@@ -457,6 +620,19 @@ module Special_Polygon_Module
 		LDisplay_Refresh();
 	}
 
+    /**
+     * @brief Selects boundary circles in the current context.
+     *
+     * This function identifies and selects circles that form the boundary
+     * of a given shape or region. The specific criteria for selection
+     * depend on the implementation details and the data structures used
+     * to represent circles and boundaries.
+     *
+     * Typical use cases include highlighting or processing the outermost
+     * circles in a graphical or computational geometry application.
+     *
+     * @note Ensure that the relevant data structures are initialized before calling this function.
+     */
     void Select_Boundry_Circles()
     {
         //****************************Input Params****************************//

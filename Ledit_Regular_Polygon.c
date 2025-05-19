@@ -17,12 +17,19 @@
  */
 module Polygon_Module
 {
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-#include "Ledit_Regular.h"
-#include "ldata.h" /* Main UPI header. */
+	#include <stdio.h>
+	#include <stdlib.h>
+	#include <string.h>
+	#include <math.h>
+	//#include "Ledit_Regular.h"
+	#include "ldata.h" /* Main UPI header. */
+
+	void DrawEllipse();
+	void DrawPolygonByEdgeLenght();
+	void DrawPolygonByRadius();
+	void DrawPolygonByCenterRadiusAndEdgeNumber(LPoint center, long radius, int edgeNum, double rad);
+	LPoint *CalculateEllipsePoints(long a, long b, int n, double rad);
+	void Polygon_func(void);
 
 	void DrawEllipse()
 	{

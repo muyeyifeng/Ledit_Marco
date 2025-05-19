@@ -17,11 +17,26 @@
  */
 module Alignment_Moudle
 {
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include "Ledit_Alignment.h"
-#include "ldata.h" /* Main UPI header. */
+	#include <stdio.h>
+	#include <stdlib.h>
+	#include <string.h>
+	//#include "Ledit_Alignment.h"
+	#include "ldata.h" /* Main UPI header. */
+
+	void Alignment_Left();
+	void Alignment_Right();
+	void Alignment_Bottom();
+	void Alignment_Top();
+	void Alignment_Center();
+	void MoveObjectListCenter(long *xLeftTarget, long *xRightTarget, long *yBottomTarget, long *yTopTarget);
+	void MoveObjectListLeft(long *xLeftTarget);
+	void MoveObjectListRight(long *xRightTarget);
+	void MoveObjectListBottom(long *yBottomTarget);
+	void MoveObjectListTop(long *yTopTarget);
+	void MoveObject(LObject selectedObject, long xOffset, long yOffset);
+	void GetObjectListCoordRange(long *xLeft, long *xRight, long *yBottom, long *yTop);
+	void GetObjectCoord(LObject selectedObject, long *xLeft, long *xRight, long *yBottom, long *yTop);
+	void Register_Alignment_func(void);
 
 	void Alignment_Left()
 	{

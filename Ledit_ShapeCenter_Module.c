@@ -17,12 +17,23 @@
  */
 module ShapeCenter_Module
 {
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-#include "Ledit_ShapeCenter.h"
-#include "ldata.h" /* Main UPI header. */
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <string.h>
+    #include <math.h>
+    //#include "Ledit_ShapeCenter.h"
+    #include "ldata.h" /* Main UPI header. */
+
+
+    void swap(LPoint *a, LPoint *b);
+    double distance(LPoint p1, LPoint p2);
+    int compare(const void *a, const void *b);
+    LPoint CalculateCentroid(LPoint *points, int n);
+    int LSelection_GetNumber(LSelection selectedInital);
+    bool CheckIsCircles(LSelection selectedInital, LPoint *centerPoints);
+    void DrawCircleAtShapeCenter(void);
+    void ShapeCenter_func(void);
+
 
     LPoint globalReferencePoint; // global
 

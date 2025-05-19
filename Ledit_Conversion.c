@@ -17,14 +17,28 @@
  */
 module Conversion_Module
 {
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-#include "Ledit_Conversion.h"
-#include "ldata.h" /* Main UPI header. */
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <string.h>
+    #include <math.h>
+    //#include "Ledit_Conversion.h"
+    #include "ldata.h" /* Main UPI header. */
+    // 定义结构体表示二维点
+    typedef struct {
+        LCoord x, y;
+    } Point;
 
-    // 计算质心
+    
+    Point computeCentroid(Point points[], int n);
+    void computeInertiaMatrix(Point points[], int n, Point centroid, double inertia[2][2]);
+    double computeEccentricity(double inertia[2][2]);
+    void fitCircle(Point points[], int n, Point *circleCenter, double *radius);
+    void GetObjectCoord(LObject selectedObject, long *box);
+    void Approximate_Circle();
+    void Approximate_Circle_Sample();
+    void Conversion_func(void);
+
+
     Point computeCentroid(Point points[], int n) {
         double cx = 0.0, cy = 0.0;
         int i;
