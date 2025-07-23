@@ -37,6 +37,10 @@ module Conversion_Module
     void Approximate_Circle();
     void Approximate_Circle_Sample();
     void Conversion_func(void);
+    void DrawPolygonByCenterRadiusAndEdgeNumber(LPoint center, long radius, int edgeNum, double rad);
+    void Conversion_To_Polygon();
+    LPoint * Calculate_Rounded_Hexagon_Points(LPoint center,LCoord R, long r);
+    void Conversion_To_Rounded_Hexagon();
 
 
     Point computeCentroid(Point points[], int n) {
@@ -325,10 +329,135 @@ module Conversion_Module
         LDisplay_Refresh();
     }
 
+    
+    void DrawPolygonByCenterRadiusAndEdgeNumber(LPoint center, long radius, int edgeNum, double rad)
+	{
+		LCell Cell_Now = LCell_GetVisible();
+		LFile File_Now = LCell_GetFile(Cell_Now);
+		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+		LPoint *points;
+		points = (LPoint *)malloc((edgeNum) * sizeof(LPoint));
+		int i;
+		for (i = 0; i < edgeNum; i++)
+		{
+			int point_x = center.x + radius * sin(rad + 2 * i * M_PI / edgeNum);
+			int point_y = center.y + radius * cos(rad + 2 * i * M_PI / edgeNum);
+			points[i] = LPoint_Set((long)point_x, (long)point_y);
+		}
+		LPolygon_New(Cell_Now, LLayer_Now, points, edgeNum);
+	}
+
+    void Conversion_To_Polygon()
+    {
+        //****************************Input Params****************************//
+		LDialogItem Dialog_Items[2] = {{"Edge Number (>=3)", "3"},
+									   {"Rota Deg (0-360)", "0"}};
+		int edgeNum;
+		double deg;
+		if (LDialog_MultiLineInputBox("Conversion To Polygon", Dialog_Items, 2))
+		{
+			edgeNum = atoi(Dialog_Items[0].value);				 // get the edgeNum
+			deg = atof(Dialog_Items[1].value);					 // get the deg
+		}
+		else
+		{
+			return;
+		}
+		//****************************Input Params****************************//
+		double rad = deg * M_PI / 180;
+		if (edgeNum < 3)
+		{
+			LDialog_AlertBox("Polygon edge number must lagger than 3");
+			return;
+		}
+        LSelection selectedInital = LSelection_GetList();
+		while (selectedInital != NULL)
+		{
+			LObject selectedObject = LSelection_GetObject(selectedInital);
+            if (LObject_GetShape(selectedObject) != 1)continue;
+            LPoint center = LCircle_GetCenter(selectedObject);
+            LCoord radius = LCircle_GetRadius(selectedObject);
+            double radius_outer = radius/cos(1.0 * M_PI/edgeNum);
+            DrawPolygonByCenterRadiusAndEdgeNumber(center, radius_outer, edgeNum, rad);
+            selectedInital = LSelection_GetNext(selectedInital);
+		}
+        LDisplay_Refresh();
+    }
+
+    void Conversion_To_Rounded_Hexagon()
+    {
+        LCell Cell_Now = LCell_GetVisible();
+		LFile File_Now = LCell_GetFile(Cell_Now);
+		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+        //****************************Input Params****************************//
+		LDialogItem Dialog_Items[1] = {{"Rounded Radius vs Circle ratio (default value -1)", "-1"}};
+		double ratio;
+		if (LDialog_MultiLineInputBox("Conversion To Rounded Hexagon", Dialog_Items, 1))
+		{
+            ratio = atof(Dialog_Items[0].value; // get the Rounded Radius
+		}
+		else
+		{
+			return;
+		}
+		//****************************Input Params****************************//
+		double rad = 0 * M_PI / 180;
+
+        LSelection selectedInital = LSelection_GetList();
+		while (selectedInital != NULL)
+		{
+			LObject selectedObject = LSelection_GetObject(selectedInital);
+            if (LObject_GetShape(selectedObject) != 1)continue;
+            LPoint center = LCircle_GetCenter(selectedObject);
+            LCoord radius = LCircle_GetRadius(selectedObject);
+            long r = (long)(radius * ratio);
+            if(ratio <= 0) r = (long)(1 / 3.7 * radius); // default value
+            else 
+            int n_sum = 6 * r * M_PI / 3 / 10;
+            LPoint *points;
+            points = Calculate_Rounded_Hexagon_Points(center, radius, r);
+            //DrawPolygonByCenterRadiusAndEdgeNumber(center, radius_outer, edgeNum, rad);
+            LPolygon_New(Cell_Now, LLayer_Now, points, n_sum);
+            selectedInital = LSelection_GetNext(selectedInital);
+		}
+        LDisplay_Refresh();
+    }
+
+    LPoint * Calculate_Rounded_Hexagon_Points(LPoint center,LCoord R, long r)
+    {
+        double curve=r * M_PI/3;
+        int n_coner = curve / 10;
+        int n_sum = 6 * n_coner;
+        double center_distance = (R - r) * sqrt(1 + tan(M_PI / 6) * tan(M_PI / 6));
+        LPoint * points;
+        points = (LPoint *)malloc(n_sum * sizeof(LPoint));
+        if (points == NULL)
+        {
+            LDialog_AlertBox("Memory allocation failed for points array.");
+            return;
+        }
+        double delta_theta = M_PI / 3 / n_coner;
+        int i;
+        for (i = 0; i < n_sum; i++)
+        {
+            double theta = (i % n_coner) * delta_theta;
+            int n = i / n_coner;
+            long new_center_x = (long)(center.x + center_distance * cos(M_PI / 6 + n * M_PI / 3));
+            long new_center_y = (long)(center.y + center_distance * sin(M_PI / 6 + n * M_PI / 3));
+            double start_theta = n * M_PI / 3;
+            points[i].x = (long)(new_center_x + r * cos(start_theta + theta));
+            points[i].y = (long)(new_center_y + r * sin(start_theta + theta));
+        }
+        return points;
+    }
+
+
     void Conversion_func(void)
 	{
 		LMacro_Register("Approximate_Circle_func","Approximate_Circle");
         LMacro_Register("Approximate_Circle_Sample_func","Approximate_Circle_Sample");
+        LMacro_Register("Conversion_To_Polygon_func","Conversion_To_Polygon");
+        LMacro_Register("Conversion_To_Rounded_Hexagon_func","Conversion_To_Rounded_Hexagon");
 	}
 }/* end of module Conversion_Module */
 

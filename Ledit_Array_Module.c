@@ -888,7 +888,7 @@ module Array_Module
 				int i;
 				for (i = 1; i < arrayNumber; i++)
 				{
-					CopyObject(selectedObject, xOffset, yOffset);
+					CopyObject(selectedObject, i * xOffset, i * yOffset);
 				}
 				counter++;
 			}
