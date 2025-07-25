@@ -410,8 +410,8 @@ module Conversion_Module
             if (LObject_GetShape(selectedObject) != 1)continue;
             LPoint center = LCircle_GetCenter(selectedObject);
             LCoord radius = LCircle_GetRadius(selectedObject);
-            long r = (long)(radius * ratio);
-            if(ratio <= 0) r = (long)(1 / 3.7 * radius); // default value
+            double r = radius * ratio;
+            if(ratio <= 0) r = 1 / 3.7 * radius; // default value
             else 
             int n_sum = 6 * r * M_PI / 3 / 10;
             LPoint *points;
@@ -423,12 +423,12 @@ module Conversion_Module
         LDisplay_Refresh();
     }
 
-    LPoint * Calculate_Rounded_Hexagon_Points(LPoint center,LCoord R, long r)
+    LPoint * Calculate_Rounded_Hexagon_Points(LPoint center,LCoord R, double r)
     {
         double curve=r * M_PI/3;
         int n_coner = curve / 10;
         int n_sum = 6 * n_coner;
-        double center_distance = (R - r) * sqrt(1 + tan(M_PI / 6) * tan(M_PI / 6));
+        double center_distance = (R - r) * 2 / 3 * sqrt(3);
         LPoint * points;
         points = (LPoint *)malloc(n_sum * sizeof(LPoint));
         if (points == NULL)
@@ -442,8 +442,8 @@ module Conversion_Module
         {
             double theta = (i % n_coner) * delta_theta;
             int n = i / n_coner;
-            long new_center_x = (long)(center.x + center_distance * cos(M_PI / 6 + n * M_PI / 3));
-            long new_center_y = (long)(center.y + center_distance * sin(M_PI / 6 + n * M_PI / 3));
+            double new_center_x = center.x + center_distance * cos(M_PI / 6 + n * M_PI / 3);
+            double new_center_y = center.y + center_distance * sin(M_PI / 6 + n * M_PI / 3);
             double start_theta = n * M_PI / 3;
             points[i].x = (long)(new_center_x + r * cos(start_theta + theta));
             points[i].y = (long)(new_center_y + r * sin(start_theta + theta));
