@@ -39,7 +39,7 @@ module Conversion_Module
     void Conversion_func(void);
     void DrawPolygonByCenterRadiusAndEdgeNumber(LPoint center, long radius, int edgeNum, double rad);
     void Conversion_To_Polygon();
-    LPoint * Calculate_Rounded_Hexagon_Points(LPoint center,LCoord R, long r);
+    LPoint* Calculate_Rounded_Hexagon_Points(LPoint center,LCoord R, double r);
     void Conversion_To_Rounded_Hexagon();
 
 
@@ -390,17 +390,22 @@ module Conversion_Module
 		LFile File_Now = LCell_GetFile(Cell_Now);
 		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
         //****************************Input Params****************************//
-		LDialogItem Dialog_Items[1] = {{"Rounded Radius vs Circle ratio (default value -1)", "-1"}};
+		LDialogItem Dialog_Items[1] = {{"Rounded vs Circle Radius ratio (default value: -1)", "-1"}};
 		double ratio;
 		if (LDialog_MultiLineInputBox("Conversion To Rounded Hexagon", Dialog_Items, 1))
 		{
-            ratio = atof(Dialog_Items[0].value; // get the Rounded Radius
+            ratio = atof(Dialog_Items[0].value) ; // get Radius ratio
 		}
 		else
 		{
 			return;
 		}
 		//****************************Input Params****************************//
+        if(ratio < 0 && ratio != -1 || ratio > 1)
+        {
+            LDialog_AlertBox("Invaild input value");
+            return;
+        }
 		double rad = 0 * M_PI / 180;
 
         LSelection selectedInital = LSelection_GetList();
@@ -410,27 +415,30 @@ module Conversion_Module
             if (LObject_GetShape(selectedObject) != 1)continue;
             LPoint center = LCircle_GetCenter(selectedObject);
             LCoord radius = LCircle_GetRadius(selectedObject);
+            LPoint *points;
             double r = radius * ratio;
             if(ratio <= 0) r = 1 / 3.7 * radius; // default value
-            else 
-            int n_sum = 6 * r * M_PI / 3 / 10;
-            LPoint *points;
+            double curve=r * M_PI/3;
+            int n_coner = curve / 20;
+            int n_sum = 6 * n_coner;
             points = Calculate_Rounded_Hexagon_Points(center, radius, r);
             //DrawPolygonByCenterRadiusAndEdgeNumber(center, radius_outer, edgeNum, rad);
             LPolygon_New(Cell_Now, LLayer_Now, points, n_sum);
+            //free(points);
             selectedInital = LSelection_GetNext(selectedInital);
 		}
         LDisplay_Refresh();
     }
 
-    LPoint * Calculate_Rounded_Hexagon_Points(LPoint center,LCoord R, double r)
+    LPoint* Calculate_Rounded_Hexagon_Points(LPoint center,LCoord R, double r)
     {
         double curve=r * M_PI/3;
-        int n_coner = curve / 10;
+        int n_coner = curve / 20;
         int n_sum = 6 * n_coner;
-        double center_distance = (R - r) * 2 / 3 * sqrt(3);
-        LPoint * points;
+        double center_distance = ((double)R - r) * 2 / 3 *sqrt(3);
+        LPoint* points;
         points = (LPoint *)malloc(n_sum * sizeof(LPoint));
+        
         if (points == NULL)
         {
             LDialog_AlertBox("Memory allocation failed for points array.");
@@ -447,6 +455,7 @@ module Conversion_Module
             double start_theta = n * M_PI / 3;
             points[i].x = (long)(new_center_x + r * cos(start_theta + theta));
             points[i].y = (long)(new_center_y + r * sin(start_theta + theta));
+            //if(n > 0) {LDialog_MsgBox(LFormat("%d,%d",new_center_x,new_center_y));break;}
         }
         return points;
     }
