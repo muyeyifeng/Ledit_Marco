@@ -770,6 +770,59 @@ module Modifiy_Module
 		LDisplay_Refresh();
 	}
 
+	void Modifiy_Delete_Objects_ByType()
+	{
+		LCell Cell_Now = LCell_GetVisible();
+		//****************************Input Params****************************//
+		/*
+		typedef enum {
+		LBox,
+		LCircle,
+		LWire,
+		LPolygon,
+		LTorus,
+		LPie,
+		LOtherObject,
+		LObjInstance,
+		LObjPort,
+		LObjRuler
+		} LShapeType;
+		*/
+		/*Declare a buffer to hold all elements of the pick list*/
+		char *Pick_List [ ] = {
+		"LBox",
+		"LCircle",
+		"LWire",
+		"LPolygon",
+		"LTorus",
+		"LPie",
+		"LOtherObject",
+		"LObjInstance",
+		"LObjPort",
+		"LObjRuler"
+		};
+		/*Number of elements in the pick list*/
+		int Pick_Count = 10;
+		/*Index of the item picked by user*/
+		int Picked;
+		/*Display the pick list with Inverter as the default selection*/
+		Picked = LDialog_PickList ("Select Deleted Element", Pick_List, Pick_Count, 0);
+
+
+		//****************************Input Params****************************//
+		LSelection selectedInital = LSelection_GetList();
+		while (selectedInital != NULL)
+		{
+			LObject selectedObject = LSelection_GetObject(selectedInital);
+			if(LObject_GetShape(selectedObject) == (LShapeType)Picked)
+			{
+				LObject_Delete(Cell_Now, selectedObject);
+			}	
+			selectedInital = LSelection_GetNext(selectedInital);
+		}
+		LDisplay_Refresh();
+	}
+
 	void TestFunc()
 	{
 		LCell Cell_Now = LCell_GetVisible();
@@ -794,6 +847,7 @@ module Modifiy_Module
 		LMacro_Register("Modifiy_Selected_Object_UnionSize_func", "Modifiy_Selected_Object_UnionSize");
 		LMacro_Register("Modifiy_Selected_Object_Offset", "Modifiy_Selected_Object_Offset");
 		LMacro_Register("Modifiy_Delete_Duplicates_func","Modifiy_Delete_Duplicates");
+		LMacro_Register("Modifiy_Delete_Objects_ByType_func", "Modifiy_Delete_Objects_ByType");
 		LMacro_Register("Route_Circle_func", "Route_Circle");
 		LMacro_Register("Scale_SelectedObject_ByObjectCenter_func","Scale_SelectedObject_ByObjectCenter");
 		LMacro_Register("Scale_SelectedObject_SetCenter_func","Scale_SelectedObject_SetCenter");

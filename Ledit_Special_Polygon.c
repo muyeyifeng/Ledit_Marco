@@ -974,13 +974,23 @@ module Special_Polygon_Module
             selectedInital = LSelection_GetNext(selectedInital);
         }
 
-        char str[21];
-        sprintf(str, "%.3f", LCircle_GetRadius(objects[0]) / 1000.0);
+        char show_str_buf[21];
+        snprintf(show_str_buf, sizeof(show_str_buf), "%.3f", LCircle_GetRadius(objects[0]) / 1000.0);
+
+        LDialogItem Dialog_Items[3];
+        strcpy(Dialog_Items[0].prompt, "innerDistance (um)");
+        strcpy(Dialog_Items[0].value, "3.9");
+
+        strcpy(Dialog_Items[1].prompt, "outterDistance (um)");
+        strcpy(Dialog_Items[1].value, "2.3");
+
+        strcpy(Dialog_Items[2].prompt, "standerRadius (um)");
+        strcpy(Dialog_Items[2].value, show_str_buf);
         // LDialog_MsgBox(str);
         /****************************Input Params****************************/
-        LDialogItem Dialog_Items[3] = {{"innerDistance (um)", "3.9"},
-                                       {"outterDistance (um)", "2.3"},
-                                       {"standerRadius (um)", *str}};
+        // LDialogItem Dialog_Items[3] = {{"innerDistance (um)", "3.9"},
+        //                                {"outterDistance (um)", "2.3"},
+        //                                {"standerRadius (um)", *str}};
         long innerDistance;
         long outterDistance;
         long standerRadius;
@@ -1027,13 +1037,23 @@ module Special_Polygon_Module
             selectedInital = LSelection_GetNext(selectedInital);
         }
 
-        char str[21];
-        sprintf(str, "%.3f", LCircle_GetRadius(objects[0]) / 1000.0);
+        char show_str_buf[21];
+        snprintf(show_str_buf, sizeof(show_str_buf), "%.3f", LCircle_GetRadius(objects[0]) / 1000.0);
+
+        LDialogItem Dialog_Items[3];
+        strcpy(Dialog_Items[0].prompt, "innerDistance (um)");
+        strcpy(Dialog_Items[0].value, "3.9");
+
+        strcpy(Dialog_Items[1].prompt, "outterDistance (um)");
+        strcpy(Dialog_Items[1].value, "2.3");
+
+        strcpy(Dialog_Items[2].prompt, "standerRadius (um)");
+        strcpy(Dialog_Items[2].value, show_str_buf);
         // LDialog_MsgBox(str);
         /****************************Input Params****************************/
-        LDialogItem Dialog_Items[3] = {{"innerDistance (um)", "3.9"},
-                                       {"outterDistance (um)", "2.3"},
-                                       {"standerRadius (um)", *str}};
+        // LDialogItem Dialog_Items[3] = {{"innerDistance (um)", "3.9"},
+        //                                {"outterDistance (um)", "2.3"},
+        //                                {"standerRadius (um)", *str}};
         long innerDistance;
         long outterDistance;
         long standerRadius;

@@ -374,7 +374,11 @@ module Conversion_Module
 		while (selectedInital != NULL)
 		{
 			LObject selectedObject = LSelection_GetObject(selectedInital);
-            if (LObject_GetShape(selectedObject) != 1)continue;
+            if (LObject_GetShape(selectedObject) != 1)
+            {
+                selectedInital = LSelection_GetNext(selectedInital);
+                continue;
+            }
             LPoint center = LCircle_GetCenter(selectedObject);
             LCoord radius = LCircle_GetRadius(selectedObject);
             double radius_outer = radius/cos(1.0 * M_PI/edgeNum);
@@ -389,36 +393,58 @@ module Conversion_Module
         LCell Cell_Now = LCell_GetVisible();
 		LFile File_Now = LCell_GetFile(Cell_Now);
 		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+
+        LSelection selectedInital = LSelection_GetList();
+        if(selectedInital == NULL)return;
+        LObject selectedObject = LSelection_GetObject(selectedInital);
+        if (LObject_GetShape(selectedObject) != 1)return;
+        LCoord radius = LCircle_GetRadius(selectedObject);
+        double show = 1 / 3.7 * radius;
+
         //****************************Input Params****************************//
-		LDialogItem Dialog_Items[1] = {{"Rounded vs Circle Radius ratio (default value: -1)", "-1"}};
-		double ratio;
-		if (LDialog_MultiLineInputBox("Conversion To Rounded Hexagon", Dialog_Items, 1))
+        char show_str_buf[21];
+        snprintf(show_str_buf, sizeof(show_str_buf), "%.3f", show / 1000.0);
+
+        LDialogItem Dialog_Items[2];
+        strcpy(Dialog_Items[0].prompt, "Rounded Radius (default: -1)");
+        strcpy(Dialog_Items[0].value, "-1");
+
+        strcpy(Dialog_Items[1].prompt, "default value:");
+        strcpy(Dialog_Items[1].value, show_str_buf);
+
+		double roundRadius, useless;
+        if(LDialog_MultiLineInputBox("Conversion To Rounded Hexagon", Dialog_Items, 2))
 		{
-            ratio = atof(Dialog_Items[0].value) ; // get Radius ratio
+            roundRadius = atof(Dialog_Items[0].value) ; // get Radius ratio
+            useless = atof(Dialog_Items[1].value) ; // null value
 		}
 		else
 		{
 			return;
 		}
 		//****************************Input Params****************************//
-        if(ratio < 0 && ratio != -1 || ratio > 1)
+        if(roundRadius < 0 && fabs(roundRadius + 1) > 1e-6)
         {
             LDialog_AlertBox("Invaild input value");
             return;
         }
-		double rad = 0 * M_PI / 180;
 
-        LSelection selectedInital = LSelection_GetList();
 		while (selectedInital != NULL)
 		{
 			LObject selectedObject = LSelection_GetObject(selectedInital);
-            if (LObject_GetShape(selectedObject) != 1)continue;
+            if (LObject_GetShape(selectedObject) != 1)
+            {
+                selectedInital = LSelection_GetNext(selectedInital);
+                continue;
+            }
             LPoint center = LCircle_GetCenter(selectedObject);
             LCoord radius = LCircle_GetRadius(selectedObject);
             LPoint *points;
-            double r = radius * ratio;
-            if(ratio <= 0) r = 1 / 3.7 * radius; // default value
-            double curve=r * M_PI/3;
+            if(roundRadius > radius)
+                return;
+            double r = roundRadius * 1000;
+            if(roundRadius <= 0) r = 1 / 3.7 * radius; // default value
+            double curve = r * M_PI/3;
             int n_coner = curve / 20;
             int n_sum = 6 * n_coner;
             points = Calculate_Rounded_Hexagon_Points(center, radius, r);
@@ -432,10 +458,11 @@ module Conversion_Module
 
     LPoint* Calculate_Rounded_Hexagon_Points(LPoint center,LCoord R, double r)
     {
-        double curve=r * M_PI/3;
+        double curve = r * M_PI/3;
         int n_coner = curve / 20;
         int n_sum = 6 * n_coner;
         double center_distance = ((double)R - r) * 2 / 3 *sqrt(3);
+        
         LPoint* points;
         points = (LPoint *)malloc(n_sum * sizeof(LPoint));
         
