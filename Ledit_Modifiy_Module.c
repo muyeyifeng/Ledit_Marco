@@ -813,13 +813,17 @@ module Modifiy_Module
 		LSelection selectedInital = LSelection_GetList();
 		while (selectedInital != NULL)
 		{
+			LSelection nextSelection = LSelection_GetNext(selectedInital);
 			LObject selectedObject = LSelection_GetObject(selectedInital);
-			if(LObject_GetShape(selectedObject) == (LShapeType)Picked)
+
+			if (selectedObject != NULL && LObject_GetShape(selectedObject) == (LShapeType)Picked)
 			{
 				LObject_Delete(Cell_Now, selectedObject);
-			}	
-			selectedInital = LSelection_GetNext(selectedInital);
+			}
+
+			selectedInital = nextSelection;
 		}
+
 		LDisplay_Refresh();
 	}
 
