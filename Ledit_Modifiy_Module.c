@@ -17,12 +17,12 @@
  */
 module Modifiy_Module
 {
-	#include <stdio.h>
-	#include <stdlib.h>
-	#include <string.h>
-	#include <math.h>
-	//#include "Ledit_Modifiy.h"
-	#include "ldata.h" /* Main UPI header. */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+// #include "Ledit_Modifiy.h"
+#include "ldata.h" /* Main UPI header. */
 
 	void Route_Circle();
 	int GetCrossPoint(LObject polygon, LPoint * crossPoint);
@@ -428,7 +428,7 @@ module Modifiy_Module
 		LCircle_Set(Cell_Now, circle, center, target_radius);
 	}
 
-	void Scale_Object(LObject selectedObject,LPoint polygonCenter, double scaleFactor)
+	void Scale_Object(LObject selectedObject, LPoint polygonCenter, double scaleFactor)
 	{
 		LCell Cell_Now = LCell_GetVisible();
 		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, selectedObject);
@@ -437,82 +437,82 @@ module Modifiy_Module
 		// Function for selectedObject exmple get the left xcoord
 		switch (selectedShapeType)
 		{
-			case 0: // LBox
+		case 0: // LBox
+		{
+		}
+		case 1: // LCircle
+		{
+			LPoint center = LCircle_GetCenter(selectedObject);
+			LCoord r = LCircle_GetRadius(selectedObject);
+			long point_x = (long)(polygonCenter.x + (center.x - polygonCenter.x) * scaleFactor);
+			long point_y = (long)(polygonCenter.y + (center.y - polygonCenter.y) * scaleFactor);
+			LPoint newPoint = LPoint_Set(point_x, point_y);
+			LCoord r_Scaled = (long)(r * scaleFactor);
+			LCircle_New(Cell_Now, LLayer_Now, newPoint, r_Scaled);
+		}
+		case 3: // LPolygon
+		{
+			LVertex vertex = LObject_GetVertexList(selectedObject);
+			long cnt = LVertex_GetCount(selectedObject);
+			LPoint *points;
+			points = (LPoint *)malloc((cnt) * sizeof(LPoint));
+			int j = 0;
+			while (vertex != NULL)
 			{
+				LPoint point = LVertex_GetPoint(vertex);
+				// point.x
+				// point.y
+				long point_x = (long)(polygonCenter.x + (point.x - polygonCenter.x) * scaleFactor);
+				long point_y = (long)(polygonCenter.y + (point.y - polygonCenter.y) * scaleFactor);
+				points[j] = LPoint_Set(point_x, point_y);
+				j++;
+				vertex = LVertex_GetNext(vertex);
 			}
-			case 1: // LCircle
+			LPolygon_New(Cell_Now, LLayer_Now, points, cnt);
+			break;
+		}
+		case 4: // LTorus
+		{
+			LTorusParams tParams;
+			LStatus lStatus = LTorus_GetParams(selectedObject, &tParams);
+			if (lStatus == 0)
 			{
-				LPoint center = LCircle_GetCenter(selectedObject);
-				LCoord r = LCircle_GetRadius(selectedObject);
-				long point_x = (long)(polygonCenter.x + (center.x- polygonCenter.x)*scaleFactor);
-				long point_y = (long)(polygonCenter.y + (center.y- polygonCenter.y)*scaleFactor);
+				/* Define parameters for a torus */
+				LTorusParams _tParams;
+				long point_x = (long)(polygonCenter.x + (tParams.ptCenter.x - polygonCenter.x) * scaleFactor);
+				long point_y = (long)(polygonCenter.y + (tParams.ptCenter.y - polygonCenter.y) * scaleFactor);
 				LPoint newPoint = LPoint_Set(point_x, point_y);
-				LCoord r_Scaled=(long)(r*scaleFactor);
-				LCircle_New(Cell_Now, LLayer_Now, newPoint, r_Scaled);
-			}
-			case 3: // LPolygon
-			{
-				LVertex vertex = LObject_GetVertexList(selectedObject);
-				long cnt = LVertex_GetCount(selectedObject);
-				LPoint *points;
-				points = (LPoint *)malloc((cnt) * sizeof(LPoint));
-				int j = 0;
-				while (vertex != NULL)
-				{
-					LPoint point = LVertex_GetPoint(vertex);
-					//point.x
-					//point.y
-					long point_x = (long)(polygonCenter.x + (point.x- polygonCenter.x)*scaleFactor);
-					long point_y = (long)(polygonCenter.y + (point.y- polygonCenter.y)*scaleFactor);
-					points[j] = LPoint_Set(point_x, point_y);
-					j++;
-					vertex = LVertex_GetNext(vertex);
-				}
-				LPolygon_New(Cell_Now, LLayer_Now, points, cnt);
-				break;
-			}
-			case 4: // LTorus
-			{
-				LTorusParams tParams;
-				LStatus lStatus = LTorus_GetParams(selectedObject, &tParams);
-				if (lStatus == 0)
-				{
-					/* Define parameters for a torus */
-					LTorusParams _tParams;
-					long point_x = (long)(polygonCenter.x + (tParams.ptCenter.x- polygonCenter.x)*scaleFactor);
-					long point_y = (long)(polygonCenter.y + (tParams.ptCenter.y- polygonCenter.y)*scaleFactor);
-					LPoint newPoint = LPoint_Set(point_x, point_y);
 
-					_tParams.ptCenter = newPoint;
-					_tParams.nInnerRadius = tParams.nInnerRadius*scaleFactor;
-					_tParams.nOuterRadius = tParams.nOuterRadius*scaleFactor;
-					_tParams.dStartAngle = tParams.dStartAngle;
-					_tParams.dStopAngle = tParams.dStopAngle;
+				_tParams.ptCenter = newPoint;
+				_tParams.nInnerRadius = tParams.nInnerRadius * scaleFactor;
+				_tParams.nOuterRadius = tParams.nOuterRadius * scaleFactor;
+				_tParams.dStartAngle = tParams.dStartAngle;
+				_tParams.dStopAngle = tParams.dStopAngle;
 
-					LTorus_CreateNew(Cell_Now, LLayer_Now, &_tParams);
-				}
+				LTorus_CreateNew(Cell_Now, LLayer_Now, &_tParams);
 			}
-			case 5: // LPie
+		}
+		case 5: // LPie
+		{
+			LPieParams pParams;
+			LStatus lStatus = LPie_GetParams(selectedObject, &pParams);
+			if (lStatus == 0)
 			{
-				LPieParams pParams;
-				LStatus lStatus = LPie_GetParams(selectedObject, &pParams);
-				if (lStatus == 0)
-				{
-					LPieParams _pParams;
-					long point_x = (long)(polygonCenter.x + (_pParams.ptCenter.x- polygonCenter.x)*scaleFactor);
-					long point_y = (long)(polygonCenter.y + (_pParams.ptCenter.y- polygonCenter.y)*scaleFactor);
-					LPoint newPoint = LPoint_Set(point_x, point_y);
+				LPieParams _pParams;
+				long point_x = (long)(polygonCenter.x + (_pParams.ptCenter.x - polygonCenter.x) * scaleFactor);
+				long point_y = (long)(polygonCenter.y + (_pParams.ptCenter.y - polygonCenter.y) * scaleFactor);
+				LPoint newPoint = LPoint_Set(point_x, point_y);
 
-					_pParams.ptCenter = newPoint;
-					_pParams.nRadius = pParams.nRadius*scaleFactor;
-					_pParams.dStartAngle = pParams.dStartAngle;
-					_pParams.dStopAngle = pParams.dStopAngle;
-					
-					LPie_CreateNew(Cell_Now, LLayer_Now, &_pParams);
-				}
+				_pParams.ptCenter = newPoint;
+				_pParams.nRadius = pParams.nRadius * scaleFactor;
+				_pParams.dStartAngle = pParams.dStartAngle;
+				_pParams.dStopAngle = pParams.dStopAngle;
+
+				LPie_CreateNew(Cell_Now, LLayer_Now, &_pParams);
 			}
-			default:
-				break;
+		}
+		default:
+			break;
 		}
 	}
 
@@ -520,11 +520,11 @@ module Modifiy_Module
 	{
 		LCell Cell_Now = LCell_GetVisible();
 		//****************************Input Params****************************//
-		LDialogItem Dialog_Items[3] = {	{"Scale Factor (>0)", "1"},
-										{"Center Coord X (um)","0"},
-										{"Center Coord Y (um)","0"}};
+		LDialogItem Dialog_Items[3] = {{"Scale Factor (>0)", "1"},
+									   {"Center Coord X (um)", "0"},
+									   {"Center Coord Y (um)", "0"}};
 		double scaleFactor;
-		double center_x,center_y;
+		double center_x, center_y;
 		int keep;
 		if (LDialog_MultiLineInputBox("Scale Selected Object", Dialog_Items, 3))
 		{
@@ -541,7 +541,7 @@ module Modifiy_Module
 		while (selectedInital != NULL)
 		{
 			LObject selectedObject = LSelection_GetObject(selectedInital);
-			LPoint polygonCenter = LPoint_Set((long)(center_x*1000),(long)(center_y*1000));
+			LPoint polygonCenter = LPoint_Set((long)(center_x * 1000), (long)(center_y * 1000));
 			Scale_Object(selectedObject, polygonCenter, scaleFactor);
 			selectedInital = LSelection_GetNext(selectedInital);
 		}
@@ -624,73 +624,79 @@ module Modifiy_Module
 
 	bool Compare_Objects(LObject object1, LObject object2)
 	{
-		if(LObject_GetShape(object1) != LObject_GetShape(object2))
+		if (LObject_GetShape(object1) != LObject_GetShape(object2))
 		{
 			return false;
 		}
 		switch (LObject_GetShape(object1))
 		{
-			case 0: // LBox
-			{
-				LRect rect1 = LBox_GetRect(object1);
-				LRect rect2 = LBox_GetRect(object2);
-				return rect1.x0 == rect2.x0 && rect1.x1 == rect2.x1 && rect1.y0 == rect2.y0 && rect1.y1 == rect2.y1;
-			}
-			case 1: // LCircle
-			{
-				LPoint center1 = LCircle_GetCenter(object1);
-				LCoord r1 = LCircle_GetRadius(object1);
-				LPoint center2 = LCircle_GetCenter(object2);
-				LCoord r2 = LCircle_GetRadius(object2);
-				return center1.x == center2.x && center1.y == center2.y && r1 == r2;
-			}
-			case 3: // LPolygon
-			{
-				LVertex vertex1 = LObject_GetVertexList(object1);
-				long cnt1 = LVertex_GetCount(object1);
-				LVertex vertex2 = LObject_GetVertexList(object2);
-				long cnt2 = LVertex_GetCount(object2);
-				if(cnt1 != cnt2) return false;
-
-				while (vertex1 != NULL)
-				{
-					LPoint point1 = LVertex_GetPoint(vertex1);
-					LPoint point2 = LVertex_GetPoint(vertex2);
-					if(point1.x != point2.x || point1.y != point2.y) return false;
-					vertex1 = LVertex_GetNext(vertex1);
-					vertex2 = LVertex_GetNext(vertex2);
-				}
-				return true;
-			}
-			case 4: // LTorus
-			{
-				LTorusParams tParams1;
-				LStatus lStatus1 = LTorus_GetParams(object1, &tParams1);
-
-				LTorusParams tParams2;
-				LStatus lStatus2 = LTorus_GetParams(object2, &tParams2);
-				if (lStatus1 == 0 && lStatus2 == 0)
-				{
-					return tParams1.ptCenter.x == tParams2.ptCenter.x && tParams1.ptCenter.y == tParams2.ptCenter.y && tParams1.nInnerRadius == tParams2.nInnerRadius && tParams1.nOuterRadius == tParams2.nOuterRadius && tParams1.dStartAngle == tParams2.dStartAngle && tParams1.dStopAngle == tParams2.dStopAngle;
-				}else{
-					return false;
-				}
-			}
-			case 5: // LPie
-			{
-				LPieParams pParams1;
-				LStatus lStatus1 = LPie_GetParams(object1, &pParams1);
-				LPieParams pParams2;
-				LStatus lStatus2 = LPie_GetParams(object2, &pParams2);
-				if (lStatus1 == 0 && lStatus2 == 0)
-				{
-					return 	pParams1.ptCenter.x == pParams2.ptCenter.x && pParams1.ptCenter.y == pParams2.ptCenter.y && pParams1.nRadius == pParams2.nRadius && pParams1.dStartAngle == pParams2.dStartAngle && pParams1.dStopAngle == pParams2.dStopAngle;
-				}else{
-					return false;
-				}
-			}
-			default:
+		case 0: // LBox
+		{
+			LRect rect1 = LBox_GetRect(object1);
+			LRect rect2 = LBox_GetRect(object2);
+			return rect1.x0 == rect2.x0 && rect1.x1 == rect2.x1 && rect1.y0 == rect2.y0 && rect1.y1 == rect2.y1;
+		}
+		case 1: // LCircle
+		{
+			LPoint center1 = LCircle_GetCenter(object1);
+			LCoord r1 = LCircle_GetRadius(object1);
+			LPoint center2 = LCircle_GetCenter(object2);
+			LCoord r2 = LCircle_GetRadius(object2);
+			return center1.x == center2.x && center1.y == center2.y && r1 == r2;
+		}
+		case 3: // LPolygon
+		{
+			LVertex vertex1 = LObject_GetVertexList(object1);
+			long cnt1 = LVertex_GetCount(object1);
+			LVertex vertex2 = LObject_GetVertexList(object2);
+			long cnt2 = LVertex_GetCount(object2);
+			if (cnt1 != cnt2)
 				return false;
+
+			while (vertex1 != NULL)
+			{
+				LPoint point1 = LVertex_GetPoint(vertex1);
+				LPoint point2 = LVertex_GetPoint(vertex2);
+				if (point1.x != point2.x || point1.y != point2.y)
+					return false;
+				vertex1 = LVertex_GetNext(vertex1);
+				vertex2 = LVertex_GetNext(vertex2);
+			}
+			return true;
+		}
+		case 4: // LTorus
+		{
+			LTorusParams tParams1;
+			LStatus lStatus1 = LTorus_GetParams(object1, &tParams1);
+
+			LTorusParams tParams2;
+			LStatus lStatus2 = LTorus_GetParams(object2, &tParams2);
+			if (lStatus1 == 0 && lStatus2 == 0)
+			{
+				return tParams1.ptCenter.x == tParams2.ptCenter.x && tParams1.ptCenter.y == tParams2.ptCenter.y && tParams1.nInnerRadius == tParams2.nInnerRadius && tParams1.nOuterRadius == tParams2.nOuterRadius && tParams1.dStartAngle == tParams2.dStartAngle && tParams1.dStopAngle == tParams2.dStopAngle;
+			}
+			else
+			{
+				return false;
+			}
+		}
+		case 5: // LPie
+		{
+			LPieParams pParams1;
+			LStatus lStatus1 = LPie_GetParams(object1, &pParams1);
+			LPieParams pParams2;
+			LStatus lStatus2 = LPie_GetParams(object2, &pParams2);
+			if (lStatus1 == 0 && lStatus2 == 0)
+			{
+				return pParams1.ptCenter.x == pParams2.ptCenter.x && pParams1.ptCenter.y == pParams2.ptCenter.y && pParams1.nRadius == pParams2.nRadius && pParams1.dStartAngle == pParams2.dStartAngle && pParams1.dStopAngle == pParams2.dStopAngle;
+			}
+			else
+			{
+				return false;
+			}
+		}
+		default:
+			return false;
 		}
 	}
 
@@ -700,23 +706,23 @@ module Modifiy_Module
 		//****************************Input Params****************************//
 		LSelection loop1SelectionPoint = LSelection_GetList();
 
-		LObject* selectedObjects;
+		LObject *selectedObjects;
 		selectedObjects = (LObject *)malloc(sizeof(LObject));
 		int j = 0;
-		while(loop1SelectionPoint != NULL)
+		while (loop1SelectionPoint != NULL)
 		{
 			LObject loop1Object = LSelection_GetObject(loop1SelectionPoint);
 
 			LSelection loop2SelectionPoint = loop1SelectionPoint;
 			loop2SelectionPoint = LSelection_GetNext(loop2SelectionPoint);
-			while(loop2SelectionPoint != NULL)
+			while (loop2SelectionPoint != NULL)
 			{
 				LObject loop2Object = LSelection_GetObject(loop2SelectionPoint);
-				if(Compare_Objects(loop1Object,loop2Object))
+				if (Compare_Objects(loop1Object, loop2Object))
 				{
-					//LDialog_MsgBox(LFormat("object1: %d, object2: %d", LObject_GetShape(loop1Object), LObject_GetShape(loop2Object)));
-					selectedObjects[j]= loop2Object;
-					selectedObjects = (LObject *)realloc(selectedObjects, (j + 2) * sizeof(LObject));  // 将内存大小扩展
+					// LDialog_MsgBox(LFormat("object1: %d, object2: %d", LObject_GetShape(loop1Object), LObject_GetShape(loop2Object)));
+					selectedObjects[j] = loop2Object;
+					selectedObjects = (LObject *)realloc(selectedObjects, (j + 2) * sizeof(LObject)); // 将内存大小扩展
 					j++;
 				}
 				loop2SelectionPoint = LSelection_GetNext(loop2SelectionPoint);
@@ -724,7 +730,7 @@ module Modifiy_Module
 			loop1SelectionPoint = LSelection_GetNext(loop1SelectionPoint);
 		}
 		int i;
-		for(i = 0;i < j; i++)
+		for (i = 0; i < j; i++)
 		{
 			LObject_Delete(Cell_Now, selectedObjects[i]);
 		}
@@ -789,25 +795,23 @@ module Modifiy_Module
 		} LShapeType;
 		*/
 		/*Declare a buffer to hold all elements of the pick list*/
-		char *Pick_List [ ] = {
-		"LBox",
-		"LCircle",
-		"LWire",
-		"LPolygon",
-		"LTorus",
-		"LPie",
-		"LOtherObject",
-		"LObjInstance",
-		"LObjPort",
-		"LObjRuler"
-		};
+		char *Pick_List[] = {
+			"LBox",
+			"LCircle",
+			"LWire",
+			"LPolygon",
+			"LTorus",
+			"LPie",
+			"LOtherObject",
+			"LObjInstance",
+			"LObjPort",
+			"LObjRuler"};
 		/*Number of elements in the pick list*/
 		int Pick_Count = 10;
 		/*Index of the item picked by user*/
 		int Picked;
 		/*Display the pick list with Inverter as the default selection*/
-		Picked = LDialog_PickList ("Select Deleted Element", Pick_List, Pick_Count, 0);
-
+		Picked = LDialog_PickList("Select Deleted Element", Pick_List, Pick_Count, 0);
 
 		//****************************Input Params****************************//
 		LSelection selectedInital = LSelection_GetList();
@@ -831,31 +835,29 @@ module Modifiy_Module
 	{
 		LCell Cell_Now = LCell_GetVisible();
 		LFile File_Now = LCell_GetFile(Cell_Now);
-		LPoint zero = LPoint_Set(0,0);
+		LPoint zero = LPoint_Set(0, 0);
 		LSelection selectedInital = LSelection_GetList();
 		while (selectedInital != NULL)
 		{
 			LObject selectedObject = LSelection_GetObject(selectedInital);
 			LCoord distance = LObject_DistanceToPoint(selectedObject, zero, File_Now);
 			LCoord a = WORLD_MAX + distance;
-			double c =1.0*distance;
-			LDialog_AlertBox(LFormat("distance: %ld, %ld, %ld, %f", distance, WORLD_MAX, a ,c));
+			double c = 1.0 * distance;
+			LDialog_AlertBox(LFormat("distance: %ld, %ld, %ld, %f", distance, WORLD_MAX, a, c));
 			selectedInital = LSelection_GetNext(selectedInital);
 		}
 	}
-
-
 
 	void Modifiy_func(void)
 	{
 		LMacro_Register("Modifiy_Selected_Object_UnionSize_func", "Modifiy_Selected_Object_UnionSize");
 		LMacro_Register("Modifiy_Selected_Object_Offset", "Modifiy_Selected_Object_Offset");
-		LMacro_Register("Modifiy_Delete_Duplicates_func","Modifiy_Delete_Duplicates");
+		LMacro_Register("Modifiy_Delete_Duplicates_func", "Modifiy_Delete_Duplicates");
 		LMacro_Register("Modifiy_Delete_Objects_ByType_func", "Modifiy_Delete_Objects_ByType");
 		LMacro_Register("Route_Circle_func", "Route_Circle");
-		LMacro_Register("Scale_SelectedObject_ByObjectCenter_func","Scale_SelectedObject_ByObjectCenter");
-		LMacro_Register("Scale_SelectedObject_SetCenter_func","Scale_SelectedObject_SetCenter");
-		LMacro_Register("TestFunc_func","TestFunc");
+		LMacro_Register("Scale_SelectedObject_ByObjectCenter_func", "Scale_SelectedObject_ByObjectCenter");
+		LMacro_Register("Scale_SelectedObject_SetCenter_func", "Scale_SelectedObject_SetCenter");
+		LMacro_Register("TestFunc_func", "TestFunc");
 	}
 } /* end of module Array_Module */
 

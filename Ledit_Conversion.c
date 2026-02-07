@@ -17,18 +17,18 @@
  */
 module Conversion_Module
 {
-    #include <stdio.h>
-    #include <stdlib.h>
-    #include <string.h>
-    #include <math.h>
-    //#include "Ledit_Conversion.h"
-    #include "ldata.h" /* Main UPI header. */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+// #include "Ledit_Conversion.h"
+#include "ldata.h" /* Main UPI header. */
     // 定义结构体表示二维点
-    typedef struct {
+    typedef struct
+    {
         LCoord x, y;
     } Point;
 
-    
     Point computeCentroid(Point points[], int n);
     void computeInertiaMatrix(Point points[], int n, Point centroid, double inertia[2][2]);
     double computeEccentricity(double inertia[2][2]);
@@ -39,14 +39,15 @@ module Conversion_Module
     void Conversion_func(void);
     void DrawPolygonByCenterRadiusAndEdgeNumber(LPoint center, long radius, int edgeNum, double rad);
     void Conversion_To_Polygon();
-    LPoint* Calculate_Rounded_Hexagon_Points(LPoint center,LCoord R, double r);
+    LPoint *Calculate_Rounded_Hexagon_Points(LPoint center, LCoord R, double r);
     void Conversion_To_Rounded_Hexagon();
 
-
-    Point computeCentroid(Point points[], int n) {
+    Point computeCentroid(Point points[], int n)
+    {
         double cx = 0.0, cy = 0.0;
         int i;
-        for (i = 0; i < n; i++) {
+        for (i = 0; i < n; i++)
+        {
             cx += points[i].x;
             cy += points[i].y;
         }
@@ -57,14 +58,16 @@ module Conversion_Module
     }
 
     // 计算惯性矩阵
-    void computeInertiaMatrix(Point points[], int n, Point centroid, double inertia[2][2]) {
+    void computeInertiaMatrix(Point points[], int n, Point centroid, double inertia[2][2])
+    {
         inertia[0][0] = 0.0; // Ixx
         inertia[0][1] = 0.0; // Ixy
         inertia[1][0] = 0.0; // Iyx
         inertia[1][1] = 0.0; // Iyy
 
         int i;
-        for (i = 0; i < n; i++) {
+        for (i = 0; i < n; i++)
+        {
             double dx = points[i].x - centroid.x;
             double dy = points[i].y - centroid.y;
 
@@ -76,7 +79,8 @@ module Conversion_Module
     }
 
     // 计算离心率
-    double computeEccentricity(double inertia[2][2]) {
+    double computeEccentricity(double inertia[2][2])
+    {
         // 计算特征值
         double trace = inertia[0][0] + inertia[1][1];
         double det = inertia[0][0] * inertia[1][1] - inertia[0][1] * inertia[1][0];
@@ -89,19 +93,21 @@ module Conversion_Module
         double a = fmax(lambda1, lambda2);
         double b = fmin(lambda1, lambda2);
 
-        if (a == 0) return 0.0; // 如果主轴长度为0，返回0
+        if (a == 0)
+            return 0.0; // 如果主轴长度为0，返回0
 
         return sqrt(1 - (b * b) / (a * a));
     }
 
     // 最小二乘法拟合圆：计算最接近的圆心和半径
-    void fitCircle(Point points[], int n, Point *circleCenter, double *radius) 
+    void fitCircle(Point points[], int n, Point *circleCenter, double *radius)
     {
         double cx = 0.0, cy = 0.0;
         double sum_d = 0.0;
-        
+
         int i;
-        for (i = 0; i < n; i++) {
+        for (i = 0; i < n; i++)
+        {
             cx += points[i].x;
             cy += points[i].y;
         }
@@ -112,7 +118,8 @@ module Conversion_Module
         circleCenter->x = cx;
         circleCenter->y = cy;
 
-        for (i = 0; i < n; i++) {
+        for (i = 0; i < n; i++)
+        {
             double dist = sqrt((points[i].x - cx) * (points[i].x - cx) + (points[i].y - cy) * (points[i].y - cy));
             sum_d += dist;
         }
@@ -122,13 +129,15 @@ module Conversion_Module
         double epsilon = 0.0001; // 精度阈值
         double prev_radius = *radius;
         int MAX_LOOP = 100000;
-        while (MAX_LOOP-- > 0) {
+        while (MAX_LOOP-- > 0)
+        {
             double sum_x = 0.0, sum_y = 0.0;
             double sum_err = 0.0;
             // 计算新的圆心和半径
-            for (i = 0; i < n; i++) {
-                double dist = sqrt((points[i].x - circleCenter->x) * (points[i].x - circleCenter->x) + 
-                                (points[i].y - circleCenter->y) * (points[i].y - circleCenter->y));
+            for (i = 0; i < n; i++)
+            {
+                double dist = sqrt((points[i].x - circleCenter->x) * (points[i].x - circleCenter->x) +
+                                   (points[i].y - circleCenter->y) * (points[i].y - circleCenter->y));
                 double err = dist - *radius;
                 sum_err += err;
 
@@ -143,7 +152,8 @@ module Conversion_Module
             *radius = sum_err / n + *radius;
 
             // 判断收敛条件
-            if (fabs(*radius - prev_radius) < epsilon) {
+            if (fabs(*radius - prev_radius) < epsilon)
+            {
                 break;
             }
             prev_radius = *radius;
@@ -151,133 +161,133 @@ module Conversion_Module
     }
 
     void GetObjectCoord(LObject selectedObject, long *box)
-	{
-		LShapeType selectedShapeType = LObject_GetShape(selectedObject);
-		// Function for selectedObject exmple get the left xcoord
-		switch (selectedShapeType)
-		{
-		case 0: // LBox
-		{
-			// get rect xmin
-			LRect rect = LBox_GetRect(selectedObject);
-			box[0] = rect.x0;
-			box[1] = rect.y0;
-			box[2] = rect.x1;
-			box[3] = rect.y1;
-			break;
-		}
-		case 1: // LCircle
-		{
-			LPoint center = LCircle_GetCenter(selectedObject);
-			LCoord r = LCircle_GetRadius(selectedObject);
-			box[0] = center.x - r;
-			box[1] = center.y - r;
-			box[2] = center.x + r;
-			box[3] = center.y + r;
-			break;
-		}
-		case 3: // LPolygon
-		{
-			LVertex vertex = LObject_GetVertexList(selectedObject);
-			while (vertex != NULL)
-			{
-				LPoint point = LVertex_GetPoint(vertex);
-				if (point.x < box[0])
-					box[0] = point.x;
-				if (point.y < box[1])
-					box[1] = point.y;
-				if (point.x > box[2])
-					box[2] = point.x;
-				if (point.y > box[3])
-					box[3] = point.y;
-				vertex = LVertex_GetNext(vertex);
-			}
-			break;
-		}
-		case 4: // LTorus
-		{
-			LTorusParams pParams;
-			if (LTorus_GetParams(selectedObject, &pParams) != NULL)
-			{
-				box[0] = pParams.ptCenter.x - pParams.nOuterRadius;
-				box[1] = pParams.ptCenter.y - pParams.nOuterRadius;
-				box[2] = pParams.ptCenter.x + pParams.nOuterRadius;
-				box[3] = pParams.ptCenter.y + pParams.nOuterRadius;
-			}
-			break;
-		}
-		case 5: // LPie
-		{
-			LPieParams pParams;
-			if (LPie_GetParams(selectedObject, &pParams) != NULL)
-			{
-				box[0] = pParams.ptCenter.x - pParams.nRadius;
-				box[1] = pParams.ptCenter.y - pParams.nRadius;
-				box[2] = pParams.ptCenter.x + pParams.nRadius;
-				box[3] = pParams.ptCenter.y + pParams.nRadius;
-			}
-			break;
-		}
-		default:
-			break;
-		}
-		//
-	}
+    {
+        LShapeType selectedShapeType = LObject_GetShape(selectedObject);
+        // Function for selectedObject exmple get the left xcoord
+        switch (selectedShapeType)
+        {
+        case 0: // LBox
+        {
+            // get rect xmin
+            LRect rect = LBox_GetRect(selectedObject);
+            box[0] = rect.x0;
+            box[1] = rect.y0;
+            box[2] = rect.x1;
+            box[3] = rect.y1;
+            break;
+        }
+        case 1: // LCircle
+        {
+            LPoint center = LCircle_GetCenter(selectedObject);
+            LCoord r = LCircle_GetRadius(selectedObject);
+            box[0] = center.x - r;
+            box[1] = center.y - r;
+            box[2] = center.x + r;
+            box[3] = center.y + r;
+            break;
+        }
+        case 3: // LPolygon
+        {
+            LVertex vertex = LObject_GetVertexList(selectedObject);
+            while (vertex != NULL)
+            {
+                LPoint point = LVertex_GetPoint(vertex);
+                if (point.x < box[0])
+                    box[0] = point.x;
+                if (point.y < box[1])
+                    box[1] = point.y;
+                if (point.x > box[2])
+                    box[2] = point.x;
+                if (point.y > box[3])
+                    box[3] = point.y;
+                vertex = LVertex_GetNext(vertex);
+            }
+            break;
+        }
+        case 4: // LTorus
+        {
+            LTorusParams pParams;
+            if (LTorus_GetParams(selectedObject, &pParams) != NULL)
+            {
+                box[0] = pParams.ptCenter.x - pParams.nOuterRadius;
+                box[1] = pParams.ptCenter.y - pParams.nOuterRadius;
+                box[2] = pParams.ptCenter.x + pParams.nOuterRadius;
+                box[3] = pParams.ptCenter.y + pParams.nOuterRadius;
+            }
+            break;
+        }
+        case 5: // LPie
+        {
+            LPieParams pParams;
+            if (LPie_GetParams(selectedObject, &pParams) != NULL)
+            {
+                box[0] = pParams.ptCenter.x - pParams.nRadius;
+                box[1] = pParams.ptCenter.y - pParams.nRadius;
+                box[2] = pParams.ptCenter.x + pParams.nRadius;
+                box[3] = pParams.ptCenter.y + pParams.nRadius;
+            }
+            break;
+        }
+        default:
+            break;
+        }
+        //
+    }
 
-	void Approximate_Circle()
-	{
-		LCell Cell_Now = LCell_GetVisible();
+    void Approximate_Circle()
+    {
+        LCell Cell_Now = LCell_GetVisible();
         LFile File_Now = LCell_GetFile(Cell_Now);
         LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
-		//****************************Input Params****************************//
-		LSelection selectedInital = LSelection_GetList();
+        //****************************Input Params****************************//
+        LSelection selectedInital = LSelection_GetList();
 
-		LObject* selectedObjects;
-		selectedObjects = (LObject *)malloc(sizeof(LObject));
-		int j = 0;
-		while(selectedInital != NULL)
-		{
+        LObject *selectedObjects;
+        selectedObjects = (LObject *)malloc(sizeof(LObject));
+        int j = 0;
+        while (selectedInital != NULL)
+        {
             LObject selectedObject = LSelection_GetObject(selectedInital);
-            //LLayer LLayer_Now = LObject_GetLayer(Cell_Now, selectedObject);
+            // LLayer LLayer_Now = LObject_GetLayer(Cell_Now, selectedObject);
             switch (LObject_GetShape(selectedObject))
-		    {
-                case 3: // LPolygon
+            {
+            case 3: // LPolygon
+            {
+                LVertex vertex = LObject_GetVertexList(selectedObject);
+                long cnt = LVertex_GetCount(selectedObject);
+                Point *points;
+                points = (Point *)malloc((cnt) * sizeof(Point));
+                int j = 0;
+                while (vertex != NULL)
                 {
-                    LVertex vertex = LObject_GetVertexList(selectedObject);
-                    long cnt = LVertex_GetCount(selectedObject);
-                    Point *points;
-                    points = (Point *)malloc((cnt) * sizeof(Point));
-                    int j = 0;
-                    while (vertex != NULL)
-                    {
-                        LPoint point = LVertex_GetPoint(vertex);
-                        points[j].x = point.x;
-                        points[j].y = point.y;
-                        j++;
-                        vertex = LVertex_GetNext(vertex);
-                    }
-                    // 计算质心
-                    Point centroid = computeCentroid(points, j-1);
-
-                    // 计算惯性矩阵
-                    double inertia[2][2];
-                    computeInertiaMatrix(points, j-1, centroid, inertia);
-
-                    // 计算离心率
-                    double eccentricity = computeEccentricity(inertia);
-                    LDialog_MsgBox(LFormat("The eccentricity of the polygon is: %lf, Roundness measure of polygons: %.2f", eccentricity, 1 - eccentricity));
-
-                    // 拟合最接近的圆
-                    Point circleCenter;
-                    double radius;
-                    fitCircle(points, j-1, &circleCenter, &radius);
-                    LDialog_MsgBox(LFormat("circleCenter is: (%.2f, %.2f), radius: %.2f", circleCenter.x, circleCenter.y, radius));
-                    LPoint newPoint = LPoint_Set(circleCenter.x, circleCenter.y);
-                    LCircle_New(Cell_Now, LLayer_Now, newPoint, (long)radius);
-                    break;
+                    LPoint point = LVertex_GetPoint(vertex);
+                    points[j].x = point.x;
+                    points[j].y = point.y;
+                    j++;
+                    vertex = LVertex_GetNext(vertex);
                 }
-                default:
-				    break;
+                // 计算质心
+                Point centroid = computeCentroid(points, j - 1);
+
+                // 计算惯性矩阵
+                double inertia[2][2];
+                computeInertiaMatrix(points, j - 1, centroid, inertia);
+
+                // 计算离心率
+                double eccentricity = computeEccentricity(inertia);
+                LDialog_MsgBox(LFormat("The eccentricity of the polygon is: %lf, Roundness measure of polygons: %.2f", eccentricity, 1 - eccentricity));
+
+                // 拟合最接近的圆
+                Point circleCenter;
+                double radius;
+                fitCircle(points, j - 1, &circleCenter, &radius);
+                LDialog_MsgBox(LFormat("circleCenter is: (%.2f, %.2f), radius: %.2f", circleCenter.x, circleCenter.y, radius));
+                LPoint newPoint = LPoint_Set(circleCenter.x, circleCenter.y);
+                LCircle_New(Cell_Now, LLayer_Now, newPoint, (long)radius);
+                break;
+            }
+            default:
+                break;
             }
             selectedInital = LSelection_GetNext(selectedInital);
         }
@@ -285,95 +295,94 @@ module Conversion_Module
     }
 
     void Approximate_Circle_Sample()
-	{
-		LCell Cell_Now = LCell_GetVisible();
+    {
+        LCell Cell_Now = LCell_GetVisible();
         LFile File_Now = LCell_GetFile(Cell_Now);
         LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
-		//****************************Input Params****************************//
-		LSelection selectedInital = LSelection_GetList();
+        //****************************Input Params****************************//
+        LSelection selectedInital = LSelection_GetList();
 
-		LObject* selectedObjects;
-		selectedObjects = (LObject *)malloc(sizeof(LObject));
-		int j = 0;
-		while(selectedInital != NULL)
-		{
+        LObject *selectedObjects;
+        selectedObjects = (LObject *)malloc(sizeof(LObject));
+        int j = 0;
+        while (selectedInital != NULL)
+        {
             LObject selectedObject = LSelection_GetObject(selectedInital);
-            //LLayer LLayer_Now = LObject_GetLayer(Cell_Now, selectedObject);
+            // LLayer LLayer_Now = LObject_GetLayer(Cell_Now, selectedObject);
             switch (LObject_GetShape(selectedObject))
-		    {
-                case 3: // LPolygon
-                {
-                    long box[4];
-                    box[0] = WORLD_MAX;	 // x0
-                    box[1] = WORLD_MAX;	 // y0
-                    box[2] = -WORLD_MAX; // x1
-                    box[3] = -WORLD_MAX; // y1
-                    GetObjectCoord(selectedObject, box);
-                    //LDialog_MsgBox(LFormat("x0: %d, y0: %d, x1: %d, y1: %d", box[0], box[1], box[2], box[3]));
-                    // 拟合最接近的圆
-                    Point circleCenter;
-                    circleCenter.x = (box[0] + box[2]) / 2; 
-                    circleCenter.y = (box[1] + box[3]) / 2;
-                    double radius;
-                    radius = ((box[2] - box[0])+ (box[3] - box[1])) / 4.0;
-                    //LDialog_MsgBox(LFormat("r1: %d, r2: %d", box[2] - box[0], box[3] - box[1]));
-                    LPoint newPoint = LPoint_Set(circleCenter.x, circleCenter.y);
-                    LCircle_New(Cell_Now, LLayer_Now, newPoint, (long)radius);
-                    break;
-                }
-                default:
-				    break;
+            {
+            case 3: // LPolygon
+            {
+                long box[4];
+                box[0] = WORLD_MAX;  // x0
+                box[1] = WORLD_MAX;  // y0
+                box[2] = -WORLD_MAX; // x1
+                box[3] = -WORLD_MAX; // y1
+                GetObjectCoord(selectedObject, box);
+                // LDialog_MsgBox(LFormat("x0: %d, y0: %d, x1: %d, y1: %d", box[0], box[1], box[2], box[3]));
+                //  拟合最接近的圆
+                Point circleCenter;
+                circleCenter.x = (box[0] + box[2]) / 2;
+                circleCenter.y = (box[1] + box[3]) / 2;
+                double radius;
+                radius = ((box[2] - box[0]) + (box[3] - box[1])) / 4.0;
+                // LDialog_MsgBox(LFormat("r1: %d, r2: %d", box[2] - box[0], box[3] - box[1]));
+                LPoint newPoint = LPoint_Set(circleCenter.x, circleCenter.y);
+                LCircle_New(Cell_Now, LLayer_Now, newPoint, (long)radius);
+                break;
+            }
+            default:
+                break;
             }
             selectedInital = LSelection_GetNext(selectedInital);
         }
         LDisplay_Refresh();
     }
 
-    
     void DrawPolygonByCenterRadiusAndEdgeNumber(LPoint center, long radius, int edgeNum, double rad)
-	{
-		LCell Cell_Now = LCell_GetVisible();
-		LFile File_Now = LCell_GetFile(Cell_Now);
-		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
-		LPoint *points;
-		points = (LPoint *)malloc((edgeNum) * sizeof(LPoint));
-		int i;
-		for (i = 0; i < edgeNum; i++)
-		{
-			int point_x = center.x + radius * sin(rad + 2 * i * M_PI / edgeNum);
-			int point_y = center.y + radius * cos(rad + 2 * i * M_PI / edgeNum);
-			points[i] = LPoint_Set((long)point_x, (long)point_y);
-		}
-		LPolygon_New(Cell_Now, LLayer_Now, points, edgeNum);
-	}
+    {
+        LCell Cell_Now = LCell_GetVisible();
+        LFile File_Now = LCell_GetFile(Cell_Now);
+        LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+        LPoint *points;
+        points = (LPoint *)malloc((edgeNum) * sizeof(LPoint));
+        int i;
+        for (i = 0; i < edgeNum; i++)
+        {
+            int point_x = center.x + radius * sin(rad + 2 * i * M_PI / edgeNum);
+            int point_y = center.y + radius * cos(rad + 2 * i * M_PI / edgeNum);
+            points[i] = LPoint_Set((long)point_x, (long)point_y);
+        }
+        LPolygon_New(Cell_Now, LLayer_Now, points, edgeNum);
+    }
 
     void Conversion_To_Polygon()
     {
         //****************************Input Params****************************//
-		LDialogItem Dialog_Items[2] = {{"Edge Number (>=3)", "3"},
-									   {"Rota Deg (0-360)", "0"}};
-		int edgeNum;
-		double deg;
-		if (LDialog_MultiLineInputBox("Conversion To Polygon", Dialog_Items, 2))
-		{
-			edgeNum = atoi(Dialog_Items[0].value);				 // get the edgeNum
-			deg = atof(Dialog_Items[1].value);					 // get the deg
-		}
-		else
-		{
-			return;
-		}
-		//****************************Input Params****************************//
-		double rad = deg * M_PI / 180;
-		if (edgeNum < 3)
-		{
-			LDialog_AlertBox("Polygon edge number must lagger than 3");
-			return;
-		}
+        LDialogItem Dialog_Items[2] = {{"Edge Number (>=3)", "3"},
+                                       {"Rota Deg (0-360)", "0"}};
+        int edgeNum;
+        double deg;
+        if (LDialog_MultiLineInputBox("Conversion To Polygon", Dialog_Items, 2))
+        {
+            edgeNum = atoi(Dialog_Items[0].value); // get the edgeNum
+            deg = atof(Dialog_Items[1].value);     // get the deg
+        }
+        else
+        {
+            return;
+        }
+        //****************************Input Params****************************//
+        double rad = deg * M_PI / 180;
+        if (edgeNum < 3)
+        {
+            LDialog_AlertBox("Polygon edge number must lagger than 3");
+            return;
+        }
         LSelection selectedInital = LSelection_GetList();
-		while (selectedInital != NULL)
-		{
-			LObject selectedObject = LSelection_GetObject(selectedInital);
+        while (selectedInital != NULL)
+        {
+            LObject selectedObject = LSelection_GetObject(selectedInital);
             if (LObject_GetShape(selectedObject) != 1)
             {
                 selectedInital = LSelection_GetNext(selectedInital);
@@ -381,23 +390,25 @@ module Conversion_Module
             }
             LPoint center = LCircle_GetCenter(selectedObject);
             LCoord radius = LCircle_GetRadius(selectedObject);
-            double radius_outer = radius/cos(1.0 * M_PI/edgeNum);
+            double radius_outer = radius / cos(1.0 * M_PI / edgeNum);
             DrawPolygonByCenterRadiusAndEdgeNumber(center, radius_outer, edgeNum, rad);
             selectedInital = LSelection_GetNext(selectedInital);
-		}
+        }
         LDisplay_Refresh();
     }
 
     void Conversion_To_Rounded_Hexagon()
     {
         LCell Cell_Now = LCell_GetVisible();
-		LFile File_Now = LCell_GetFile(Cell_Now);
-		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+        LFile File_Now = LCell_GetFile(Cell_Now);
+        LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
 
         LSelection selectedInital = LSelection_GetList();
-        if(selectedInital == NULL)return;
+        if (selectedInital == NULL)
+            return;
         LObject selectedObject = LSelection_GetObject(selectedInital);
-        if (LObject_GetShape(selectedObject) != 1)return;
+        if (LObject_GetShape(selectedObject) != 1)
+            return;
         LCoord radius = LCircle_GetRadius(selectedObject);
         double show = 1 / 3.7 * radius;
 
@@ -412,26 +423,26 @@ module Conversion_Module
         strcpy(Dialog_Items[1].prompt, "default value:");
         strcpy(Dialog_Items[1].value, show_str_buf);
 
-		double roundRadius, useless;
-        if(LDialog_MultiLineInputBox("Conversion To Rounded Hexagon", Dialog_Items, 2))
-		{
-            roundRadius = atof(Dialog_Items[0].value) ; // get Radius ratio
-            useless = atof(Dialog_Items[1].value) ; // null value
-		}
-		else
-		{
-			return;
-		}
-		//****************************Input Params****************************//
-        if(roundRadius < 0 && fabs(roundRadius + 1) > 1e-6)
+        double roundRadius, useless;
+        if (LDialog_MultiLineInputBox("Conversion To Rounded Hexagon", Dialog_Items, 2))
+        {
+            roundRadius = atof(Dialog_Items[0].value); // get Radius ratio
+            useless = atof(Dialog_Items[1].value);     // null value
+        }
+        else
+        {
+            return;
+        }
+        //****************************Input Params****************************//
+        if (roundRadius < 0 && fabs(roundRadius + 1) > 1e-6)
         {
             LDialog_AlertBox("Invaild input value");
             return;
         }
 
-		while (selectedInital != NULL)
-		{
-			LObject selectedObject = LSelection_GetObject(selectedInital);
+        while (selectedInital != NULL)
+        {
+            LObject selectedObject = LSelection_GetObject(selectedInital);
             if (LObject_GetShape(selectedObject) != 1)
             {
                 selectedInital = LSelection_GetNext(selectedInital);
@@ -440,32 +451,33 @@ module Conversion_Module
             LPoint center = LCircle_GetCenter(selectedObject);
             LCoord radius = LCircle_GetRadius(selectedObject);
             LPoint *points;
-            if(roundRadius > radius)
+            if (roundRadius > radius)
                 return;
             double r = roundRadius * 1000;
-            if(roundRadius <= 0) r = 1 / 3.7 * radius; // default value
-            double curve = r * M_PI/3;
+            if (roundRadius <= 0)
+                r = 1 / 3.7 * radius; // default value
+            double curve = r * M_PI / 3;
             int n_coner = curve / 20;
             int n_sum = 6 * n_coner;
             points = Calculate_Rounded_Hexagon_Points(center, radius, r);
-            //DrawPolygonByCenterRadiusAndEdgeNumber(center, radius_outer, edgeNum, rad);
+            // DrawPolygonByCenterRadiusAndEdgeNumber(center, radius_outer, edgeNum, rad);
             LPolygon_New(Cell_Now, LLayer_Now, points, n_sum);
-            //free(points);
+            // free(points);
             selectedInital = LSelection_GetNext(selectedInital);
-		}
+        }
         LDisplay_Refresh();
     }
 
-    LPoint* Calculate_Rounded_Hexagon_Points(LPoint center,LCoord R, double r)
+    LPoint *Calculate_Rounded_Hexagon_Points(LPoint center, LCoord R, double r)
     {
-        double curve = r * M_PI/3;
+        double curve = r * M_PI / 3;
         int n_coner = curve / 20;
         int n_sum = 6 * n_coner;
-        double center_distance = ((double)R - r) * 2 / 3 *sqrt(3);
-        
-        LPoint* points;
+        double center_distance = ((double)R - r) * 2 / 3 * sqrt(3);
+
+        LPoint *points;
         points = (LPoint *)malloc(n_sum * sizeof(LPoint));
-        
+
         if (points == NULL)
         {
             LDialog_AlertBox("Memory allocation failed for points array.");
@@ -482,19 +494,18 @@ module Conversion_Module
             double start_theta = n * M_PI / 3;
             points[i].x = (long)(new_center_x + r * cos(start_theta + theta));
             points[i].y = (long)(new_center_y + r * sin(start_theta + theta));
-            //if(n > 0) {LDialog_MsgBox(LFormat("%d,%d",new_center_x,new_center_y));break;}
+            // if(n > 0) {LDialog_MsgBox(LFormat("%d,%d",new_center_x,new_center_y));break;}
         }
         return points;
     }
 
-
     void Conversion_func(void)
-	{
-		LMacro_Register("Approximate_Circle_func","Approximate_Circle");
-        LMacro_Register("Approximate_Circle_Sample_func","Approximate_Circle_Sample");
-        LMacro_Register("Conversion_To_Polygon_func","Conversion_To_Polygon");
-        LMacro_Register("Conversion_To_Rounded_Hexagon_func","Conversion_To_Rounded_Hexagon");
-	}
-}/* end of module Conversion_Module */
+    {
+        LMacro_Register("Approximate_Circle_func", "Approximate_Circle");
+        LMacro_Register("Approximate_Circle_Sample_func", "Approximate_Circle_Sample");
+        LMacro_Register("Conversion_To_Polygon_func", "Conversion_To_Polygon");
+        LMacro_Register("Conversion_To_Rounded_Hexagon_func", "Conversion_To_Rounded_Hexagon");
+    }
+} /* end of module Conversion_Module */
 
 Conversion_func();

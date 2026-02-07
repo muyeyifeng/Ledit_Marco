@@ -17,11 +17,11 @@
  */
 module Alignment_Moudle
 {
-	#include <stdio.h>
-	#include <stdlib.h>
-	#include <string.h>
-	//#include "Ledit_Alignment.h"
-	#include "ldata.h" /* Main UPI header. */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+// #include "Ledit_Alignment.h"
+#include "ldata.h" /* Main UPI header. */
 
 	void Alignment_Left();
 	void Alignment_Right();

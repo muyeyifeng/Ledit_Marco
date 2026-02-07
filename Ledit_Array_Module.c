@@ -18,12 +18,12 @@
 
 module Array_Module
 {
-	#include <stdio.h>
-	#include <stdlib.h>
-	#include <string.h>
-	#include <math.h>
-	//#include "Ledit_Array.h"
-	#include "ldata.h" /* Main UPI header. */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+// #include "Ledit_Array.h"
+#include "ldata.h" /* Main UPI header. */
 
 	void MirrorObjectsByPointAndRad();
 	LObject Mirror_Rect(LObject selectRect, LPoint mirrorPoint, double rad);
@@ -43,7 +43,7 @@ module Array_Module
 	void ArrayByRingSetDistance();
 	void ArrayInObjectByRing();
 	void ArrayInObjectByDistanceHexagon();
-	void _ArrayInObjectByDistanceHexagon(LPoint **points, int *num, long *_distance);
+	void _ArrayInObjectByDistanceHexagon(LPoint * *points, int *num, long *_distance);
 	int LSelection_GetNumber(LSelection selectedInital);
 	void ArrayByEdgeDistanceOneDimension();
 	void CopySelectedObjectsByEdgeDistance(int arrayNumber, long distance, double deg);
@@ -1255,11 +1255,11 @@ module Array_Module
 	{
 		LCell Cell_Now = LCell_GetVisible();
 		//****************************Input Params****************************//
-		LDialogItem Dialog_Items[3] = {	{"Offset (um) (Inf)", "0"},
-										{"Center Coord X (um)","0"},
-										{"Center Coord Y (um)","0"}};
+		LDialogItem Dialog_Items[3] = {{"Offset (um) (Inf)", "0"},
+									   {"Center Coord X (um)", "0"},
+									   {"Center Coord Y (um)", "0"}};
 		double offset;
-		double center_x,center_y;
+		double center_x, center_y;
 		int keep;
 		if (LDialog_MultiLineInputBox("Scale Selected Object", Dialog_Items, 3))
 		{
@@ -1276,21 +1276,21 @@ module Array_Module
 		while (selectedInital != NULL)
 		{
 			LObject selectedObject = LSelection_GetObject(selectedInital);
-			LPoint polygonCenter = LPoint_Set((long)(center_x*1000),(long)(center_y*1000));
+			LPoint polygonCenter = LPoint_Set((long)(center_x * 1000), (long)(center_y * 1000));
 			long box[4];
 			box[0] = WORLD_MAX;	 // x0
 			box[1] = WORLD_MAX;	 // y0
 			box[2] = -WORLD_MAX; // x1
 			box[3] = -WORLD_MAX; // y1
 			GetObjectCoord(selectedObject, box);
-			//calculate object center (box)
-			long objectCenterX = (box[2]+box[0])/2;
-			long objectCenterY = (box[3]+box[1])/2;
-			long vectoryX = objectCenterX-(long)(center_x*1000);
-			long vectoryY = objectCenterY-(long)(center_y*1000);
+			// calculate object center (box)
+			long objectCenterX = (box[2] + box[0]) / 2;
+			long objectCenterY = (box[3] + box[1]) / 2;
+			long vectoryX = objectCenterX - (long)(center_x * 1000);
+			long vectoryY = objectCenterY - (long)(center_y * 1000);
 			double angle = atan2(vectoryY, vectoryX);
-			long xOffset = cos(angle)*offset*1000;
-			long yOffset = sin(angle)*offset*1000;
+			long xOffset = cos(angle) * offset * 1000;
+			long yOffset = sin(angle) * offset * 1000;
 			CopyObject(selectedObject, xOffset, yOffset);
 
 			selectedInital = LSelection_GetNext(selectedInital);
@@ -1302,11 +1302,11 @@ module Array_Module
 	{
 		LCell Cell_Now = LCell_GetVisible();
 		//****************************Input Params****************************//
-		LDialogItem Dialog_Items[3] = {	{"Radius (um) (Inf)", "0"},
-										{"Center Coord X (um)","0"},
-										{"Center Coord Y (um)","0"}};
+		LDialogItem Dialog_Items[3] = {{"Radius (um) (Inf)", "0"},
+									   {"Center Coord X (um)", "0"},
+									   {"Center Coord Y (um)", "0"}};
 		double radius;
-		double center_x,center_y;
+		double center_x, center_y;
 		int keep;
 		if (LDialog_MultiLineInputBox("Scale Selected Object", Dialog_Items, 3))
 		{
@@ -1323,22 +1323,22 @@ module Array_Module
 		while (selectedInital != NULL)
 		{
 			LObject selectedObject = LSelection_GetObject(selectedInital);
-			LPoint polygonCenter = LPoint_Set((long)(center_x*1000),(long)(center_y*1000));
+			LPoint polygonCenter = LPoint_Set((long)(center_x * 1000), (long)(center_y * 1000));
 			long box[4];
 			box[0] = WORLD_MAX;	 // x0
 			box[1] = WORLD_MAX;	 // y0
 			box[2] = -WORLD_MAX; // x1
 			box[3] = -WORLD_MAX; // y1
 			GetObjectCoord(selectedObject, box);
-			//calculate object center (box)
-			long objectCenterX = (box[2]+box[0])/2;
-			long objectCenterY = (box[3]+box[1])/2;
-			long vectoryX = objectCenterX-(long)(center_x*1000);
-			long vectoryY = objectCenterY-(long)(center_y*1000);
-			double distanceToCenter=sqrt(1.0 * vectoryX * vectoryX + 1.0 * vectoryY * vectoryY);
+			// calculate object center (box)
+			long objectCenterX = (box[2] + box[0]) / 2;
+			long objectCenterY = (box[3] + box[1]) / 2;
+			long vectoryX = objectCenterX - (long)(center_x * 1000);
+			long vectoryY = objectCenterY - (long)(center_y * 1000);
+			double distanceToCenter = sqrt(1.0 * vectoryX * vectoryX + 1.0 * vectoryY * vectoryY);
 			double angle = atan2(vectoryY, vectoryX);
-			long xOffset = cos(angle)*(radius*1000-distanceToCenter);
-			long yOffset = sin(angle)*(radius*1000-distanceToCenter);
+			long xOffset = cos(angle) * (radius * 1000 - distanceToCenter);
+			long yOffset = sin(angle) * (radius * 1000 - distanceToCenter);
 			CopyObject(selectedObject, xOffset, yOffset);
 
 			selectedInital = LSelection_GetNext(selectedInital);
@@ -1357,8 +1357,8 @@ module Array_Module
 		LMacro_Register("ArrayInObjectByRing_func", "ArrayInObjectByRing");
 		LMacro_Register("RotateObjectsByPoint_func", "RotateObjectsByPoint");
 		LMacro_Register("MirrorObjectsByPointAndRad_func", "MirrorObjectsByPointAndRad");
-		LMacro_Register("Diffusion_Selected_Object_ByOffset_func","Diffusion_Selected_Object_ByOffset");
-		LMacro_Register("Diffusion_Selected_Object_ByRadius_func","Diffusion_Selected_Object_ByRadius");
+		LMacro_Register("Diffusion_Selected_Object_ByOffset_func", "Diffusion_Selected_Object_ByOffset");
+		LMacro_Register("Diffusion_Selected_Object_ByRadius_func", "Diffusion_Selected_Object_ByRadius");
 	}
 } /* end of module Array_Module */
 

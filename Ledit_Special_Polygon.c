@@ -29,7 +29,7 @@ module Special_Polygon_Module
     int CalculateIntersection_Circle2Circle(LObject object1, LObject object2, long radius, LObject **torus);
     int CalculateIntersection_Circle2Wire(LObject object1, LObject object2, long radius, LObject **torus);
     int Calculate_Outside_Circle(LPoint A, LPoint B, long L, LPoint *results);
-    int Calculate_Rounded_Hexagon_Points(LPoint center, LCoord R, double start_angle_deg, double end_angle_deg, LPoint **result);
+    int Calculate_Rounded_Hexagon_Points(LPoint center, LCoord R, double start_angle_deg, double end_angle_deg, LPoint **result, long RoundRadius);
     double GetPointDistance(LPoint point1, LPoint point2);
     double Get_theta(LPoint point1, LPoint point2);
     double calculateAngleP1ToP2(LPoint P1, LPoint P2);
@@ -38,7 +38,7 @@ module Special_Polygon_Module
     double get_short_arc_interpolated_angle(double start_angle, double end_angle);
     void DrawTangentRing();
     void Draw_Boundry(LObject * orderedObjects, int orderedObjectNum, long innerDistance, long outterDistance, long standerRadius, long minDistance, LPoint shapeCenter);
-    void Draw_Boundry_Hex(LObject * orderedObjects, int orderedObjectNum, long innerDistance, long outterDistance, long standerRadius, long minDistance, LPoint shapeCenter);
+    void Draw_Boundry_Hex(LObject * orderedObjects, int orderedObjectNum, long innerDistance, long outterDistance, long standerRadius, long minDistance, LPoint shapeCenter, long RoundRadius);
     void FindLineEquation(LPoint p1, LPoint p2, double **abc);
     bool Find_Next_Circle(LObject * orderedObjects, int orderedObjectNum, LObject *objects, int objectNum, double search_max_radius, double search_min_radius);
     int LSelection_GetNumber(LSelection selectedInital);
@@ -46,7 +46,7 @@ module Special_Polygon_Module
     void Order_Boundry_Circles();
     void Order_Boundry_Hex();
     void Order_Circle(LObject * objects, int objectNum, long innerDistance, long outterDistance, long standerRadius);
-    void Order_Hex(LObject * objects, int objectNum, long innerDistance, long outterDistance, long standerRadius);
+    void Order_Hex(LObject * objects, int objectNum, long innerDistance, long outterDistance, long standerRadius, long RoundRadius);
     LObject *Select_Boundry_Object(LSelection selectedInital, long search_radius);
     void Select_Boundry_Circles();
     void SpecialPolygon_func(void);
@@ -1040,7 +1040,7 @@ module Special_Polygon_Module
         char show_str_buf[21];
         snprintf(show_str_buf, sizeof(show_str_buf), "%.3f", LCircle_GetRadius(objects[0]) / 1000.0);
 
-        LDialogItem Dialog_Items[3];
+        LDialogItem Dialog_Items[4];
         strcpy(Dialog_Items[0].prompt, "innerDistance (um)");
         strcpy(Dialog_Items[0].value, "3.9");
 
@@ -1049,6 +1049,9 @@ module Special_Polygon_Module
 
         strcpy(Dialog_Items[2].prompt, "standerRadius (um)");
         strcpy(Dialog_Items[2].value, show_str_buf);
+
+        strcpy(Dialog_Items[3].prompt, "Round Radius (um,default -1)");
+        strcpy(Dialog_Items[3].value, "-1");
         // LDialog_MsgBox(str);
         /****************************Input Params****************************/
         // LDialogItem Dialog_Items[3] = {{"innerDistance (um)", "3.9"},
@@ -1057,11 +1060,13 @@ module Special_Polygon_Module
         long innerDistance;
         long outterDistance;
         long standerRadius;
-        if (LDialog_MultiLineInputBox("Draw Boundry", Dialog_Items, 3))
+        long RoundRadius;
+        if (LDialog_MultiLineInputBox("Draw Boundry", Dialog_Items, 4))
         {
             innerDistance = (long)(atof(Dialog_Items[0].value) * 1000);
             outterDistance = (long)(atof(Dialog_Items[1].value) * 1000);
             standerRadius = (long)(atof(Dialog_Items[2].value) * 1000);
+            RoundRadius = (long)(atof(Dialog_Items[3].value) * 1000);
         }
         else
         {
@@ -1070,12 +1075,12 @@ module Special_Polygon_Module
         /****************************Input Params****************************/
 
         // void Order_Circle(LObject* objects, int objectNum, long innerDistance, long outterDistance, long standerRadius)
-        Order_Hex(objects, objectNum, innerDistance, outterDistance, standerRadius);
+        Order_Hex(objects, objectNum, innerDistance, outterDistance, standerRadius, RoundRadius);
         LSelection_DeselectAll();
         LDisplay_Refresh();
     }
 
-    void Order_Hex(LObject * objects, int objectNum, long innerDistance, long outterDistance, long standerRadius)
+    void Order_Hex(LObject * objects, int objectNum, long innerDistance, long outterDistance, long standerRadius, long RoundRadius)
     {
 
         // put the left bottom circle to the first
@@ -1131,10 +1136,10 @@ module Special_Polygon_Module
         LPoint center;
         center = CalculateCentroid(centerPoints, objectNum);
 
-        Draw_Boundry_Hex(orderedObjects, objectNum, innerDistance, outterDistance, standerRadius, (long)minDistance, center);
+        Draw_Boundry_Hex(orderedObjects, objectNum, innerDistance, outterDistance, standerRadius, (long)minDistance, center, RoundRadius);
     }
 
-    void Draw_Boundry_Hex(LObject * orderedObjects, int orderedObjectNum, long innerDistance, long outterDistance, long standerRadius, long minDistance, LPoint shapeCenter)
+    void Draw_Boundry_Hex(LObject * orderedObjects, int orderedObjectNum, long innerDistance, long outterDistance, long standerRadius, long minDistance, LPoint shapeCenter, long RoundRadius)
     {
         // standerRadius means the radius of the circle
         LCell Cell_Now = LCell_GetVisible();
@@ -1144,8 +1149,8 @@ module Special_Polygon_Module
         double startAngle = -135; // start from left bottom circle
         double angle1, angle2;
         int i, j;
-        int currentSize = 0;
-        int capacity = 1000;
+        long currentSize = 0;
+        long capacity = 1000;
         LPoint *totalPolygon = (LPoint *)malloc(capacity * sizeof(LPoint));
         for (i = 0; i < orderedObjectNum; i++)
         {
@@ -1204,7 +1209,7 @@ module Special_Polygon_Module
             {
 
                 newPoint = result3;
-                // LCircle_New(Cell_Now, LLayer_Now, result3, standerRadius);
+                LCircle_New(Cell_Now, LLayer_Now, result3, standerRadius);
 
                 angle1 = calculateAngleP1ToP2(center_1, result3);
                 angle2 = calculateAngleP1ToP2(center_3, result3);
@@ -1214,13 +1219,13 @@ module Special_Polygon_Module
                 // start - >angle1
                 //_angle1 -> _angle2
                 //
-                int cnt1 = Calculate_Rounded_Hexagon_Points(center_1, standerRadius + innerDistance, startAngle, angle1, &part1);
+                int cnt1 = Calculate_Rounded_Hexagon_Points(center_1, standerRadius + innerDistance, startAngle, angle1, &part1, RoundRadius + innerDistance);
                 // LPolygon_New(Cell_Now, LLayer_Now, part1, cnt1);
-                int cnt2 = Calculate_Rounded_Hexagon_Points(result3, standerRadius + outterDistance, _angle1, _angle2, &part2);
+                int cnt2 = Calculate_Rounded_Hexagon_Points(result3, standerRadius + outterDistance, _angle1, _angle2, &part2, RoundRadius + outterDistance);
                 // LPolygon_New(Cell_Now, LLayer_Now, part2, cnt2);
                 if (capacity < 1.5 * (cnt1 + cnt2 + currentSize))
                 {
-                    int newCapacity = 1.5 * (cnt1 + cnt2 + currentSize);
+                    long newCapacity = (long)(1.5 * (cnt1 + cnt2 + currentSize));
                     LPoint *tempArray = (LPoint *)realloc(totalPolygon, newCapacity * sizeof(LPoint));
                     totalPolygon = tempArray; // 更新指针指向新的内存区域
                     capacity = newCapacity;   // 更新容量
@@ -1253,8 +1258,8 @@ module Special_Polygon_Module
                 double _angle1 = normalize_angle(angle1 + 180);
                 double _angle2 = normalize_angle(angle2 + 180);
 
-                int cnt3 = Calculate_Rounded_Hexagon_Points(center_1, standerRadius + innerDistance, startAngle, angle1, &part1);
-                int cnt4 = Calculate_Rounded_Hexagon_Points(result1, standerRadius + outterDistance, _angle1, _angle2, &part2);
+                int cnt3 = Calculate_Rounded_Hexagon_Points(center_1, standerRadius + innerDistance, startAngle, angle1, &part1, RoundRadius + innerDistance);
+                int cnt4 = Calculate_Rounded_Hexagon_Points(result1, standerRadius + outterDistance, _angle1, _angle2, &part2, RoundRadius + outterDistance);
                 // LDialog_MsgBox(LFormat("cnt3: %d, cnt4: %d", cnt3, cnt4));
                 if (capacity < 1.5 * (cnt3 + cnt4 + currentSize))
                 {
@@ -1280,17 +1285,17 @@ module Special_Polygon_Module
             }
 
             // 测试，画出新的圆
-            // LCircle_New(Cell_Now, LLayer_Now, newPoint, standerRadius);
+            LCircle_New(Cell_Now, LLayer_Now, newPoint, standerRadius);
         }
 
         LPoint *partSmall;
         LPoint circle0 = LCircle_GetCenter(orderedObjects[0]);
         long radius0 = LCircle_GetRadius(orderedObjects[0]);
-        int small = Calculate_Rounded_Hexagon_Points(circle0, radius0 + innerDistance, startAngle, -135.0, &partSmall);
+        int small = Calculate_Rounded_Hexagon_Points(circle0, radius0 + innerDistance, startAngle, -135.0, &partSmall, RoundRadius + innerDistance);
 
         if (capacity < small + currentSize)
         {
-            int newCapacity = 1.5 * (small + currentSize);
+            long newCapacity = (long)(1.5 * (small + currentSize));
             LPoint *tempArray = (LPoint *)realloc(totalPolygon, newCapacity * sizeof(LPoint));
             totalPolygon = tempArray; // 更新指针指向新的内存区域
             capacity = newCapacity;   // 更新容量
@@ -1307,10 +1312,13 @@ module Special_Polygon_Module
     }
 
     int Calculate_Rounded_Hexagon_Points(LPoint center, LCoord R, double start_angle_deg, double end_angle_deg,
-                                         LPoint **result)
+                                         LPoint **result, long RoundRadius)
     {
-
         double r = 1 / 3.7 * R; // default value
+        if (RoundRadius > 0)
+        {
+            r = RoundRadius;
+        }
         double curve = r * M_PI / 3;
         int n_coner = curve / 20; // 20 nm 精度
         int n_sum = 6 * n_coner;
@@ -1326,7 +1334,7 @@ module Special_Polygon_Module
         double diff = get_short_arc_interpolated_angle(start_angle_deg, end_angle_deg);
         double delta_theta = M_PI / 3 / n_coner * abs(diff) / diff;
         int i, j;
-        int count = 0;
+        long count = 0;
 
         for (i = 0; i < n_sum; i++)
         {
@@ -1348,7 +1356,7 @@ module Special_Polygon_Module
         }
 
         // 筛选出起始角度和结束角度之间的点
-        int filtered_count = 0;
+        long filtered_count = 0;
         for (i = 0; i < count; i++)
         {
             double angle = calculateAngleP1ToP2(center, (*result)[i]);
