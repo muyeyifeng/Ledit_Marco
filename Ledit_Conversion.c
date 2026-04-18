@@ -451,8 +451,7 @@ module Conversion_Module
             LPoint center = LCircle_GetCenter(selectedObject);
             LCoord radius = LCircle_GetRadius(selectedObject);
             LPoint *points;
-            if (roundRadius > radius)
-                return;
+
             double r = roundRadius * 1000;
             if (roundRadius <= 0)
                 r = 1 / 3.7 * radius; // default value
@@ -461,7 +460,10 @@ module Conversion_Module
             int n_sum = 6 * n_coner;
             points = Calculate_Rounded_Hexagon_Points(center, radius, r);
             // DrawPolygonByCenterRadiusAndEdgeNumber(center, radius_outer, edgeNum, rad);
-            LPolygon_New(Cell_Now, LLayer_Now, points, n_sum);
+            if (r < radius)
+                LPolygon_New(Cell_Now, LLayer_Now, points, n_sum);
+            else
+                LCircle_New(Cell_Now, LLayer_Now, center, radius);
             // free(points);
             selectedInital = LSelection_GetNext(selectedInital);
         }
