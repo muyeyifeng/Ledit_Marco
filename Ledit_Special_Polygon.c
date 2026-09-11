@@ -38,16 +38,16 @@ module Special_Polygon_Module
     LPoint CalculateCentroid(LPoint * points, int n);
     double get_short_arc_interpolated_angle(double start_angle, double end_angle);
     void DrawTangentRing();
-    void Draw_Boundry(LObject * orderedObjects, int orderedObjectNum, long innerDistance, long outterDistance, long standerRadius, long minDistance, LPoint shapeCenter);
-    void Draw_Boundry_Hex(LObject * orderedObjects, int orderedObjectNum, long innerDistance, long outterDistance, long standerRadius, long minDistance, LPoint shapeCenter, long RoundRadius);
+    void Draw_Boundry(LObject * orderedObjects, int orderedObjectNum, long innerDistance, long outterDistance, long standerRadius, long minDistance, LPoint shapeCenter, int drawHelpers);
+    void Draw_Boundry_Hex(LObject * orderedObjects, int orderedObjectNum, long innerDistance, long outterDistance, long standerRadius, long minDistance, LPoint shapeCenter, long RoundRadius, int drawHelpers);
     void FindLineEquation(LPoint p1, LPoint p2, double *abc);
     bool Find_Next_Circle(LObject * orderedObjects, int orderedObjectNum, LObject *objects, int objectNum, double search_max_radius, double search_min_radius);
     int LSelection_GetNumber(LSelection selectedInital);
     double normalize_angle(double angle);
     void Order_Boundry_Circles();
     void Order_Boundry_Hex();
-    void Order_Circle(LObject * objects, int objectNum, long innerDistance, long outterDistance, long standerRadius);
-    void Order_Hex(LObject * objects, int objectNum, long innerDistance, long outterDistance, long standerRadius, long RoundRadius);
+    void Order_Circle(LObject * objects, int objectNum, long innerDistance, long outterDistance, long standerRadius, int drawHelpers);
+    void Order_Hex(LObject * objects, int objectNum, long innerDistance, long outterDistance, long standerRadius, long RoundRadius, int drawHelpers);
     void Select_Boundry_Object(LSelection selectedInital, long search_radius);
     void Select_Boundry_Circles();
     void SpecialPolygon_func(void);
@@ -577,7 +577,7 @@ module Special_Polygon_Module
         return centroid;
     }
 
-    void Order_Circle(LObject * objects, int objectNum, long innerDistance, long outterDistance, long standerRadius)
+    void Order_Circle(LObject * objects, int objectNum, long innerDistance, long outterDistance, long standerRadius, int drawHelpers)
     {
         if (innerDistance < 0 || outterDistance < 0 ||
             (double)innerDistance + outterDistance + 2.0 * standerRadius > WORLD_MAX) {
@@ -642,7 +642,7 @@ module Special_Polygon_Module
         LPoint center;
         center = CalculateCentroid(centerPoints, objectNum);
 
-        Draw_Boundry(orderedObjects, objectNum, innerDistance, outterDistance, standerRadius, (long)minDistance, center);
+        Draw_Boundry(orderedObjects, objectNum, innerDistance, outterDistance, standerRadius, (long)minDistance, center, drawHelpers);
         free(centerPoints);
         free(orderedObjects);
 
@@ -766,8 +766,12 @@ module Special_Polygon_Module
         return angle;
     }
 
-    void Draw_Boundry(LObject * orderedObjects, int orderedObjectNum, long innerDistance, long outterDistance, long standerRadius, long minDistance, LPoint shapeCenter)
+    void Draw_Boundry(LObject * orderedObjects, int orderedObjectNum, long innerDistance, long outterDistance, long standerRadius, long minDistance, LPoint shapeCenter, int drawHelpers)
     {
+        /* One external construction center per boundary segment, at most 256. */
+        LPoint helperCenters[256];
+        int helperCount = 0;
+        if (orderedObjectNum < 3 || orderedObjectNum > 256) return;
         LCell Cell_Now = LCell_GetVisible();
         LLayer LLayer_Now = LObject_GetLayer(Cell_Now, orderedObjects[0]);
         double startAngle = -135; // start from left bottom circle
@@ -826,7 +830,7 @@ module Special_Polygon_Module
                 {
                     result3 = GetPointDistance(shapeCenter, results3[0]) > GetPointDistance(shapeCenter, results3[1]) ? results3[0] : results3[1];
                 }
-                // LM_NewCircle(Cell_Now, LLayer_Now, result3, standerRadius);
+
 
                 angle1 = calculateAngleP1ToP2(circle1, result3);
                 angle2 = calculateAngleP1ToP2(circle3, result3);
@@ -866,6 +870,7 @@ module Special_Polygon_Module
 
                 free(part1); free(part2);
                 startAngle = angle2;
+                if (drawHelpers) helperCenters[helperCount++] = result3;
                 i++;
                 continue;
                 // special area
@@ -903,7 +908,7 @@ module Special_Polygon_Module
             }
             free(part1); free(part2);
                 startAngle = angle2;
-            // break;//debug
+            if (drawHelpers) helperCenters[helperCount++] = result1;
         }
         LPoint *partSmall = NULL;
         LPoint circle0 = LCircle_GetCenter(orderedObjects[0]);
@@ -930,7 +935,15 @@ module Special_Polygon_Module
 
         /* Drop only an actually duplicated closing point. */
         if (currentSize > 1 && totalPolygon[0].x == totalPolygon[currentSize - 1].x && totalPolygon[0].y == totalPolygon[currentSize - 1].y) --currentSize;
-        if (currentSize >= 3) LM_NewPolygon(Cell_Now, LLayer_Now, totalPolygon, currentSize);
+        if (currentSize >= 3 && LM_NewPolygon(Cell_Now, LLayer_Now, totalPolygon, currentSize)) {
+            /* Publish helpers only after the boundary polygon exists. */
+            for (i = 0; drawHelpers && i < helperCount; ++i) {
+                if (!LM_NewCircle(Cell_Now, LLayer_Now, helperCenters[i], standerRadius)) {
+                    LDialog_AlertBox("Could not create all helper circles.");
+                    break;
+                }
+            }
+        }
         free(partSmall); free(totalPolygon);
     }
 
@@ -995,7 +1008,7 @@ module Special_Polygon_Module
         char show_str_buf[21];
         snprintf(show_str_buf, sizeof(show_str_buf), "%.3f", LCircle_GetRadius(objects[0]) / LM_UnitsPerMicron());
 
-        LDialogItem Dialog_Items[3];
+        LDialogItem Dialog_Items[4];
         strcpy(Dialog_Items[0].prompt, "innerDistance (um)");
         strcpy(Dialog_Items[0].value, "3.9");
 
@@ -1004,6 +1017,9 @@ module Special_Polygon_Module
 
         strcpy(Dialog_Items[2].prompt, "standerRadius (um)");
         strcpy(Dialog_Items[2].value, show_str_buf);
+        strcpy(Dialog_Items[3].prompt, "Draw helper circles (1 = yes, 0 = no)");
+        strcpy(Dialog_Items[3].value, "0");
+        int drawHelpers;
         // LDialog_MsgBox(str);
         /****************************Input Params****************************/
         // LDialogItem Dialog_Items[3] = {{"innerDistance (um)", "3.9"},
@@ -1012,8 +1028,9 @@ module Special_Polygon_Module
         long innerDistance;
         long outterDistance;
         long standerRadius;
-        if (LM_Dialog("Draw Boundry", Dialog_Items, 3))
+        if (LM_Dialog("Draw Boundry", Dialog_Items, 4))
         {
+            drawHelpers = (int)atof(Dialog_Items[3].value);
             innerDistance = (long)(atof(Dialog_Items[0].value) * LM_UnitsPerMicron());
             outterDistance = (long)(atof(Dialog_Items[1].value) * LM_UnitsPerMicron());
             standerRadius = (long)(atof(Dialog_Items[2].value) * LM_UnitsPerMicron());
@@ -1026,7 +1043,7 @@ module Special_Polygon_Module
         /****************************Input Params****************************/
 
         // void Order_Circle(LObject* objects, int objectNum, long innerDistance, long outterDistance, long standerRadius)
-        Order_Circle(objects, objectNum, innerDistance, outterDistance, standerRadius);
+        Order_Circle(objects, objectNum, innerDistance, outterDistance, standerRadius, drawHelpers);
         free(objects);
         LDisplay_Refresh();
     }
@@ -1062,7 +1079,7 @@ module Special_Polygon_Module
         char show_str_buf[21];
         snprintf(show_str_buf, sizeof(show_str_buf), "%.3f", LCircle_GetRadius(objects[0]) / LM_UnitsPerMicron());
 
-        LDialogItem Dialog_Items[4];
+        LDialogItem Dialog_Items[5];
         strcpy(Dialog_Items[0].prompt, "innerDistance (um)");
         strcpy(Dialog_Items[0].value, "3.9");
 
@@ -1074,6 +1091,9 @@ module Special_Polygon_Module
 
         strcpy(Dialog_Items[3].prompt, "Round Radius (um,default -1)");
         strcpy(Dialog_Items[3].value, "-1");
+        strcpy(Dialog_Items[4].prompt, "Draw helper circles (1 = yes, 0 = no)");
+        strcpy(Dialog_Items[4].value, "0");
+        int drawHelpers;
         // LDialog_MsgBox(str);
         /****************************Input Params****************************/
         // LDialogItem Dialog_Items[3] = {{"innerDistance (um)", "3.9"},
@@ -1083,8 +1103,9 @@ module Special_Polygon_Module
         long outterDistance;
         long standerRadius;
         long RoundRadius;
-        if (LM_Dialog("Draw Boundry", Dialog_Items, 4))
+        if (LM_Dialog("Draw Boundry", Dialog_Items, 5))
         {
+            drawHelpers = (int)atof(Dialog_Items[4].value);
             innerDistance = (long)(atof(Dialog_Items[0].value) * LM_UnitsPerMicron());
             outterDistance = (long)(atof(Dialog_Items[1].value) * LM_UnitsPerMicron());
             standerRadius = (long)(atof(Dialog_Items[2].value) * LM_UnitsPerMicron());
@@ -1098,12 +1119,12 @@ module Special_Polygon_Module
         /****************************Input Params****************************/
 
         // void Order_Circle(LObject* objects, int objectNum, long innerDistance, long outterDistance, long standerRadius)
-        Order_Hex(objects, objectNum, innerDistance, outterDistance, standerRadius, RoundRadius);
+        Order_Hex(objects, objectNum, innerDistance, outterDistance, standerRadius, RoundRadius, drawHelpers);
         free(objects);
         LDisplay_Refresh();
     }
 
-    void Order_Hex(LObject * objects, int objectNum, long innerDistance, long outterDistance, long standerRadius, long RoundRadius)
+    void Order_Hex(LObject * objects, int objectNum, long innerDistance, long outterDistance, long standerRadius, long RoundRadius, int drawHelpers)
     {
         if (innerDistance < 0 || outterDistance < 0 ||
             (double)innerDistance + outterDistance + 2.0 * standerRadius > WORLD_MAX) {
@@ -1168,13 +1189,17 @@ module Special_Polygon_Module
         LPoint center;
         center = CalculateCentroid(centerPoints, objectNum);
 
-        Draw_Boundry_Hex(orderedObjects, objectNum, innerDistance, outterDistance, standerRadius, (long)minDistance, center, RoundRadius);
+        Draw_Boundry_Hex(orderedObjects, objectNum, innerDistance, outterDistance, standerRadius, (long)minDistance, center, RoundRadius, drawHelpers);
         free(centerPoints);
         free(orderedObjects);
     }
 
-    void Draw_Boundry_Hex(LObject * orderedObjects, int orderedObjectNum, long innerDistance, long outterDistance, long standerRadius, long minDistance, LPoint shapeCenter, long RoundRadius)
+    void Draw_Boundry_Hex(LObject * orderedObjects, int orderedObjectNum, long innerDistance, long outterDistance, long standerRadius, long minDistance, LPoint shapeCenter, long RoundRadius, int drawHelpers)
     {
+        /* One external construction center per boundary segment, at most 256. */
+        LPoint helperCenters[256];
+        int helperCount = 0;
+        if (orderedObjectNum < 3 || orderedObjectNum > 256) return;
         // standerRadius means the radius of the circle
         LCell Cell_Now = LCell_GetVisible();
         LFile File_Now = LCell_GetFile(Cell_Now);
@@ -1283,6 +1308,7 @@ module Special_Polygon_Module
 
                 free(part1); free(part2);
                 startAngle = angle2;
+                if (drawHelpers) helperCenters[helperCount++] = result3;
                 i++;
                 continue;
                 // special area
@@ -1326,7 +1352,7 @@ module Special_Polygon_Module
                 startAngle = angle2;
             }
 
-            // 测试，画出新的圆
+            if (drawHelpers) helperCenters[helperCount++] = newPoint;
 
         }
 
@@ -1355,7 +1381,15 @@ module Special_Polygon_Module
 
         /* Drop only an actually duplicated closing point. */
         if (currentSize > 1 && totalPolygon[0].x == totalPolygon[currentSize - 1].x && totalPolygon[0].y == totalPolygon[currentSize - 1].y) --currentSize;
-        if (currentSize >= 3) LM_NewPolygon(Cell_Now, LLayer_Now, totalPolygon, currentSize);
+        if (currentSize >= 3 && LM_NewPolygon(Cell_Now, LLayer_Now, totalPolygon, currentSize)) {
+            /* Publish helpers only after the boundary polygon exists. */
+            for (i = 0; drawHelpers && i < helperCount; ++i) {
+                if (!LM_NewCircle(Cell_Now, LLayer_Now, helperCenters[i], standerRadius)) {
+                    LDialog_AlertBox("Could not create all helper circles.");
+                    break;
+                }
+            }
+        }
         free(partSmall); free(totalPolygon);
     }
 
