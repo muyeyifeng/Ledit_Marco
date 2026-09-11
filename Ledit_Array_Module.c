@@ -24,6 +24,7 @@ module Array_Module
 #include <math.h>
 // #include "Ledit_Array.h"
 #include "ldata.h" /* Main UPI header. */
+#include "Ledit_Safety.h"
 
 	void MirrorObjectsByPointAndRad();
 	LObject Mirror_Rect(LObject selectRect, LPoint mirrorPoint, double rad);
@@ -67,6 +68,7 @@ module Array_Module
 
 	void MirrorObjectsByPointAndRad()
 	{
+        if (!LM_Context()) return;
 		//****************************Input Params****************************//
 		LDialogItem Dialog_Items[4] = {{"Mirror Center X Coordinate (um)", "0"},
 									   {"Mirror Center Y Coordinate (um)", "0"},
@@ -76,12 +78,12 @@ module Array_Module
 		long ycoord;
 		double rotate;
 		int keep;
-		if (LDialog_MultiLineInputBox("Mirror Objects By Point And Rad", Dialog_Items, 4))
+		if (LM_Dialog("Mirror Objects By Point And Rad", Dialog_Items, 4))
 		{
-			xcoord = (long)(atof(Dialog_Items[0].value) * 1000); // get the xcoord
-			ycoord = (long)(atof(Dialog_Items[1].value) * 1000); // get the ycoord
+			xcoord = (long)(atof(Dialog_Items[0].value) * LM_UnitsPerMicron()); // get the xcoord
+			ycoord = (long)(atof(Dialog_Items[1].value) * LM_UnitsPerMicron()); // get the ycoord
 			rotate = atof(Dialog_Items[2].value);				 // get the rotate
-			keep = atoi(Dialog_Items[3].value);					 // get the keep
+			keep = (int)atof(Dialog_Items[3].value);					 // get the keep
 		}
 		else
 		{
@@ -93,11 +95,12 @@ module Array_Module
 		LSelection selectedInital = LSelection_GetList();
 		while (selectedInital != NULL)
 		{
-			LObject selectedObject = LSelection_GetObject(selectedInital);
+			LSelection nextSelection = LSelection_GetNext(selectedInital);
+            LObject selectedObject = LSelection_GetObject(selectedInital);
 
 			LPoint mirrorPoint = LPoint_Set(xcoord, ycoord);
 			MirrorObject(selectedObject, mirrorPoint, rad, keep);
-			selectedInital = LSelection_GetNext(selectedInital);
+			selectedInital = nextSelection;
 			counter++;
 		}
 		LDisplay_Refresh();
@@ -117,7 +120,7 @@ module Array_Module
 		points[1] = MirrorCoordinates(p2, mirrorPoint, rad);
 		points[2] = MirrorCoordinates(p3, mirrorPoint, rad);
 		points[3] = MirrorCoordinates(p4, mirrorPoint, rad);
-		return LPolygon_New(Cell_Now, LLayer_Now, points, 4);
+		return LM_NewPolygon(Cell_Now, LLayer_Now, points, 4);
 	}
 
 	LObject Mirror_Circle(LObject selectCircle, LPoint mirrorPoint, double rad)
@@ -129,7 +132,7 @@ module Array_Module
 
 		LPoint newPoint = MirrorCoordinates(center, mirrorPoint, rad);
 
-		return LCircle_New(Cell_Now, LLayer_Now, newPoint, r);
+		return LM_NewCircle(Cell_Now, LLayer_Now, newPoint, r);
 	}
 
 	LObject Mirror_Polygon(LObject selectPolygon, LPoint mirrorPoint, double rad)
@@ -139,9 +142,13 @@ module Array_Module
 		LVertex vertex = LObject_GetVertexList(selectPolygon);
 		long cnt = LVertex_GetCount(selectPolygon);
 		LPoint *points;
-		points = (LPoint *)malloc((cnt) * sizeof(LPoint));
+		if (cnt < 3 || cnt > LM_MAX_POINTS || LPolygon_HasCurve(selectPolygon)) {
+            LDialog_AlertBox("Expected a straight polygon with 3..100000 vertices."); return NULL;
+        }
+        points = (LPoint *)malloc(cnt * sizeof(LPoint));
+        if (!points) return NULL;
 		int j = 0;
-		while (vertex != NULL)
+		while (vertex != NULL && j < cnt)
 		{
 			LPoint point = LVertex_GetPoint(vertex);
 			LPoint newPoint = MirrorCoordinates(point, mirrorPoint, rad);
@@ -149,7 +156,9 @@ module Array_Module
 			j++;
 			vertex = LVertex_GetNext(vertex);
 		}
-		return LPolygon_New(Cell_Now, LLayer_Now, points, cnt);
+		LObject result = LM_NewPolygon(Cell_Now, LLayer_Now, points, j);
+        free(points);
+        return result;
 	}
 
 	LObject Mirror_Torus(LObject selectTorus, LPoint mirrorPoint, double rad)
@@ -209,40 +218,23 @@ module Array_Module
 
 	LObject MirrorObject(LObject selectedObject, LPoint mirrorPoint, double rad, int keep)
 	{
-		LShapeType selectedShapeType = LObject_GetShape(selectedObject);
-
-		switch (selectedShapeType)
-		{
-		case 0: // LBox
-		{
-			return Mirror_Rect(selectedObject, mirrorPoint, rad);
-		}
-		case 1: // LCircle
-		{
-			return Mirror_Circle(selectedObject, mirrorPoint, rad);
-		}
-		case 3: // LPolygon
-		{
-			return Mirror_Polygon(selectedObject, mirrorPoint, rad);
-		}
-		case 4: // LTorus
-		{
-			return Mirror_Torus(selectedObject, mirrorPoint, rad);
-		}
-		case 5: // LPie
-		{
-			return Mirror_Pie(selectedObject, mirrorPoint, rad);
-		}
-		default:
-			return NULL;
-		}
-		LCell Cell_Now = LCell_GetVisible();
-		if (keep != 1)
-			LObject_Delete(Cell_Now, selectedObject);
-	}
+        if (!LM_CanTransform(selectedObject, mirrorPoint, rad, 1)) { LDialog_AlertBox("Transform exceeds coordinate limits."); return NULL; }
+        LObject result = NULL;
+        switch (LObject_GetShape(selectedObject)) {
+        case LBox: result = Mirror_Rect(selectedObject, mirrorPoint, rad); break;
+        case LCircle: result = Mirror_Circle(selectedObject, mirrorPoint, rad); break;
+        case LPolygon: result = Mirror_Polygon(selectedObject, mirrorPoint, rad); break;
+        case LTorus: result = Mirror_Torus(selectedObject, mirrorPoint, rad); break;
+        case LPie: result = Mirror_Pie(selectedObject, mirrorPoint, rad); break;
+        default: return NULL;
+        }
+        if (result && !keep) LObject_Delete(LCell_GetVisible(), selectedObject);
+        return result;
+    }
 
 	void RotateObjectsByPoint()
 	{
+        if (!LM_Context()) return;
 		//****************************Input Params****************************//
 		LDialogItem Dialog_Items[4] = {{"Rotate Center X Coordinate (um)", "0"},
 									   {"Rotate Center Y Coordinate (um)", "0"},
@@ -252,12 +244,12 @@ module Array_Module
 		long ycoord;
 		double rotate;
 		int keep;
-		if (LDialog_MultiLineInputBox("Rotate Objects By Point", Dialog_Items, 4))
+		if (LM_Dialog("Rotate Objects By Point", Dialog_Items, 4))
 		{
-			xcoord = (long)(atof(Dialog_Items[0].value) * 1000); // get the xcoord
-			ycoord = (long)(atof(Dialog_Items[1].value) * 1000); // get the ycoord
+			xcoord = (long)(atof(Dialog_Items[0].value) * LM_UnitsPerMicron()); // get the xcoord
+			ycoord = (long)(atof(Dialog_Items[1].value) * LM_UnitsPerMicron()); // get the ycoord
 			rotate = atof(Dialog_Items[2].value);				 // get the rotate
-			keep = atoi(Dialog_Items[3].value);					 // get the rotate
+			keep = (int)atof(Dialog_Items[3].value);					 // get the rotate
 		}
 		else
 		{
@@ -270,11 +262,12 @@ module Array_Module
 		LSelection selectedInital = LSelection_GetList();
 		while (selectedInital != NULL)
 		{
-			LObject selectedObject = LSelection_GetObject(selectedInital);
+			LSelection nextSelection = LSelection_GetNext(selectedInital);
+            LObject selectedObject = LSelection_GetObject(selectedInital);
 
 			LPoint rotateCenter = LPoint_Set(xcoord, ycoord);
 			RotateObject(selectedObject, rotateCenter, rad, keep);
-			selectedInital = LSelection_GetNext(selectedInital);
+			selectedInital = nextSelection;
 			counter++;
 		}
 		LDisplay_Refresh();
@@ -295,7 +288,7 @@ module Array_Module
 		points[1] = RotatePoint(p2, rotateCenter, rad);
 		points[2] = RotatePoint(p3, rotateCenter, rad);
 		points[3] = RotatePoint(p4, rotateCenter, rad);
-		return LPolygon_New(Cell_Now, LLayer_Now, points, 4);
+		return LM_NewPolygon(Cell_Now, LLayer_Now, points, 4);
 	}
 
 	LObject Rotate_Circle(LObject selectCircle, LPoint rotateCenter, double rad)
@@ -307,7 +300,7 @@ module Array_Module
 
 		LPoint newPoint = RotatePoint(center, rotateCenter, rad);
 
-		return LCircle_New(Cell_Now, LLayer_Now, newPoint, r);
+		return LM_NewCircle(Cell_Now, LLayer_Now, newPoint, r);
 	}
 
 	LObject Rotate_Polygon(LObject selectPolygon, LPoint rotateCenter, double rad)
@@ -317,9 +310,13 @@ module Array_Module
 		LVertex vertex = LObject_GetVertexList(selectPolygon);
 		long cnt = LVertex_GetCount(selectPolygon);
 		LPoint *points;
-		points = (LPoint *)malloc((cnt) * sizeof(LPoint));
+		if (cnt < 3 || cnt > LM_MAX_POINTS || LPolygon_HasCurve(selectPolygon)) {
+            LDialog_AlertBox("Expected a straight polygon with 3..100000 vertices."); return NULL;
+        }
+        points = (LPoint *)malloc(cnt * sizeof(LPoint));
+        if (!points) return NULL;
 		int j = 0;
-		while (vertex != NULL)
+		while (vertex != NULL && j < cnt)
 		{
 			LPoint point = LVertex_GetPoint(vertex);
 			LPoint newPoint = RotatePoint(point, rotateCenter, rad);
@@ -328,7 +325,9 @@ module Array_Module
 			j++;
 			vertex = LVertex_GetNext(vertex);
 		}
-		return LPolygon_New(Cell_Now, LLayer_Now, points, cnt);
+		LObject result = LM_NewPolygon(Cell_Now, LLayer_Now, points, j);
+        free(points);
+        return result;
 	}
 
 	LObject Rotate_Torus(LObject selectTorus, LPoint rotateCenter, double rad)
@@ -378,42 +377,23 @@ module Array_Module
 
 	LObject RotateObject(LObject selectedObject, LPoint rotateCenter, double rad, int keep)
 	{
-
-		LShapeType selectedShapeType = LObject_GetShape(selectedObject);
-
-		switch (selectedShapeType)
-		{
-		case 0: // LBox
-		{
-			return Rotate_Rect(selectedObject, rotateCenter, rad);
-		}
-		case 1: // LCircle
-		{
-			return Rotate_Circle(selectedObject, rotateCenter, rad);
-		}
-		case 3: // LPolygon
-		{
-			return Rotate_Polygon(selectedObject, rotateCenter, rad);
-		}
-		case 4: // LTorus
-		{
-			return Rotate_Torus(selectedObject, rotateCenter, rad);
-		}
-		case 5: // LPie
-		{
-			return Rotate_Pie(selectedObject, rotateCenter, rad);
-		}
-		default:
-			return NULL;
-		}
-
-		LCell Cell_Now = LCell_GetVisible();
-		if (keep != 1)
-			LObject_Delete(Cell_Now, selectedObject);
-	}
+        if (!LM_CanTransform(selectedObject, rotateCenter, rad, 0)) { LDialog_AlertBox("Transform exceeds coordinate limits."); return NULL; }
+        LObject result = NULL;
+        switch (LObject_GetShape(selectedObject)) {
+        case LBox: result = Rotate_Rect(selectedObject, rotateCenter, rad); break;
+        case LCircle: result = Rotate_Circle(selectedObject, rotateCenter, rad); break;
+        case LPolygon: result = Rotate_Polygon(selectedObject, rotateCenter, rad); break;
+        case LTorus: result = Rotate_Torus(selectedObject, rotateCenter, rad); break;
+        case LPie: result = Rotate_Pie(selectedObject, rotateCenter, rad); break;
+        default: return NULL;
+        }
+        if (result && !keep) LObject_Delete(LCell_GetVisible(), selectedObject);
+        return result;
+    }
 
 	void ArrayByRingSetRad()
 	{
+        if (!LM_Context()) return;
 		LSelection selectedInital = LSelection_GetList();
 		int selectedObjectNumber = LSelection_GetNumber(selectedInital);
 		if (selectedObjectNumber != 1)
@@ -435,18 +415,21 @@ module Array_Module
 		double degOffset;
 		double deg;
 		long radius;
-		if (LDialog_MultiLineInputBox("Array By Ring Set Rad", Dialog_Items, 3))
+		if (LM_Dialog("Array By Ring Set Rad", Dialog_Items, 3))
 		{
 			degOffset = atof(Dialog_Items[0].value);			 // get the distance
 			deg = atof(Dialog_Items[1].value);					 // get the deg
-			radius = (long)(atof(Dialog_Items[2].value) * 1000); // get the radius
+			radius = (long)(atof(Dialog_Items[2].value) * LM_UnitsPerMicron()); // get the radius
 		}
 		else
 		{
 			return;
 		}
 		//****************************Input Params****************************//
-		double rad = deg * M_PI / 180;
+		if (!(degOffset > 0 && degOffset <= 360) || radius <= 0 || ceil(360 / degOffset) > LM_MAX_OBJECTS) {
+            LDialog_AlertBox("Use a positive radius and angle step; at most 100000 copies."); return;
+        }
+        double rad = deg * M_PI / 180;
 		LCell Cell_Now = LCell_GetVisible();
 
 		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, object1);
@@ -468,6 +451,7 @@ module Array_Module
 
 	void ArrayByRingSetDistance()
 	{
+        if (!LM_Context()) return;
 		LSelection selectedInital = LSelection_GetList();
 		int selectedObjectNumber = LSelection_GetNumber(selectedInital);
 		if (selectedObjectNumber != 1)
@@ -491,12 +475,12 @@ module Array_Module
 		double deg;
 		long radius;
 		int adapDis;
-		if (LDialog_MultiLineInputBox("Array By Ring Set Distance", Dialog_Items, 4))
+		if (LM_Dialog("Array By Ring Set Distance", Dialog_Items, 4))
 		{
-			distance = (long)(atof(Dialog_Items[0].value) * 1000); // get the distance
+			distance = (long)(atof(Dialog_Items[0].value) * LM_UnitsPerMicron()); // get the distance
 			deg = atof(Dialog_Items[1].value);					   // get the deg
-			radius = (long)(atof(Dialog_Items[2].value) * 1000);   // get the radius
-			adapDis = atoi(Dialog_Items[3].value);				   // Adaptive Distance
+			radius = (long)(atof(Dialog_Items[2].value) * LM_UnitsPerMicron());   // get the radius
+			adapDis = (int)atof(Dialog_Items[3].value);				   // Adaptive Distance
 		}
 		else
 		{
@@ -515,15 +499,18 @@ module Array_Module
 			return;
 		}
 		// calculate how many circle in one ring
-		double radius_ring = radius;
-		int maxCircle = 2 * M_PI * radius_ring / (2 * r + distance);
-		double rad_offset = 2 * M_PI / maxCircle;
-		if (adapDis != 1)
-		{
-			rad_offset = asin(2 * distance / M_PI);
-			maxCircle = ceil(2 * M_PI / rad_offset);
-		}
-		int j;
+		double spacing = 2.0 * r + distance;
+        if (radius <= 0 || spacing > 2.0 * radius) {
+            LDialog_AlertBox("Ring diameter must be at least the center spacing."); return;
+        }
+        double rad_offset = 2 * asin(spacing / (2.0 * radius));
+        double count = floor(2 * M_PI / rad_offset + 1e-10);
+        if (count < 2 || count > LM_MAX_OBJECTS) {
+            LDialog_AlertBox("Ring copy count must be 2..100000."); return;
+        }
+        int maxCircle = (int)count;
+        if (adapDis == 1) rad_offset = 2 * M_PI / maxCircle;
+        int j;
 		for (j = 0; j < maxCircle; j++)
 		{
 			int yOffset = radius * sin(rad + rad_offset * j);
@@ -535,6 +522,7 @@ module Array_Module
 
 	void ArrayInObjectByRing()
 	{
+        if (!LM_Context()) return;
 		LSelection selectedInital = LSelection_GetList();
 		int selectedObjectNumber = LSelection_GetNumber(selectedInital);
 		if (selectedObjectNumber != 2)
@@ -564,9 +552,9 @@ module Array_Module
 									   {"Array Start Dimension deg (0-360)", "0"}};
 		long distance;
 		double deg;
-		if (LDialog_MultiLineInputBox("Array In Object By Ring", Dialog_Items, 2))
+		if (LM_Dialog("Array In Object By Ring", Dialog_Items, 2))
 		{
-			distance = (long)(atof(Dialog_Items[0].value) * 1000); // get the distance
+			distance = (long)(atof(Dialog_Items[0].value) * LM_UnitsPerMicron()); // get the distance
 			deg = atof(Dialog_Items[1].value);					   // get the deg
 		}
 		else
@@ -600,25 +588,28 @@ module Array_Module
 		double distance4 = GetPointDistance(center, LPoint_Set(box[2], box[3])); // x1 y1
 
 		// long time long too big, convert to double to calculate
-		double radius_max = max(max(distance1, distance2), max(distance3, distance4));
+		double radius_max = fmax(fmax(distance1, distance2), fmax(distance3, distance4));
 		// calculate how many ring need
-		int maxRingLayer = (int)(radius_max / (2 * r + distance));
+		if (radius_max / (2.0 * r + distance) > sqrt(LM_MAX_OBJECTS / M_PI) - 1) {
+            LDialog_AlertBox("Ring array exceeds the candidate limit."); return;
+        }
+        int maxRingLayer = (int)(radius_max / (2 * r + distance));
 		int i, j;
 		for (i = 0; i < maxRingLayer; i++)
 		{
 			// calculate how many circle in one ring
-			double radius_ring = (i + 1) * (2 * r + distance);
+			double radius_ring = (i + 1.0) * (2.0 * r + distance);
 			int maxCircle = 2 * M_PI * radius_ring / (2 * r + distance);
 			double rad_offset = 2 * M_PI / maxCircle;
 			for (j = 0; j < maxCircle; j++)
 			{
-				int yOffset = (i + 1) * (2 * r + distance) * sin(rad + rad_offset * j);
-				int xOffset = (i + 1) * (2 * r + distance) * cos(rad + rad_offset * j);
+				int yOffset = (i + 1.0) * (2.0 * r + distance) * sin(rad + rad_offset * j);
+				int xOffset = (i + 1.0) * (2.0 * r + distance) * cos(rad + rad_offset * j);
 				long center_x = center.x + xOffset;
 				long center_y = center.y + yOffset;
 				LPoint centerOffset = LPoint_Set((long)center_x, (long)center_y);
 				if (LObject_DistanceToPoint(biggerObject, centerOffset, File_Now) < 0)
-					LCircle_New(Cell_Now, LLayer_Now, centerOffset, r);
+					LM_NewCircle(Cell_Now, LLayer_Now, centerOffset, r);
 			}
 		}
 
@@ -627,208 +618,69 @@ module Array_Module
 
 	void ArrayInObjectByDistanceHexagon()
 	{
+        if (!LM_Context()) return;
 		LPoint *points = NULL;
-		int *num = 0;
-		long *_distance = 0;
+		int num = 0;
+		long _distance = 0;
 		_ArrayInObjectByDistanceHexagon(&points, &num, &_distance);
+        free(points);
 		LDisplay_Refresh();
 	}
 
 	void _ArrayInObjectByDistanceHexagon(LPoint * *points, int *num, long *_distance)
 	{
-		// Dynamic size
-		int initalSize = 100;
-		*points = (LPoint *)malloc(initalSize * sizeof(LPoint));
-
-		LSelection selectedInital = LSelection_GetList();
-		int selectedObjectNumber = LSelection_GetNumber(selectedInital);
-		if (selectedObjectNumber != 2)
-		{
-			LDialog_AlertBox("Just Support 2 Object");
-			return;
-		}
-
-		LObject object1 = LSelection_GetObject(selectedInital);
-		selectedInital = LSelection_GetNext(selectedInital);
-		LObject object2 = LSelection_GetObject(selectedInital);
-
-		double area1 = LObject_Area(object1);
-		double area2 = LObject_Area(object2);
-
-		LObject smallerObject = area1 > area2 ? object2 : object1;
-		LObject biggerObject = area1 > area2 ? object1 : object2;
-
-		if (LObject_GetShape(smallerObject) != 1)
-		{
-			LDialog_AlertBox("Just Support Circle Object Array");
-			return;
-		}
-
-		//****************************Input Params****************************//
-		LDialogItem Dialog_Items[1] = {{"Array Edge Distance(um)", "1"}};
-		long distance;
-		double deg = 60;
-		if (LDialog_MultiLineInputBox("Hexagon Properties", Dialog_Items, 1))
-		{
-			distance = (long)(atof(Dialog_Items[0].value) * 1000); // get the distance
-			*_distance = distance;
-		}
-		else
-		{
-			return;
-		}
-		//****************************Input Params****************************//
-		double rad = deg * M_PI / 180;
-		LCell Cell_Now = LCell_GetVisible();
-		LFile File_Now = LCell_GetFile(Cell_Now);
-
-		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, smallerObject);
-
-		long box[4];
-		box[0] = WORLD_MAX;	 // x0
-		box[1] = WORLD_MAX;	 // y0
-		box[2] = -WORLD_MAX; // x1
-		box[3] = -WORLD_MAX; // y1
-		GetObjectCoord(biggerObject, box);
-		LPoint center = LCircle_GetCenter(smallerObject);
-		LCoord r = LCircle_GetRadius(smallerObject);
-		if (2 * r + distance <= 0)
-		{
-			LDialog_AlertBox("Value of 'distance' error");
-			return;
-		}
-		// phase 1 + +
-		int n = 0;
-		double yOffset = 0;
-		double xOffset = 0;
-		while (center.y + n * (2 * r + distance) + yOffset < box[3])
-		{
-			int m = 0;
-			while (center.x + m * (2 * r + distance) + xOffset < box[2])
-			{
-				if (n == 0 && m == 0)
-				{
-					m++;
-					continue;
-				}
-				long center_x = center.x + m * (2 * r + distance) + xOffset;
-				long center_y = center.y + n * (2 * r + distance) + yOffset;
-				LPoint centerOffset = LPoint_Set((long)center_x, (long)center_y);
-				if (LObject_DistanceToPoint(biggerObject, centerOffset, File_Now) < 0)
-				{
-					LCircle_New(Cell_Now, LLayer_Now, centerOffset, r);
-					(*points)[*num] = centerOffset;
-					(*num) = (*num) + 1;
-					if (*num > initalSize / 2)
-					{
-						initalSize *= 2;
-						*points = (LPoint *)realloc(*points, initalSize * sizeof(LPoint));
-					}
-				}
-				m++;
-			}
-			n++;
-			yOffset = (2 * r + distance) * (sin(rad) - 1) * n;
-			xOffset = (2 * r + distance) * cos(rad) * (n % 2);
-		}
-		// phase 2 + -
-		n = 1;
-		xOffset = 0;
-		yOffset = (2 * r + distance) * (sin(rad) - 1) * n;
-		while (center.y - (n * (2 * r + distance) + yOffset) > box[1])
-		{
-			int m = 0;
-			xOffset = (2 * r + distance) * cos(rad) * (n % 2);
-			while (center.x + m * (2 * r + distance) + xOffset < box[2])
-			{
-				long center_x = center.x + m * (2 * r + distance) + xOffset;
-				long center_y = center.y - (n * (2 * r + distance) + yOffset);
-				LPoint centerOffset = LPoint_Set((long)center_x, (long)center_y);
-				if (LObject_DistanceToPoint(biggerObject, centerOffset, File_Now) < 0)
-				{
-					LCircle_New(Cell_Now, LLayer_Now, centerOffset, r);
-					(*points)[*num] = centerOffset;
-					(*num) = (*num) + 1;
-					if (*num > initalSize / 2)
-					{
-						initalSize *= 2;
-						*points = (LPoint *)realloc(*points, initalSize * sizeof(LPoint));
-					}
-				}
-				m++;
-			}
-			n++;
-			yOffset = (2 * r + distance) * (sin(rad) - 1) * n;
-		}
-		// phase 3 - -
-		n = 0;
-		xOffset = 0;
-		yOffset = (2 * r + distance) * (sin(rad) - 1) * n;
-		while (center.y - (n * (2 * r + distance) + yOffset) > box[1])
-		{
-			int m = 0;
-			xOffset = (2 * r + distance) * cos(rad) * (n % 2);
-			while (center.x - (m * (2 * r + distance) + xOffset) > box[0])
-			{
-				if (n % 2 == 0 && m == 0)
-				{
-					m++;
-					continue;
-				}
-				long center_x = center.x - (m * (2 * r + distance) + xOffset);
-				long center_y = center.y - (n * (2 * r + distance) + yOffset);
-				LPoint centerOffset = LPoint_Set((long)center_x, (long)center_y);
-				if (LObject_DistanceToPoint(biggerObject, centerOffset, File_Now) < 0)
-				{
-					LCircle_New(Cell_Now, LLayer_Now, centerOffset, r);
-					(*points)[*num] = centerOffset;
-					(*num) = (*num) + 1;
-					if (*num > initalSize / 2)
-					{
-						initalSize *= 2;
-						*points = (LPoint *)realloc(*points, initalSize * sizeof(LPoint));
-					}
-				}
-				m++;
-			}
-			n++;
-			yOffset = (2 * r + distance) * (sin(rad) - 1) * n;
-		}
-		// phase 4 - +
-		n = 1;
-		xOffset = 0;
-		yOffset = (2 * r + distance) * (sin(rad) - 1) * n;
-		while (center.y + n * (2 * r + distance) + yOffset < box[3])
-		{
-			int m = 0;
-			xOffset = (2 * r + distance) * cos(rad) * (n % 2);
-			while (center.x - (m * (2 * r + distance) + xOffset) > box[0])
-			{
-				if (n % 2 == 0 && m == 0)
-				{
-					m++;
-					continue;
-				}
-				long center_x = center.x - (m * (2 * r + distance) + xOffset);
-				long center_y = center.y + n * (2 * r + distance) + yOffset;
-				LPoint centerOffset = LPoint_Set((long)center_x, (long)center_y);
-				if (LObject_DistanceToPoint(biggerObject, centerOffset, File_Now) < 0)
-				{
-					LCircle_New(Cell_Now, LLayer_Now, centerOffset, r);
-					(*points)[*num] = centerOffset;
-					(*num) = (*num) + 1;
-					if (*num > initalSize / 2)
-					{
-						initalSize *= 2;
-						*points = (LPoint *)realloc(*points, initalSize * sizeof(LPoint));
-					}
-				}
-				m++;
-			}
-			n++;
-			yOffset = (2 * r + distance) * (sin(rad) - 1) * n;
-		}
-	}
+        LSelection selection = LSelection_GetList();
+        LObject a, b, small, big;
+        LPoint center;
+        LRect box;
+        LDialogItem items[1] = {{"Array Edge Distance(um)", "1"}};
+        double spacing, rowHeight, rows, cols;
+        long radius, gap;
+        int row, col, row0, row1, col0, col1, capacity;
+        *points = NULL; *num = 0; *_distance = 0;
+        if (LSelection_GetNumber(selection) != 2) {
+            LDialog_AlertBox("Select a circle and a containing object."); return;
+        }
+        a = LSelection_GetObject(selection);
+        b = LSelection_GetObject(LSelection_GetNext(selection));
+        small = LObject_Area(a) < LObject_Area(b) ? a : b;
+        big = small == a ? b : a;
+        if (LObject_GetShape(small) != LCircle) return;
+        if (!LM_Dialog("Hexagon Properties", items, 1)) return;
+        gap = (long)(atof(items[0].value) * LM_UnitsPerMicron());
+        radius = LCircle_GetRadius(small);
+        spacing = 2.0 * radius + gap;
+        if (spacing <= 0) { LDialog_AlertBox("Center spacing must be positive."); return; }
+        center = LCircle_GetCenter(small); box = LObject_GetMbb(big);
+        rowHeight = spacing * sqrt(3.0) / 2;
+        rows = ceil(((double)box.y1 - box.y0) / rowHeight) + 3;
+        cols = ceil(((double)box.x1 - box.x0) / spacing) + 3;
+        if (rows * cols > LM_MAX_OBJECTS) {
+            LDialog_AlertBox("Hexagonal array exceeds 100000 candidate positions."); return;
+        }
+        capacity = (int)(rows * cols);
+        *points = (LPoint *)malloc(capacity * sizeof(LPoint));
+        if (!*points) return;
+        row0 = (int)ceil(((double)box.y0 - center.y) / rowHeight);
+        row1 = (int)floor(((double)box.y1 - center.y) / rowHeight);
+        for (row = row0; row <= row1; ++row) {
+            double shift = row % 2 ? spacing / 2 : 0;
+            col0 = (int)ceil(((double)box.x0 - center.x - shift) / spacing);
+            col1 = (int)floor(((double)box.x1 - center.x - shift) / spacing);
+            for (col = col0; col <= col1; ++col) {
+                LPoint p;
+                if (row == 0 && col == 0) continue;
+                p = LPoint_Set((long)(center.x + col * spacing + shift), (long)(center.y + row * rowHeight));
+                if (LObject_DistanceToPoint(big, p, LCell_GetFile(LCell_GetVisible())) < 0) {
+                    if (!CopyObject(small, p.x - center.x, p.y - center.y)) {
+                        LDialog_AlertBox("Array stopped: object creation failed."); return;
+                    }
+                    (*points)[(*num)++] = p;
+                }
+            }
+        }
+        *_distance = gap;
+    }
 
 	int LSelection_GetNumber(LSelection selectedInital)
 	{
@@ -843,6 +695,7 @@ module Array_Module
 
 	void ArrayByEdgeDistanceOneDimension()
 	{
+        if (!LM_Context()) return;
 		//****************************Input Params****************************//
 
 		LDialogItem Dialog_Items[3] = {{"Array Edge Distance(um)", "1"},
@@ -851,10 +704,10 @@ module Array_Module
 		long distance;
 		int arrayNumber;
 		double deg;
-		if (LDialog_MultiLineInputBox("Array By Edge Distance One Dimension", Dialog_Items, 3))
+		if (LM_Dialog("Array By Edge Distance One Dimension", Dialog_Items, 3))
 		{
-			distance = (long)(atof(Dialog_Items[0].value) * 1000); // get the distance
-			arrayNumber = atoi(Dialog_Items[1].value);			   // get the arrayNumber
+			distance = (long)(atof(Dialog_Items[0].value) * LM_UnitsPerMicron()); // get the distance
+			arrayNumber = (int)atof(Dialog_Items[1].value);			   // get the arrayNumber
 			deg = atof(Dialog_Items[2].value);					   // get the deg
 		}
 		else
@@ -863,7 +716,7 @@ module Array_Module
 		}
 
 		//****************************Input Params****************************//
-		if ((distance >= 0 || arrayNumber > 1) || (deg >= 0 && deg <= 360))
+		if (distance >= 0 && arrayNumber > 1 && arrayNumber <= LM_MAX_OBJECTS && deg >= 0 && deg <= 360)
 		{
 			CopySelectedObjectsByEdgeDistance(arrayNumber, distance, deg);
 		}
@@ -873,6 +726,7 @@ module Array_Module
 
 	void CopySelectedObjectsByEdgeDistance(int arrayNumber, long distance, double deg)
 	{
+        if (arrayNumber < 2 || (double)arrayNumber * LSelection_GetNumber(LSelection_GetList()) > LM_MAX_OBJECTS) { LDialog_AlertBox("Array exceeds 100000 objects."); return; }
 
 		int counter = 0;
 		LSelection selectedInital = LSelection_GetList();
@@ -880,12 +734,13 @@ module Array_Module
 		{
 			LObject selectedObject = LSelection_GetObject(selectedInital);
 			double rad = deg * M_PI / 180; //
-			double *offset = (double *)malloc(sizeof(double));
+			double offset[2] = {0, 0};
 			if (CalculateOffset(selectedObject, distance, rad, offset) == 1)
 			{
 				double xOffset = offset[0]; //
 				double yOffset = offset[1]; //
-				int i;
+				if (!LM_CanMove(selectedObject, (arrayNumber - 1.0) * xOffset, (arrayNumber - 1.0) * yOffset)) { LDialog_AlertBox("Array exceeds coordinate limits."); return; }
+                int i;
 				for (i = 1; i < arrayNumber; i++)
 				{
 					CopyObject(selectedObject, i * xOffset, i * yOffset);
@@ -926,7 +781,7 @@ module Array_Module
 				offset[0] = (2 * tParams.nOuterRadius + distance) * cos(rad);
 				offset[1] = (2 * tParams.nOuterRadius + distance) * sin(rad);
 			}
-			return 1;
+			return lStatus == LStatusOK;
 		}
 		case 5: // LPie
 		{
@@ -937,7 +792,7 @@ module Array_Module
 				offset[0] = (2 * pParams.nRadius + distance) * cos(rad);
 				offset[1] = (2 * pParams.nRadius + distance) * sin(rad);
 			}
-			return 1;
+			return lStatus == LStatusOK;
 		}
 		default:
 			return 0;
@@ -947,6 +802,7 @@ module Array_Module
 
 	void ArrayByOffsetOneDimension()
 	{
+        if (!LM_Context()) return;
 		//****************************Input Params****************************//
 
 		LDialogItem Dialog_Items[3] = {{"Array Center Distance(um)", "1"},
@@ -955,10 +811,10 @@ module Array_Module
 		long distance;
 		int arrayNumber;
 		double deg;
-		if (LDialog_MultiLineInputBox("Array By Offset One Dimension", Dialog_Items, 3))
+		if (LM_Dialog("Array By Offset One Dimension", Dialog_Items, 3))
 		{
-			distance = (long)(atof(Dialog_Items[0].value) * 1000); // get the distance
-			arrayNumber = atoi(Dialog_Items[1].value);			   // get the arrayNumber
+			distance = (long)(atof(Dialog_Items[0].value) * LM_UnitsPerMicron()); // get the distance
+			arrayNumber = (int)atof(Dialog_Items[1].value);			   // get the arrayNumber
 			deg = atof(Dialog_Items[2].value);					   // get the deg
 		}
 		else
@@ -967,7 +823,7 @@ module Array_Module
 		}
 
 		//****************************Input Params****************************//
-		if ((distance >= 0 || arrayNumber > 1) || (deg >= 0 && deg <= 360))
+		if (distance >= 0 && arrayNumber > 1 && arrayNumber <= LM_MAX_OBJECTS && deg >= 0 && deg <= 360)
 		{
 			double rad = deg * M_PI / 180;
 			double xOffset = distance * cos(rad);
@@ -980,12 +836,14 @@ module Array_Module
 
 	void CopySelectedObjects(int arrayNumber, double xOffset, double yOffset)
 	{
+        if (arrayNumber < 2 || (double)arrayNumber * LSelection_GetNumber(LSelection_GetList()) > LM_MAX_OBJECTS) { LDialog_AlertBox("Array exceeds 100000 objects."); return; }
 		int counter = 0;
 		LSelection selectedInital = LSelection_GetList();
 		while (selectedInital != NULL)
 		{
 			LObject selectedObject = LSelection_GetObject(selectedInital);
-			int i;
+			if (!LM_CanMove(selectedObject, (arrayNumber - 1.0) * xOffset, (arrayNumber - 1.0) * yOffset)) { LDialog_AlertBox("Array exceeds coordinate limits."); return; }
+            int i;
 			for (i = 1; i < arrayNumber; i++)
 			{
 				CopyObject(selectedObject, (long)(i * xOffset), (long)(i * yOffset));
@@ -1017,7 +875,7 @@ module Array_Module
 		long center_x = center.x + xOffset;
 		long center_y = center.y + yOffset;
 		LPoint centerOffset = LPoint_Set(center_x, center_y);
-		return LCircle_New(Cell_Now, LLayer_Now, centerOffset, r);
+		return LM_NewCircle(Cell_Now, LLayer_Now, centerOffset, r);
 	}
 
 	LObject Copy_Polygon(LObject originObject, long xOffset, long yOffset)
@@ -1027,9 +885,13 @@ module Array_Module
 		LVertex vertex = LObject_GetVertexList(originObject);
 		long cnt = LVertex_GetCount(originObject);
 		LPoint *points;
-		points = (LPoint *)malloc((cnt) * sizeof(LPoint));
+		if (cnt < 3 || cnt > LM_MAX_POINTS || LPolygon_HasCurve(originObject)) {
+            LDialog_AlertBox("Expected a straight polygon with 3..100000 vertices."); return NULL;
+        }
+        points = (LPoint *)malloc(cnt * sizeof(LPoint));
+        if (!points) return NULL;
 		int j = 0;
-		while (vertex != NULL)
+		while (vertex != NULL && j < cnt)
 		{
 			LPoint point = LVertex_GetPoint(vertex);
 			long point_x = point.x + xOffset;
@@ -1038,7 +900,9 @@ module Array_Module
 			j++;
 			vertex = LVertex_GetNext(vertex);
 		}
-		return LPolygon_New(Cell_Now, LLayer_Now, points, cnt);
+		LObject result = LM_NewPolygon(Cell_Now, LLayer_Now, points, j);
+        free(points);
+        return result;
 	}
 
 	LObject Copy_Torus(LObject originObject, long xOffset, long yOffset)
@@ -1085,6 +949,7 @@ module Array_Module
 
 	LObject CopyObject(LObject selectedObject, long xOffset, long yOffset)
 	{
+        if (!LM_CanMove(selectedObject, xOffset, yOffset)) return NULL;
 		LCell Cell_Now = LCell_GetVisible();
 
 		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, selectedObject);
@@ -1119,77 +984,12 @@ module Array_Module
 
 	void GetObjectCoord(LObject selectedObject, long *box)
 	{
-		LShapeType selectedShapeType = LObject_GetShape(selectedObject);
-		// Function for selectedObject exmple get the left xcoord
-		switch (selectedShapeType)
-		{
-		case 0: // LBox
-		{
-			// get rect xmin
-			LRect rect = LBox_GetRect(selectedObject);
-			box[0] = rect.x0;
-			box[1] = rect.y0;
-			box[2] = rect.x1;
-			box[3] = rect.y1;
-			break;
-		}
-		case 1: // LCircle
-		{
-			LPoint center = LCircle_GetCenter(selectedObject);
-			LCoord r = LCircle_GetRadius(selectedObject);
-			box[0] = center.x - r;
-			box[1] = center.y - r;
-			box[2] = center.x + r;
-			box[3] = center.y + r;
-			break;
-		}
-		case 3: // LPolygon
-		{
-			LVertex vertex = LObject_GetVertexList(selectedObject);
-			while (vertex != NULL)
-			{
-				LPoint point = LVertex_GetPoint(vertex);
-				if (point.x < box[0])
-					box[0] = point.x;
-				if (point.y < box[1])
-					box[1] = point.y;
-				if (point.x > box[2])
-					box[2] = point.x;
-				if (point.y > box[3])
-					box[3] = point.y;
-				vertex = LVertex_GetNext(vertex);
-			}
-			break;
-		}
-		case 4: // LTorus
-		{
-			LTorusParams pParams;
-			if (LTorus_GetParams(selectedObject, &pParams) != NULL)
-			{
-				box[0] = pParams.ptCenter.x - pParams.nOuterRadius;
-				box[1] = pParams.ptCenter.y - pParams.nOuterRadius;
-				box[2] = pParams.ptCenter.x + pParams.nOuterRadius;
-				box[3] = pParams.ptCenter.y + pParams.nOuterRadius;
-			}
-			break;
-		}
-		case 5: // LPie
-		{
-			LPieParams pParams;
-			if (LPie_GetParams(selectedObject, &pParams) != NULL)
-			{
-				box[0] = pParams.ptCenter.x - pParams.nRadius;
-				box[1] = pParams.ptCenter.y - pParams.nRadius;
-				box[2] = pParams.ptCenter.x + pParams.nRadius;
-				box[3] = pParams.ptCenter.y + pParams.nRadius;
-			}
-			break;
-		}
-		default:
-			break;
-		}
-		//
-	}
+        LRect rect;
+        if (!selectedObject) return;
+        rect = LObject_GetMbb(selectedObject);
+        box[0] = rect.x0; box[1] = rect.y0;
+        box[2] = rect.x1; box[3] = rect.y1;
+    }
 
 	double GetPointDistance(LPoint point1, LPoint point2)
 	{
@@ -1221,38 +1021,16 @@ module Array_Module
 
 	LPoint MirrorCoordinates(LPoint p, LPoint linePoint, double rad)
 	{
-		// Calculate the tangent value of the line's angle
-		double slopeTan = tan(rad);
-		// Handle the case when tan(pi/2) is encountered
-		if (fabs(rad - M_PI / 2) < 1e-6)
-		{
-			LPoint mirrorPoint;
-			mirrorPoint.x = 2 * linePoint.x - p.x;
-			mirrorPoint.y = p.y;
-			return mirrorPoint;
-		}
-
-		// Calculate the constant term 'c' in the equation y = mx + c
-		double c = linePoint.y - slopeTan * linePoint.x;
-
-		// Calculate the perpendicular distance from the point to the line
-		double distance = fabs(slopeTan * p.x - p.y + c) / sqrt(1 + slopeTan * slopeTan);
-
-		double A = slopeTan;
-		double B = -1;
-		double C = c;
-		// Calculate the mirror coordinates of the point with respect to the line
-
-		long mirrorx = 2 * (linePoint.y - c + slopeTan * p.x + slopeTan * slopeTan * p.y) / (1 + slopeTan * slopeTan);
-		long mirrory = 2 * (slopeTan * linePoint.x - slopeTan * p.x + p.y + c) / (1 + slopeTan * slopeTan) - p.y;
-
-		mirrorx = -1 * (2 * A * B * p.y + (A * A - B * B) * p.x + 2 * A * C) / (B * B + A * A);
-		mirrory = -1 * (2 * A * B * p.x - (A * A - B * B) * p.y + 2 * B * C) / (B * B + A * A);
-		return LPoint_Set(mirrorx, mirrory);
-	}
+        double dx = (double)p.x - linePoint.x;
+        double dy = (double)p.y - linePoint.y;
+        double c = cos(2 * rad), t = sin(2 * rad);
+        return LPoint_Set(LM_RoundCoord(linePoint.x + c * dx + t * dy),
+                          LM_RoundCoord(linePoint.y + t * dx - c * dy));
+    }
 
 	void Diffusion_Selected_Object_ByOffset()
 	{
+        if (!LM_Context()) return;
 		LCell Cell_Now = LCell_GetVisible();
 		//****************************Input Params****************************//
 		LDialogItem Dialog_Items[3] = {{"Offset (um) (Inf)", "0"},
@@ -1260,8 +1038,7 @@ module Array_Module
 									   {"Center Coord Y (um)", "0"}};
 		double offset;
 		double center_x, center_y;
-		int keep;
-		if (LDialog_MultiLineInputBox("Scale Selected Object", Dialog_Items, 3))
+		if (LM_Dialog("Scale Selected Object", Dialog_Items, 3))
 		{
 			offset = (double)(atof(Dialog_Items[0].value)); // get the Scale Factor
 			center_x = (double)(atof(Dialog_Items[1].value));
@@ -1276,7 +1053,7 @@ module Array_Module
 		while (selectedInital != NULL)
 		{
 			LObject selectedObject = LSelection_GetObject(selectedInital);
-			LPoint polygonCenter = LPoint_Set((long)(center_x * 1000), (long)(center_y * 1000));
+			LPoint polygonCenter = LPoint_Set((long)(center_x * LM_UnitsPerMicron()), (long)(center_y * LM_UnitsPerMicron()));
 			long box[4];
 			box[0] = WORLD_MAX;	 // x0
 			box[1] = WORLD_MAX;	 // y0
@@ -1286,11 +1063,11 @@ module Array_Module
 			// calculate object center (box)
 			long objectCenterX = (box[2] + box[0]) / 2;
 			long objectCenterY = (box[3] + box[1]) / 2;
-			long vectoryX = objectCenterX - (long)(center_x * 1000);
-			long vectoryY = objectCenterY - (long)(center_y * 1000);
+			long vectoryX = objectCenterX - (long)(center_x * LM_UnitsPerMicron());
+			long vectoryY = objectCenterY - (long)(center_y * LM_UnitsPerMicron());
 			double angle = atan2(vectoryY, vectoryX);
-			long xOffset = cos(angle) * offset * 1000;
-			long yOffset = sin(angle) * offset * 1000;
+			long xOffset = cos(angle) * offset * LM_UnitsPerMicron();
+			long yOffset = sin(angle) * offset * LM_UnitsPerMicron();
 			CopyObject(selectedObject, xOffset, yOffset);
 
 			selectedInital = LSelection_GetNext(selectedInital);
@@ -1300,6 +1077,7 @@ module Array_Module
 
 	void Diffusion_Selected_Object_ByRadius()
 	{
+        if (!LM_Context()) return;
 		LCell Cell_Now = LCell_GetVisible();
 		//****************************Input Params****************************//
 		LDialogItem Dialog_Items[3] = {{"Radius (um) (Inf)", "0"},
@@ -1307,8 +1085,7 @@ module Array_Module
 									   {"Center Coord Y (um)", "0"}};
 		double radius;
 		double center_x, center_y;
-		int keep;
-		if (LDialog_MultiLineInputBox("Scale Selected Object", Dialog_Items, 3))
+		if (LM_Dialog("Scale Selected Object", Dialog_Items, 3))
 		{
 			radius = (double)(atof(Dialog_Items[0].value)); // get the Scale Factor
 			center_x = (double)(atof(Dialog_Items[1].value));
@@ -1323,7 +1100,7 @@ module Array_Module
 		while (selectedInital != NULL)
 		{
 			LObject selectedObject = LSelection_GetObject(selectedInital);
-			LPoint polygonCenter = LPoint_Set((long)(center_x * 1000), (long)(center_y * 1000));
+			LPoint polygonCenter = LPoint_Set((long)(center_x * LM_UnitsPerMicron()), (long)(center_y * LM_UnitsPerMicron()));
 			long box[4];
 			box[0] = WORLD_MAX;	 // x0
 			box[1] = WORLD_MAX;	 // y0
@@ -1333,12 +1110,12 @@ module Array_Module
 			// calculate object center (box)
 			long objectCenterX = (box[2] + box[0]) / 2;
 			long objectCenterY = (box[3] + box[1]) / 2;
-			long vectoryX = objectCenterX - (long)(center_x * 1000);
-			long vectoryY = objectCenterY - (long)(center_y * 1000);
+			long vectoryX = objectCenterX - (long)(center_x * LM_UnitsPerMicron());
+			long vectoryY = objectCenterY - (long)(center_y * LM_UnitsPerMicron());
 			double distanceToCenter = sqrt(1.0 * vectoryX * vectoryX + 1.0 * vectoryY * vectoryY);
 			double angle = atan2(vectoryY, vectoryX);
-			long xOffset = cos(angle) * (radius * 1000 - distanceToCenter);
-			long yOffset = sin(angle) * (radius * 1000 - distanceToCenter);
+			long xOffset = cos(angle) * (radius * LM_UnitsPerMicron() - distanceToCenter);
+			long yOffset = sin(angle) * (radius * LM_UnitsPerMicron() - distanceToCenter);
 			CopyObject(selectedObject, xOffset, yOffset);
 
 			selectedInital = LSelection_GetNext(selectedInital);

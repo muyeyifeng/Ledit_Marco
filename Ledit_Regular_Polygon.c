@@ -23,6 +23,7 @@ module Polygon_Module
 #include <math.h>
 // #include "Ledit_Regular.h"
 #include "ldata.h" /* Main UPI header. */
+#include "Ledit_Safety.h"
 
 	void DrawEllipse();
 	void DrawPolygonByEdgeLenght();
@@ -33,6 +34,7 @@ module Polygon_Module
 
 	void DrawEllipse()
 	{
+        if (!LM_Context()) return;
 		//****************************Input Params****************************//
 		LDialogItem Dialog_Items[4] = {{"Ellipse a (um)", "1"},
 									   {"Ellipse b (um)", "1"},
@@ -42,12 +44,12 @@ module Polygon_Module
 		long b;
 		double deg;
 		int n;
-		if (LDialog_MultiLineInputBox(" Draw Ellipse", Dialog_Items, 4))
+		if (LM_Dialog(" Draw Ellipse", Dialog_Items, 4))
 		{
-			a = (long)(atof(Dialog_Items[0].value) * 1000); // get the a
-			b = (long)(atof(Dialog_Items[1].value) * 1000); // get the b
+			a = (long)(atof(Dialog_Items[0].value) * LM_UnitsPerMicron()); // get the a
+			b = (long)(atof(Dialog_Items[1].value) * LM_UnitsPerMicron()); // get the b
 			deg = atof(Dialog_Items[2].value);				// get the deg
-			n = atoi(Dialog_Items[3].value);				// get the n
+			n = (int)atof(Dialog_Items[3].value);				// get the n
 		}
 		else
 		{
@@ -59,12 +61,15 @@ module Polygon_Module
 		LFile File_Now = LCell_GetFile(Cell_Now);
 		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
 		LPoint *points = CalculateEllipsePoints(a, b, n, rad);
-		LPolygon_New(Cell_Now, LLayer_Now, points, n);
+        if (!points) return;
+		LM_NewPolygon(Cell_Now, LLayer_Now, points, n);
+        free(points);
 		LDisplay_Refresh();
 	}
 
 	void DrawPolygonByEdgeLenght()
 	{
+        if (!LM_Context()) return;
 		//****************************Input Params****************************//
 		LDialogItem Dialog_Items[3] = {{"Edge Number (>=3)", "3"},
 									   {"EdgeLenght (um)", "1"},
@@ -72,10 +77,10 @@ module Polygon_Module
 		int edgeNum;
 		long edgeLen;
 		double deg;
-		if (LDialog_MultiLineInputBox(" Draw Polygon By Edge Lenght", Dialog_Items, 3))
+		if (LM_Dialog(" Draw Polygon By Edge Lenght", Dialog_Items, 3))
 		{
-			edgeNum = atoi(Dialog_Items[0].value);				  // get the edgeNum
-			edgeLen = (long)(atof(Dialog_Items[1].value) * 1000); // get the edgeLen
+			edgeNum = (int)atof(Dialog_Items[0].value);				  // get the edgeNum
+			edgeLen = (long)(atof(Dialog_Items[1].value) * LM_UnitsPerMicron()); // get the edgeLen
 			deg = atof(Dialog_Items[2].value);					  // get the deg
 		}
 		else
@@ -84,7 +89,7 @@ module Polygon_Module
 		}
 		//****************************Input Params****************************//
 		double rad = deg * M_PI / 180;
-		if (edgeNum < 3)
+		if (edgeNum < 3 || edgeNum > LM_MAX_POINTS)
 		{
 			LDialog_AlertBox("Polygon edge number must lagger than 3");
 			return;
@@ -95,7 +100,9 @@ module Polygon_Module
 			return;
 		}
 		LPoint center = LPoint_Set(0, 0);
-		long radius = edgeLen / (2 * sin(M_PI / edgeNum));
+		double radiusValue = edgeLen / (2 * sin(M_PI / edgeNum));
+        if (radiusValue > WORLD_MAX) { LDialog_AlertBox("Polygon exceeds coordinate limits."); return; }
+        long radius = (long)radiusValue;
 		DrawPolygonByCenterRadiusAndEdgeNumber(center, radius, edgeNum, rad);
 
 		LDisplay_Refresh();
@@ -103,6 +110,7 @@ module Polygon_Module
 
 	void DrawPolygonByRadius()
 	{
+        if (!LM_Context()) return;
 		//****************************Input Params****************************//
 		LDialogItem Dialog_Items[3] = {{"Edge Number (>=3)", "3"},
 									   {"Radius (Outer, um)", "1"},
@@ -110,10 +118,10 @@ module Polygon_Module
 		int edgeNum;
 		long radius;
 		double deg;
-		if (LDialog_MultiLineInputBox("Draw Polygon By Radius", Dialog_Items, 3))
+		if (LM_Dialog("Draw Polygon By Radius", Dialog_Items, 3))
 		{
-			edgeNum = atoi(Dialog_Items[0].value);				 // get the edgeNum
-			radius = (long)(atof(Dialog_Items[1].value) * 1000); // get the radius
+			edgeNum = (int)atof(Dialog_Items[0].value);				 // get the edgeNum
+			radius = (long)(atof(Dialog_Items[1].value) * LM_UnitsPerMicron()); // get the radius
 			deg = atof(Dialog_Items[2].value);					 // get the deg
 		}
 		else
@@ -122,7 +130,7 @@ module Polygon_Module
 		}
 		//****************************Input Params****************************//
 		double rad = deg * M_PI / 180;
-		if (edgeNum < 3)
+		if (edgeNum < 3 || edgeNum > LM_MAX_POINTS)
 		{
 			LDialog_AlertBox("Polygon edge number must lagger than 3");
 			return;
@@ -143,8 +151,12 @@ module Polygon_Module
 		LCell Cell_Now = LCell_GetVisible();
 		LFile File_Now = LCell_GetFile(Cell_Now);
 		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
-		LPoint *points;
-		points = (LPoint *)malloc((edgeNum) * sizeof(LPoint));
+		if (edgeNum < 3 || edgeNum > LM_MAX_POINTS || radius <= 0 ||
+            !LM_PointValid((double)center.x + radius, (double)center.y + radius) ||
+            !LM_PointValid((double)center.x - radius, (double)center.y - radius)) return;
+        LPoint *points;
+		points = (LPoint *)malloc(edgeNum * sizeof(LPoint));
+        if (!points) return;
 		int i;
 		for (i = 0; i < edgeNum; i++)
 		{
@@ -152,14 +164,20 @@ module Polygon_Module
 			int point_y = center.y + radius * cos(rad + 2 * i * M_PI / edgeNum);
 			points[i] = LPoint_Set((long)point_x, (long)point_y);
 		}
-		LPolygon_New(Cell_Now, LLayer_Now, points, edgeNum);
+		LM_NewPolygon(Cell_Now, LLayer_Now, points, edgeNum);
+        free(points);
 	}
 
 	LPoint *CalculateEllipsePoints(long a, long b, int n, double rad)
 	{
-		double angle, x, y;
+		if (a <= 0 || b <= 0 || n < 3 || n > LM_MAX_POINTS) {
+            LDialog_AlertBox("Use positive axes and 3..100000 vertices."); return NULL;
+        }
+        double angle, x, y;
+        double cr = cos(rad), sr = sin(rad);
 		LPoint *points;
-		points = (LPoint *)malloc((n) * sizeof(LPoint));
+		points = (LPoint *)malloc(n * sizeof(LPoint));
+        if (!points) return NULL;
 
 		double step = 2 * M_PI / n;
 		int i;
@@ -169,9 +187,9 @@ module Polygon_Module
 			x = a * cos(angle);
 			y = b * sin(angle);
 
-			double l = sqrt(x * x + y * y);
-			double xx = x * cos(rad) - y * sin(rad);
-			double yy = x * sin(rad) + y * cos(rad);
+
+			double xx = x * cr - y * sr;
+			double yy = x * sr + y * cr;
 			points[i] = LPoint_Set((long)xx, (long)yy);
 		}
 		return points;

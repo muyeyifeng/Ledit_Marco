@@ -29,7 +29,7 @@ Create special structures in your layout, including rounded corners. These scrip
 ## Usage
 
 1. Clone this repository to your local machine.
-2. Copy the desired Marco script from the repository into your Tanner L-Edit environment.
+2. Copy the desired macro script together with `Ledit_Safety.h` into your Tanner L-Edit macro directory. Make sure the compatible `ldata.h` is on the macro include path.
 3. Follow the specific instructions provided within each script for seamless integration and utilization.
 
 ## Contributions
@@ -76,7 +76,7 @@ Thank you for choosing our Tanner L-Edit Macro Scripts. We hope they enhance you
 ## 使用方法
 
 1. 将此仓库克隆到您的本地机器。
-2. 从仓库中复制所需的Marco脚本到您的Tanner L-Edit环境中。
+2. 将所需宏脚本与新增的 `Ledit_Safety.h` 一起复制到 Tanner L-Edit 宏目录，确保包含路径中有与软件版本匹配的 `ldata.h`。
 3. 按照每个脚本提供的具体说明，轻松集成和使用。
 
 ## 贡献
@@ -88,3 +88,15 @@ Thank you for choosing our Tanner L-Edit Macro Scripts. We hope they enhance you
 请注意，这些Marco脚本目前仍在开发中，随着时间的推移可能会添加更多功能。在将脚本集成到工作流程之前，请始终确保其与您的具体版本的Tanner L-Edit兼容。
 
 感谢选择我们的Tanner L-Edit Marco脚本。希望它们能够提升您的布局设计体验！如果有任何问题或疑虑，请随时在GitHub上提出 [issue](https://github.com/muyeyifeng/Ledit_Marco/issues)。祝设计愉快！
+
+
+## 2026-09 代码审查与优化
+
+已修复指针类型、数组越界、重复删除、错误缩放、路径布圆死循环、圆拟合、单位换算和临时内存管理等问题。原宏注册名称保持不变。
+
+- [完整代码审查与 L-Edit 验收清单](docs/代码审查.md)
+- [本地编译与回归测试](tests/README.md)
+
+注意操作语义：半径修改时 `Keep Original Objects=1` 新建修改后的圆，`0` 原地修改；旋转/镜像时 `0` 仅在新对象创建成功后删除原对象。路径布圆采用等弧长间距。填充阵列依旧按小圆圆心是否在边界内判断。
+
+本地检查通过不代表已在真实 L-Edit 中完成验收。手动重建几何的变换分支不承诺保留全部自定义属性；带业务属性的对象去重前应核对审查报告中的限制。

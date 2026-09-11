@@ -23,6 +23,7 @@ module Special_Polygon_Module
 #include <math.h>
 // #include "Ledit_Special.h"
 #include "ldata.h" /* Main UPI header. */
+#include "Ledit_Safety.h"
     bool CheckIsCircles(LObject * objects, int objectNum, LPoint *centerPoints);
     bool CircleCorssWire(LPoint p1, LPoint p2, LObject circleLike);
     double CalculatePolarAngle(LPoint p1, LPoint p2);
@@ -39,7 +40,7 @@ module Special_Polygon_Module
     void DrawTangentRing();
     void Draw_Boundry(LObject * orderedObjects, int orderedObjectNum, long innerDistance, long outterDistance, long standerRadius, long minDistance, LPoint shapeCenter);
     void Draw_Boundry_Hex(LObject * orderedObjects, int orderedObjectNum, long innerDistance, long outterDistance, long standerRadius, long minDistance, LPoint shapeCenter, long RoundRadius);
-    void FindLineEquation(LPoint p1, LPoint p2, double **abc);
+    void FindLineEquation(LPoint p1, LPoint p2, double *abc);
     bool Find_Next_Circle(LObject * orderedObjects, int orderedObjectNum, LObject *objects, int objectNum, double search_max_radius, double search_min_radius);
     int LSelection_GetNumber(LSelection selectedInital);
     double normalize_angle(double angle);
@@ -47,12 +48,13 @@ module Special_Polygon_Module
     void Order_Boundry_Hex();
     void Order_Circle(LObject * objects, int objectNum, long innerDistance, long outterDistance, long standerRadius);
     void Order_Hex(LObject * objects, int objectNum, long innerDistance, long outterDistance, long standerRadius, long RoundRadius);
-    LObject *Select_Boundry_Object(LSelection selectedInital, long search_radius);
+    void Select_Boundry_Object(LSelection selectedInital, long search_radius);
     void Select_Boundry_Circles();
     void SpecialPolygon_func(void);
 
     void DrawTangentRing()
     {
+        if (!LM_Context()) return;
         LCell Cell_Now = LCell_GetVisible();
         LSelection selectedInital = LSelection_GetList();
         int selectedObjectNumber = LSelection_GetNumber(selectedInital);
@@ -68,14 +70,14 @@ module Special_Polygon_Module
 
         //****************************Input Params****************************//
         LDialogItem Dialog_Items[2] = {{"Tangent Circle InnerRadius (um)", "1"},
-                                       {"Tangent Circle OuterRadius-InnerRadius (um)", "1"}};
+                                       {"Tangent Ring Thickness (um)", "1"}};
         long radius;
         long thickness;
-        if (LDialog_MultiLineInputBox("Tangent Circle Radius", Dialog_Items, 2))
+        if (LM_Dialog("Tangent Circle Radius", Dialog_Items, 2))
         {
             // To make sure torus inner other objects: radius + 10 nm
-            radius = (long)(atof(Dialog_Items[0].value) * 1000) + 10; // get the radius
-            thickness = (long)(atof(Dialog_Items[1].value) * 1000);   // get the thickness
+            radius = (long)(atof(Dialog_Items[0].value) * LM_UnitsPerMicron()) + 10; // get the radius
+            thickness = (long)(atof(Dialog_Items[1].value) * LM_UnitsPerMicron());   // get the thickness
         }
         else
         {
@@ -83,11 +85,8 @@ module Special_Polygon_Module
         }
         //****************************Input Params****************************//
 
-        long *x1;
-        long *y1;
-        long *x2;
-        long *y2;
-        LObject *torus;
+        if (radius <= 10 || thickness <= 0 || (double)radius + thickness > WORLD_MAX) return;
+        LObject *torus = NULL;
         int rootPoints = 0;
         if (LObject_GetShape(object1) == 1 && LObject_GetShape(object2) == 1)
         {
@@ -100,18 +99,20 @@ module Special_Polygon_Module
         while (rootPoints > 0)
         {
             LTorusParams tParams;
-            LTorus_GetParams(torus[rootPoints - 1], &tParams);
+            if (!torus[rootPoints - 1] || LTorus_GetParams(torus[rootPoints - 1], &tParams) != LStatusOK) { --rootPoints; continue; }
             tParams.nInnerRadius = radius;
             tParams.nOuterRadius = radius + thickness;
             LTorus_SetParams(Cell_Now, torus[rootPoints - 1], &tParams);
             rootPoints--;
         }
+        free(torus);
         LDisplay_Refresh();
     }
 
     int CalculateIntersection_Circle2Wire(LObject object1, LObject object2, long radius, LObject **torus)
     {
-        *torus = (LObject *)malloc(4 * sizeof(LObject));
+        *torus = (LObject *)calloc(4, sizeof(LObject));
+        if (!*torus) return 0;
         LObject circle = LObject_GetShape(object1) == 1 ? object1 : object2;
         LObject wire = LObject_GetShape(object1) == 2 ? object1 : object2;
 
@@ -130,8 +131,9 @@ module Special_Polygon_Module
         LPoint point1 = LVertex_GetPoint(vertex);
         vertex = LVertex_GetNext(vertex);
         LPoint point2 = LVertex_GetPoint(vertex);
-        double *abc;
-        FindLineEquation(point1, point2, &abc);
+        double abc[3];
+        if (point1.x == point2.x && point1.y == point2.y) return 0;
+        FindLineEquation(point1, point2, abc);
         double rad = 0.0;
 
         double a = abc[0];
@@ -276,7 +278,8 @@ module Special_Polygon_Module
 
     int CalculateIntersection_Circle2Circle(LObject object1, LObject object2, long radius, LObject **torus)
     {
-        *torus = (LObject *)malloc(2 * sizeof(LObject));
+        *torus = (LObject *)calloc(2, sizeof(LObject));
+        if (!*torus) return 0;
         LCell Cell_Now = LCell_GetVisible();
         // LFile File_Now = LCell_GetFile(Cell_Now);
         // LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
@@ -307,7 +310,7 @@ module Special_Polygon_Module
         else
         {
             double a = ((double)R1 * R1 - (double)R2 * R2 + d * d) / (2 * d);
-            double h = sqrt((double)R1 * R1 - a * a);
+            double h = sqrt(fmax(0.0, (double)R1 * R1 - a * a));
 
             double xMid = x1 + a * (x2 - x1) / d;
             double yMid = y1 + a * (y2 - y1) / d;
@@ -386,24 +389,24 @@ module Special_Polygon_Module
         return counter;
     }
 
-    void FindLineEquation(LPoint p1, LPoint p2, double **abc)
+    void FindLineEquation(LPoint p1, LPoint p2, double *abc)
     {
-        *abc = (double *)malloc(3 * sizeof(double));
+
         if (p2.x - p1.x != 0)
         {
             // Calculate the slope m
             double m = (double)(p2.y - p1.y) / (p2.x - p1.x);
             // Convert to standard form ax + by + c = 0
-            (*abc)[0] = (double)(p2.y - p1.y) / (p1.x - p2.x);
-            (*abc)[1] = 1.0;
-            (*abc)[2] = ((double)p2.y * p1.x - (double)p1.y * p2.x) / (p2.x - p1.x);
+            abc[0] = (double)(p2.y - p1.y) / (p1.x - p2.x);
+            abc[1] = 1.0;
+            abc[2] = ((double)p2.y * p1.x - (double)p1.y * p2.x) / (p2.x - p1.x);
         }
         else
         {
             // If slope does not exist, the line is vertical, and the equation is x = x1
-            (*abc)[0] = 1.0;
-            (*abc)[1] = 0.0;
-            (*abc)[2] = -p1.x;
+            abc[0] = 1.0;
+            abc[1] = 0.0;
+            abc[2] = -p1.x;
         }
         // y = kx +b
         // k = -a / b
@@ -411,22 +414,8 @@ module Special_Polygon_Module
 
     bool CircleCorssWire(LPoint p1, LPoint p2, LObject circleLike)
     {
-        LShapeType objectShape = LObject_GetShape(circleLike);
-        switch (objectShape)
-        {
-        case 1: // LCircle
-        {
-            return;
-        }
-        case 4: // LTorus
-        {
-            return;
-        }
-        case 5: // LPie
-        {
-            return;
-        }
-        }
+        /* Reserved helper; no caller currently relies on this unfinished test. */
+        return false;
     }
 
     double GetPointDistance(LPoint point1, LPoint point2)
@@ -434,7 +423,7 @@ module Special_Polygon_Module
         return sqrt((double)(point1.x - point2.x) * (double)(point1.x - point2.x) + (double)(point1.y - point2.y) * (point1.y - point2.y));
     }
 
-    LObject *Select_Boundry_Object(LSelection selectedInital, long search_radius)
+    void Select_Boundry_Object(LSelection selectedInital, long search_radius)
     {
         // LSelection selectedInital = LSelection_GetList();
         while (selectedInital != NULL)
@@ -448,8 +437,10 @@ module Special_Polygon_Module
 
         selectedInital = LSelection_GetList();
         int objectNum = LSelection_GetNumber(selectedInital);
+        if (objectNum < 1 || objectNum > 5000 || search_radius <= 0) return;
         LObject *objects = (LObject *)malloc(objectNum * sizeof(LObject));
 
+        if (!objects) return;
         int i, j;
         for (i = 0; i < objectNum; i++)
         {
@@ -459,7 +450,7 @@ module Special_Polygon_Module
 
         LSelection_DeselectAll();
 
-        LObject *boundryObjects = (LObject *)malloc(objectNum * sizeof(LObject));
+
         int boundryObjectNum = 0;
         for (i = 0; i < objectNum; i++)
         {
@@ -477,23 +468,25 @@ module Special_Polygon_Module
             }
             if (counter < 7)
             {
-                boundryObjects[boundryObjectNum] = object1;
+
                 boundryObjectNum++;
                 LSelection_AddObject(object1);
             }
             counter = 0;
         }
+        free(objects);
         LDisplay_Refresh();
     }
 
     void Select_Boundry_Circles()
     {
+        if (!LM_Context()) return;
         //****************************Input Params****************************//
         LDialogItem Dialog_Items[1] = {{"Radius (um) (Inf)", "0"}};
         double search_radius;
-        if (LDialog_MultiLineInputBox("Select Boundry Circles", Dialog_Items, 1))
+        if (LM_Dialog("Select Boundry Circles", Dialog_Items, 1))
         {
-            search_radius = (long)(atof(Dialog_Items[0].value) * 1000); // get the Scale Factor
+            search_radius = (long)(atof(Dialog_Items[0].value) * LM_UnitsPerMicron()); // get the Scale Factor
         }
         else
         {
@@ -504,8 +497,12 @@ module Special_Polygon_Module
         Select_Boundry_Object(selectedInital, search_radius);
     }
 
+    long boundarySearchBudget = 0;
+
     bool Find_Next_Circle(LObject * orderedObjects, int orderedObjectNum, LObject *objects, int objectNum, double search_max_radius, double search_min_radius)
     {
+        if (boundarySearchBudget <= 0 || orderedObjectNum < 1 || objectNum > 256) return false;
+        --boundarySearchBudget;
         // LDialog_MsgBox(LFormat("find_level %d", orderedObjectNum));
         // debug
         if (orderedObjectNum > objectNum)
@@ -566,7 +563,8 @@ module Special_Polygon_Module
     LPoint CalculateCentroid(LPoint * points, int n)
     {
         // Find the bottom and leftmost point as the pole
-        long xSum = 0, ySum = 0;
+        if (n <= 0) return LPoint_Set(0, 0);
+        double xSum = 0, ySum = 0;
         int i;
         for (i = 0; i < n; i++)
         {
@@ -581,6 +579,12 @@ module Special_Polygon_Module
 
     void Order_Circle(LObject * objects, int objectNum, long innerDistance, long outterDistance, long standerRadius)
     {
+        if (innerDistance < 0 || outterDistance < 0 ||
+            (double)innerDistance + outterDistance + 2.0 * standerRadius > WORLD_MAX) {
+            LDialog_AlertBox("Boundary distances must be nonnegative and within layout limits."); return;
+        }
+        if (objectNum < 3 || objectNum > 256 || standerRadius <= 0) { LDialog_AlertBox("Boundary ordering requires 3..256 circles and a positive radius."); return; }
+        boundarySearchBudget = 200000;
 
         // put the left bottom circle to the first
         int i;
@@ -615,6 +619,7 @@ module Special_Polygon_Module
         // LDialog_MsgBox(LFormat("search_max_radius: %f, search_min_radius: %f", search_max_radius, search_min_radius));
         //  create a new array to store the ordered circles
         LObject *orderedObjects = (LObject *)malloc(objectNum * sizeof(LObject));
+        if (!orderedObjects) return;
         orderedObjects[0] = objects[0];
         int orderedObjectNum = 1;
         // LDialog_MsgBox(LFormat("search_max_radius: %f, search_min_radius: %f", search_max_radius, search_min_radius));
@@ -625,17 +630,21 @@ module Special_Polygon_Module
         }
         else
         {
-            LDialog_MsgBox("Order Fail");
+            free(orderedObjects);
+            LDialog_MsgBox("Order failed or search limit reached.");
             return;
         }
         // calcu
         LPoint *centerPoints;
         centerPoints = (LPoint *)malloc((objectNum) * sizeof(LPoint));
+        if (!centerPoints) { free(orderedObjects); return; }
         CheckIsCircles(objects, objectNum, centerPoints);
         LPoint center;
         center = CalculateCentroid(centerPoints, objectNum);
 
         Draw_Boundry(orderedObjects, objectNum, innerDistance, outterDistance, standerRadius, (long)minDistance, center);
+        free(centerPoints);
+        free(orderedObjects);
 
         // test: change the size of the selected objects by order
         // LCell Cell_Now = LCell_GetVisible();
@@ -675,7 +684,7 @@ module Special_Polygon_Module
 
         // 检查L是否足够大，确保有解
         // L必须大于或等于AB长度的一半
-        if (L * L < d_AB_sq / 4.0 - 1e-9)
+        if ((double)L * L < d_AB_sq / 4.0 - 1e-9)
         {             // L^2 < (AB/2)^2 => L < AB/2
             return 0; // 无解
         }
@@ -686,8 +695,8 @@ module Special_Polygon_Module
         M.y = (A.y + B.y) / 2.0;
 
         // 计算PM的长度（M到P的距离）
-        double d_M_sq = L * L - d_AB_sq / 4.0;
-        double d_M = sqrt(d_M_sq);
+        double d_M_sq = (double)L * L - d_AB_sq / 4.0;
+        double d_M = sqrt(fmax(0.0, d_M_sq));
 
         // 单位方向向量 (垂直于AB)
         // 向量AB: (dx, dy)
@@ -767,6 +776,7 @@ module Special_Polygon_Module
         int currentSize = 0;
         int capacity = 1000;
         LPoint *totalPolygon = (LPoint *)malloc(capacity * sizeof(LPoint));
+        if (!totalPolygon) return;
         for (i = 0; i < orderedObjectNum; i++)
         {
             LPoint circle1 = LCircle_GetCenter(orderedObjects[i % orderedObjectNum]);
@@ -779,8 +789,7 @@ module Special_Polygon_Module
             int resultNum = Calculate_Outside_Circle(circle1, circle2, L, results1);
             // LDialog_MsgBox(LFormat("resultNum1: %d",resultNum));
             LPoint result1;
-            if (resultNum == 0)
-                continue;
+            if (resultNum == 0) { free(totalPolygon); LDialog_AlertBox("Cannot construct the complete boundary with these parameters."); return; }
             if (resultNum == 1)
                 result1 = results1[0];
             if (resultNum == 2)
@@ -795,8 +804,7 @@ module Special_Polygon_Module
             resultNum = Calculate_Outside_Circle(circle2, circle3, L, results2);
             // LDialog_MsgBox(LFormat("resultNum2: %d",resultNum));
             LPoint result2;
-            if (resultNum == 0)
-                continue;
+            if (resultNum == 0) { free(totalPolygon); LDialog_AlertBox("Cannot construct the complete boundary with these parameters."); return; }
             if (resultNum == 1)
                 result2 = results2[0];
             if (resultNum == 2)
@@ -804,22 +812,21 @@ module Special_Polygon_Module
                 result2 = GetPointDistance(shapeCenter, results2[0]) > GetPointDistance(shapeCenter, results2[1]) ? results2[0] : results2[1];
             }
 
-            LPoint *part1;
-            LPoint *part2;
+            LPoint *part1 = NULL;
+            LPoint *part2 = NULL;
             if (GetPointDistance(result1, result2) < minDistance * 0.9)
             {
                 LPoint results3[2];
                 LPoint result3;
                 resultNum = Calculate_Outside_Circle(circle1, circle3, L, results3);
-                if (resultNum == 0)
-                    continue;
+                if (resultNum == 0) { free(totalPolygon); LDialog_AlertBox("Cannot construct the complete boundary with these parameters."); return; }
                 if (resultNum == 1)
                     result3 = results3[0];
                 if (resultNum == 2)
                 {
                     result3 = GetPointDistance(shapeCenter, results3[0]) > GetPointDistance(shapeCenter, results3[1]) ? results3[0] : results3[1];
                 }
-                // LCircle_New(Cell_Now, LLayer_Now, result3, standerRadius);
+                // LM_NewCircle(Cell_Now, LLayer_Now, result3, standerRadius);
 
                 angle1 = calculateAngleP1ToP2(circle1, result3);
                 angle2 = calculateAngleP1ToP2(circle3, result3);
@@ -830,13 +837,16 @@ module Special_Polygon_Module
                 //_angle1 -> _angle2
                 //
                 int cnt1 = calculate_arc_points(circle1.x, circle1.y, radius1 + innerDistance, startAngle, angle1, &part1);
-                // LPolygon_New(Cell_Now, LLayer_Now, part1, cnt1);
+                // LM_NewPolygon(Cell_Now, LLayer_Now, part1, cnt1);
                 int cnt2 = calculate_arc_points(result3.x, result3.y, radius1 + outterDistance, _angle1, _angle2, &part2);
-                // LPolygon_New(Cell_Now, LLayer_Now, part2, cnt2);
+                if (cnt1 < 0 || cnt2 < 0) { free(part1); free(part2); free(totalPolygon); return; }
+                // LM_NewPolygon(Cell_Now, LLayer_Now, part2, cnt2);
                 if (capacity < 1.5 * (cnt1 + cnt2 + currentSize))
                 {
                     int newCapacity = 1.5 * (cnt1 + cnt2 + currentSize);
+                if (newCapacity > LM_MAX_POINTS) { free(part1); free(part2); free(totalPolygon); LDialog_AlertBox("Boundary exceeds 100000 vertices."); return; }
                     LPoint *tempArray = (LPoint *)realloc(totalPolygon, newCapacity * sizeof(LPoint));
+                if (!tempArray) { free(part1); free(part2); free(totalPolygon); return; }
                     totalPolygon = tempArray; // 更新指针指向新的内存区域
                     capacity = newCapacity;   // 更新容量
                 }
@@ -854,6 +864,7 @@ module Special_Polygon_Module
                     currentSize++;
                 }
 
+                free(part1); free(part2);
                 startAngle = angle2;
                 i++;
                 continue;
@@ -867,10 +878,13 @@ module Special_Polygon_Module
 
             int cnt3 = calculate_arc_points(circle1.x, circle1.y, radius1 + innerDistance, startAngle, angle1, &part1);
             int cnt4 = calculate_arc_points(result1.x, result1.y, radius1 + outterDistance, _angle1, _angle2, &part2);
+                if (cnt3 < 0 || cnt4 < 0) { free(part1); free(part2); free(totalPolygon); return; }
             if (capacity < 1.5 * (cnt3 + cnt4 + currentSize))
             {
                 int newCapacity = 1.5 * (cnt3 + cnt4 + currentSize);
+                if (newCapacity > LM_MAX_POINTS) { free(part1); free(part2); free(totalPolygon); LDialog_AlertBox("Boundary exceeds 100000 vertices."); return; }
                 LPoint *tempArray = (LPoint *)realloc(totalPolygon, newCapacity * sizeof(LPoint));
+                if (!tempArray) { free(part1); free(part2); free(totalPolygon); return; }
                 totalPolygon = tempArray; // 更新指针指向新的内存区域
                 capacity = newCapacity;   // 更新容量
             }
@@ -887,18 +901,22 @@ module Special_Polygon_Module
                 totalPolygon[currentSize] = part2[j];
                 currentSize++;
             }
-            startAngle = angle2;
+            free(part1); free(part2);
+                startAngle = angle2;
             // break;//debug
         }
-        LPoint *partSmall;
+        LPoint *partSmall = NULL;
         LPoint circle0 = LCircle_GetCenter(orderedObjects[0]);
         long radius0 = LCircle_GetRadius(orderedObjects[0]);
         int small = calculate_arc_points(circle0.x, circle0.y, radius0 + innerDistance, startAngle, -135.0, &partSmall);
+        if (small < 0) { free(totalPolygon); return; }
 
         if (capacity < small + currentSize)
         {
             int newCapacity = 1.5 * (small + currentSize);
+                if (newCapacity > LM_MAX_POINTS) { free(partSmall); free(totalPolygon); LDialog_AlertBox("Boundary exceeds 100000 vertices."); return; }
             LPoint *tempArray = (LPoint *)realloc(totalPolygon, newCapacity * sizeof(LPoint));
+                if (!tempArray) { free(partSmall); free(totalPolygon); return; }
             totalPolygon = tempArray; // 更新指针指向新的内存区域
             capacity = newCapacity;   // 更新容量
         }
@@ -910,7 +928,10 @@ module Special_Polygon_Module
             currentSize++;
         }
 
-        LPolygon_New(Cell_Now, LLayer_Now, totalPolygon, currentSize - 1);
+        /* Drop only an actually duplicated closing point. */
+        if (currentSize > 1 && totalPolygon[0].x == totalPolygon[currentSize - 1].x && totalPolygon[0].y == totalPolygon[currentSize - 1].y) --currentSize;
+        if (currentSize >= 3) LM_NewPolygon(Cell_Now, LLayer_Now, totalPolygon, currentSize);
+        free(partSmall); free(totalPolygon);
     }
 
     double get_short_arc_interpolated_angle(double start_angle, double end_angle)
@@ -926,31 +947,26 @@ module Special_Polygon_Module
                              double start_angle_deg, double end_angle_deg,
                              LPoint **result)
     {
-        // LPoint result;
         double diff = get_short_arc_interpolated_angle(start_angle_deg, end_angle_deg);
-        double curve = diff * (M_PI / 180.0) * radius;
-        int num_segments = (int)abs(curve / 100); // 100 nm 精度
-        *result = (LPoint *)malloc(num_segments * sizeof(LPoint));
-        int i;
-        for (i = 0; i < num_segments; ++i)
-        {
-            double t = (double)i / num_segments;
-
-            double current_angle_deg = start_angle_deg + diff * t;
-            // 将角度从度转换为弧度
-            double current_angle_rad = current_angle_deg * (M_PI / 180.0);
-
-            // 计算点的坐标
-            (*result)[i].x = (long)(center_x + radius * cos(current_angle_rad));
-            (*result)[i].y = (long)(center_y + radius * sin(current_angle_rad));
+        double count = ceil(fabs(diff) * M_PI / 180 * radius / (0.1 * LM_UnitsPerMicron()));
+        int i, n;
+        *result = NULL;
+        if (radius <= 0 || !(count <= LM_MAX_POINTS - 1)) return -1;
+        n = count < 1 ? 1 : (int)count;
+        *result = (LPoint *)malloc((n + 1) * sizeof(LPoint));
+        if (!*result) return -1;
+        for (i = 0; i <= n; ++i) {
+            double angle = (start_angle_deg + diff * i / n) * M_PI / 180;
+            double x = center_x + radius * cos(angle), y = center_y + radius * sin(angle);
+            if (!LM_PointValid(x, y)) { free(*result); *result = NULL; return -1; }
+            (*result)[i] = LPoint_Set((long)x, (long)y);
         }
-        // LDialog_MsgBox(LFormat("num_segments: %d", num_segments));
-        // LDialog_MsgBox(LFormat("a1: %d, a2: %d", (*result)[0].x, (*result)[0].y));
-        return num_segments;
+        return n + 1;
     }
 
     void Order_Boundry_Circles()
     {
+        if (!LM_Context()) return;
         LSelection selectedInital = LSelection_GetList();
         if (LSelection_GetNumber(selectedInital) == 0)
             return;
@@ -965,9 +981,11 @@ module Special_Polygon_Module
 
         selectedInital = LSelection_GetList();
         int objectNum = LSelection_GetNumber(selectedInital);
+        if (objectNum < 3 || objectNum > 256) { LDialog_AlertBox("Select 3..256 boundary circles."); return; }
         LObject *objects = (LObject *)malloc(objectNum * sizeof(LObject));
 
-        int i, j;
+        if (!objects) return;
+        int i;
         for (i = 0; i < objectNum; i++)
         {
             objects[i] = LSelection_GetObject(selectedInital);
@@ -975,7 +993,7 @@ module Special_Polygon_Module
         }
 
         char show_str_buf[21];
-        snprintf(show_str_buf, sizeof(show_str_buf), "%.3f", LCircle_GetRadius(objects[0]) / 1000.0);
+        snprintf(show_str_buf, sizeof(show_str_buf), "%.3f", LCircle_GetRadius(objects[0]) / LM_UnitsPerMicron());
 
         LDialogItem Dialog_Items[3];
         strcpy(Dialog_Items[0].prompt, "innerDistance (um)");
@@ -994,26 +1012,28 @@ module Special_Polygon_Module
         long innerDistance;
         long outterDistance;
         long standerRadius;
-        if (LDialog_MultiLineInputBox("Draw Boundry", Dialog_Items, 3))
+        if (LM_Dialog("Draw Boundry", Dialog_Items, 3))
         {
-            innerDistance = (long)(atof(Dialog_Items[0].value) * 1000);
-            outterDistance = (long)(atof(Dialog_Items[1].value) * 1000);
-            standerRadius = (long)(atof(Dialog_Items[2].value) * 1000);
+            innerDistance = (long)(atof(Dialog_Items[0].value) * LM_UnitsPerMicron());
+            outterDistance = (long)(atof(Dialog_Items[1].value) * LM_UnitsPerMicron());
+            standerRadius = (long)(atof(Dialog_Items[2].value) * LM_UnitsPerMicron());
         }
         else
         {
+            free(objects);
             return;
         }
         /****************************Input Params****************************/
 
         // void Order_Circle(LObject* objects, int objectNum, long innerDistance, long outterDistance, long standerRadius)
         Order_Circle(objects, objectNum, innerDistance, outterDistance, standerRadius);
-        LSelection_DeselectAll();
+        free(objects);
         LDisplay_Refresh();
     }
 
     void Order_Boundry_Hex()
     {
+        if (!LM_Context()) return;
         LSelection selectedInital = LSelection_GetList();
         if (LSelection_GetNumber(selectedInital) == 0)
             return;
@@ -1028,9 +1048,11 @@ module Special_Polygon_Module
 
         selectedInital = LSelection_GetList();
         int objectNum = LSelection_GetNumber(selectedInital);
+        if (objectNum < 3 || objectNum > 256) { LDialog_AlertBox("Select 3..256 boundary circles."); return; }
         LObject *objects = (LObject *)malloc(objectNum * sizeof(LObject));
 
-        int i, j;
+        if (!objects) return;
+        int i;
         for (i = 0; i < objectNum; i++)
         {
             objects[i] = LSelection_GetObject(selectedInital);
@@ -1038,7 +1060,7 @@ module Special_Polygon_Module
         }
 
         char show_str_buf[21];
-        snprintf(show_str_buf, sizeof(show_str_buf), "%.3f", LCircle_GetRadius(objects[0]) / 1000.0);
+        snprintf(show_str_buf, sizeof(show_str_buf), "%.3f", LCircle_GetRadius(objects[0]) / LM_UnitsPerMicron());
 
         LDialogItem Dialog_Items[4];
         strcpy(Dialog_Items[0].prompt, "innerDistance (um)");
@@ -1061,27 +1083,34 @@ module Special_Polygon_Module
         long outterDistance;
         long standerRadius;
         long RoundRadius;
-        if (LDialog_MultiLineInputBox("Draw Boundry", Dialog_Items, 4))
+        if (LM_Dialog("Draw Boundry", Dialog_Items, 4))
         {
-            innerDistance = (long)(atof(Dialog_Items[0].value) * 1000);
-            outterDistance = (long)(atof(Dialog_Items[1].value) * 1000);
-            standerRadius = (long)(atof(Dialog_Items[2].value) * 1000);
-            RoundRadius = (long)(atof(Dialog_Items[3].value) * 1000);
+            innerDistance = (long)(atof(Dialog_Items[0].value) * LM_UnitsPerMicron());
+            outterDistance = (long)(atof(Dialog_Items[1].value) * LM_UnitsPerMicron());
+            standerRadius = (long)(atof(Dialog_Items[2].value) * LM_UnitsPerMicron());
+            RoundRadius = (long)(atof(Dialog_Items[3].value) * LM_UnitsPerMicron());
         }
         else
         {
+            free(objects);
             return;
         }
         /****************************Input Params****************************/
 
         // void Order_Circle(LObject* objects, int objectNum, long innerDistance, long outterDistance, long standerRadius)
         Order_Hex(objects, objectNum, innerDistance, outterDistance, standerRadius, RoundRadius);
-        LSelection_DeselectAll();
+        free(objects);
         LDisplay_Refresh();
     }
 
     void Order_Hex(LObject * objects, int objectNum, long innerDistance, long outterDistance, long standerRadius, long RoundRadius)
     {
+        if (innerDistance < 0 || outterDistance < 0 ||
+            (double)innerDistance + outterDistance + 2.0 * standerRadius > WORLD_MAX) {
+            LDialog_AlertBox("Boundary distances must be nonnegative and within layout limits."); return;
+        }
+        if (objectNum < 3 || objectNum > 256 || standerRadius <= 0) { LDialog_AlertBox("Boundary ordering requires 3..256 circles and a positive radius."); return; }
+        boundarySearchBudget = 200000;
 
         // put the left bottom circle to the first
         int i;
@@ -1116,6 +1145,7 @@ module Special_Polygon_Module
         // LDialog_MsgBox(LFormat("search_max_radius: %f, search_min_radius: %f", search_max_radius, search_min_radius));
         //  create a new array to store the ordered circles
         LObject *orderedObjects = (LObject *)malloc(objectNum * sizeof(LObject));
+        if (!orderedObjects) return;
         orderedObjects[0] = objects[0];
         int orderedObjectNum = 1;
         // LDialog_MsgBox(LFormat("search_max_radius: %f, search_min_radius: %f", search_max_radius, search_min_radius));
@@ -1126,17 +1156,21 @@ module Special_Polygon_Module
         }
         else
         {
-            LDialog_MsgBox("Order Fail");
+            free(orderedObjects);
+            LDialog_MsgBox("Order failed or search limit reached.");
             return;
         }
         // calcu
         LPoint *centerPoints;
         centerPoints = (LPoint *)malloc((objectNum) * sizeof(LPoint));
+        if (!centerPoints) { free(orderedObjects); return; }
         CheckIsCircles(objects, objectNum, centerPoints);
         LPoint center;
         center = CalculateCentroid(centerPoints, objectNum);
 
         Draw_Boundry_Hex(orderedObjects, objectNum, innerDistance, outterDistance, standerRadius, (long)minDistance, center, RoundRadius);
+        free(centerPoints);
+        free(orderedObjects);
     }
 
     void Draw_Boundry_Hex(LObject * orderedObjects, int orderedObjectNum, long innerDistance, long outterDistance, long standerRadius, long minDistance, LPoint shapeCenter, long RoundRadius)
@@ -1152,6 +1186,7 @@ module Special_Polygon_Module
         long currentSize = 0;
         long capacity = 1000;
         LPoint *totalPolygon = (LPoint *)malloc(capacity * sizeof(LPoint));
+        if (!totalPolygon) return;
         for (i = 0; i < orderedObjectNum; i++)
         {
             LObject circle_1 = orderedObjects[i];
@@ -1181,8 +1216,7 @@ module Special_Polygon_Module
             resultNum3 = Calculate_Outside_Circle(center_1, center_3, delta_L, results3);
 
             LPoint result1, result2, result3;
-            if (resultNum1 == 0 || resultNum2 == 0 || resultNum3 == 0)
-                continue;
+            if (resultNum1 == 0 || resultNum2 == 0 || resultNum3 == 0) { free(totalPolygon); LDialog_AlertBox("Cannot construct the complete boundary with these parameters."); return; }
             if (resultNum1 == 1)
                 result1 = results1[0];
             if (resultNum1 == 2)
@@ -1202,14 +1236,14 @@ module Special_Polygon_Module
                 result3 = GetPointDistance(shapeCenter, results3[0]) > GetPointDistance(shapeCenter, results3[1]) ? results3[0] : results3[1];
             }
 
-            LPoint *part1;
-            LPoint *part2;
+            LPoint *part1 = NULL;
+            LPoint *part2 = NULL;
 
             if (GetPointDistance(result1, result2) < minDistance * 0.9)
             {
 
                 newPoint = result3;
-                LCircle_New(Cell_Now, LLayer_Now, result3, standerRadius);
+
 
                 angle1 = calculateAngleP1ToP2(center_1, result3);
                 angle2 = calculateAngleP1ToP2(center_3, result3);
@@ -1220,13 +1254,16 @@ module Special_Polygon_Module
                 //_angle1 -> _angle2
                 //
                 int cnt1 = Calculate_Rounded_Hexagon_Points(center_1, standerRadius + innerDistance, startAngle, angle1, &part1, RoundRadius + innerDistance);
-                // LPolygon_New(Cell_Now, LLayer_Now, part1, cnt1);
+                // LM_NewPolygon(Cell_Now, LLayer_Now, part1, cnt1);
                 int cnt2 = Calculate_Rounded_Hexagon_Points(result3, standerRadius + outterDistance, _angle1, _angle2, &part2, RoundRadius + outterDistance);
-                // LPolygon_New(Cell_Now, LLayer_Now, part2, cnt2);
+                if (cnt1 < 0 || cnt2 < 0) { free(part1); free(part2); free(totalPolygon); return; }
+                // LM_NewPolygon(Cell_Now, LLayer_Now, part2, cnt2);
                 if (capacity < 1.5 * (cnt1 + cnt2 + currentSize))
                 {
                     long newCapacity = (long)(1.5 * (cnt1 + cnt2 + currentSize));
+                if (newCapacity > LM_MAX_POINTS) { free(part1); free(part2); free(totalPolygon); LDialog_AlertBox("Boundary exceeds 100000 vertices."); return; }
                     LPoint *tempArray = (LPoint *)realloc(totalPolygon, newCapacity * sizeof(LPoint));
+                if (!tempArray) { free(part1); free(part2); free(totalPolygon); return; }
                     totalPolygon = tempArray; // 更新指针指向新的内存区域
                     capacity = newCapacity;   // 更新容量
                 }
@@ -1244,6 +1281,7 @@ module Special_Polygon_Module
                     currentSize++;
                 }
 
+                free(part1); free(part2);
                 startAngle = angle2;
                 i++;
                 continue;
@@ -1260,11 +1298,14 @@ module Special_Polygon_Module
 
                 int cnt3 = Calculate_Rounded_Hexagon_Points(center_1, standerRadius + innerDistance, startAngle, angle1, &part1, RoundRadius + innerDistance);
                 int cnt4 = Calculate_Rounded_Hexagon_Points(result1, standerRadius + outterDistance, _angle1, _angle2, &part2, RoundRadius + outterDistance);
+                if (cnt3 < 0 || cnt4 < 0) { free(part1); free(part2); free(totalPolygon); return; }
                 // LDialog_MsgBox(LFormat("cnt3: %d, cnt4: %d", cnt3, cnt4));
                 if (capacity < 1.5 * (cnt3 + cnt4 + currentSize))
                 {
                     int newCapacity = 1.5 * (cnt3 + cnt4 + currentSize);
+                if (newCapacity > LM_MAX_POINTS) { free(part1); free(part2); free(totalPolygon); LDialog_AlertBox("Boundary exceeds 100000 vertices."); return; }
                     LPoint *tempArray = (LPoint *)realloc(totalPolygon, newCapacity * sizeof(LPoint));
+                if (!tempArray) { free(part1); free(part2); free(totalPolygon); return; }
                     totalPolygon = tempArray; // 更新指针指向新的内存区域
                     capacity = newCapacity;   // 更新容量
                 }
@@ -1281,22 +1322,26 @@ module Special_Polygon_Module
                     totalPolygon[currentSize] = part2[j];
                     currentSize++;
                 }
+                free(part1); free(part2);
                 startAngle = angle2;
             }
 
             // 测试，画出新的圆
-            LCircle_New(Cell_Now, LLayer_Now, newPoint, standerRadius);
+
         }
 
-        LPoint *partSmall;
+        LPoint *partSmall = NULL;
         LPoint circle0 = LCircle_GetCenter(orderedObjects[0]);
         long radius0 = LCircle_GetRadius(orderedObjects[0]);
         int small = Calculate_Rounded_Hexagon_Points(circle0, radius0 + innerDistance, startAngle, -135.0, &partSmall, RoundRadius + innerDistance);
+        if (small < 0) { free(totalPolygon); return; }
 
         if (capacity < small + currentSize)
         {
             long newCapacity = (long)(1.5 * (small + currentSize));
+                if (newCapacity > LM_MAX_POINTS) { free(partSmall); free(totalPolygon); LDialog_AlertBox("Boundary exceeds 100000 vertices."); return; }
             LPoint *tempArray = (LPoint *)realloc(totalPolygon, newCapacity * sizeof(LPoint));
+                if (!tempArray) { free(partSmall); free(totalPolygon); return; }
             totalPolygon = tempArray; // 更新指针指向新的内存区域
             capacity = newCapacity;   // 更新容量
         }
@@ -1308,32 +1353,55 @@ module Special_Polygon_Module
             currentSize++;
         }
 
-        LPolygon_New(Cell_Now, LLayer_Now, totalPolygon, currentSize - 1);
+        /* Drop only an actually duplicated closing point. */
+        if (currentSize > 1 && totalPolygon[0].x == totalPolygon[currentSize - 1].x && totalPolygon[0].y == totalPolygon[currentSize - 1].y) --currentSize;
+        if (currentSize >= 3) LM_NewPolygon(Cell_Now, LLayer_Now, totalPolygon, currentSize);
+        free(partSmall); free(totalPolygon);
+    }
+
+    LPoint hexSortCenter;
+    double hexSortStart, hexSortDirection;
+    double HexSortKey(LPoint p)
+    {
+        double angle = atan2((double)p.y - hexSortCenter.y, (double)p.x - hexSortCenter.x) * 180 / M_PI;
+        double key = fmod((angle - hexSortStart) * hexSortDirection, 360.0);
+        return key < 0 ? key + 360 : key;
+    }
+    int HexCompare(const void *a, const void *b)
+    {
+        double x = HexSortKey(*(const LPoint *)a), y = HexSortKey(*(const LPoint *)b);
+        return x == y ? 0 : (x < y ? -1 : 1);
     }
 
     int Calculate_Rounded_Hexagon_Points(LPoint center, LCoord R, double start_angle_deg, double end_angle_deg,
                                          LPoint **result, long RoundRadius)
     {
+        *result = NULL;
+        if (R <= 0) return -1;
         double r = 1 / 3.7 * R; // default value
         if (RoundRadius > 0)
         {
             r = RoundRadius;
         }
         double curve = r * M_PI / 3;
-        int n_coner = curve / 20; // 20 nm 精度
+        int n_coner = LM_CornerSamples(r); // 20 nm 精度
+        if (!n_coner || r > R) return -1;
         int n_sum = 6 * n_coner;
         double center_distance = ((double)R - r) * 2 / 3 * sqrt(3);
+        double extent = fabs(center_distance) + r;
+        if (!LM_PointValid(center.x + extent, center.y + extent) || !LM_PointValid(center.x - extent, center.y - extent)) return -1;
         *result = (LPoint *)malloc(n_sum * sizeof(LPoint));
 
         if (*result == NULL)
         {
             LDialog_AlertBox("Memory allocation failed for points array.");
-            return;
+            return -1;
         }
 
         double diff = get_short_arc_interpolated_angle(start_angle_deg, end_angle_deg);
-        double delta_theta = M_PI / 3 / n_coner * abs(diff) / diff;
-        int i, j;
+        if (fabs(diff) < 1e-12) { free(*result); *result = NULL; return 0; }
+        double delta_theta = M_PI / 3 / n_coner * (diff > 0 ? 1 : -1);
+        int i;
         long count = 0;
 
         for (i = 0; i < n_sum; i++)
@@ -1387,44 +1455,11 @@ module Special_Polygon_Module
             }
         }
 
-        // 筛选出来的点确保按前面的旋转方向排序，不是简单倒序，需要对每个点计算，而且第一个点不一定是起始点，它应该是所有点中按照旋转方向最靠前的点
-        // 简单起见，这里直接使用冒泡排序，数据量不大，影响不大
-        for (i = 0; i < filtered_count - 1; i++)
-        {
-            for (j = 0; j < filtered_count - i - 1; j++)
-            {
-                double angle1 = calculateAngleP1ToP2(center, (*result)[j]);
-                double angle2 = calculateAngleP1ToP2(center, (*result)[j + 1]);
-                angle1 = normalize_angle(angle1);
-                angle2 = normalize_angle(angle2);
-
-                bool need_swap;
-                if (diff > 0) // 顺时针
-                {
-                    if (angle1 < angle2)
-                        need_swap = (angle2 - angle1 > 180);
-                    else
-                        need_swap = (angle1 - angle2 < 180);
-                }
-                else // 逆时针
-                {
-                    if (angle1 > angle2)
-                        need_swap = (angle1 - angle2 > 180);
-                    else
-                        need_swap = (angle2 - angle1 < 180);
-                }
-
-                if (need_swap)
-                {
-                    LPoint temp = (*result)[j];
-                    (*result)[j] = (*result)[j + 1];
-                    (*result)[j + 1] = temp;
-                }
-            }
-        }
-
+        hexSortCenter = center; hexSortStart = start_angle_deg;
+        hexSortDirection = diff > 0 ? 1 : -1;
+        qsort(*result, filtered_count, sizeof(LPoint), HexCompare);
         return filtered_count;
-    }
+}
 
     double Get_theta(LPoint point1, LPoint point2)
     {

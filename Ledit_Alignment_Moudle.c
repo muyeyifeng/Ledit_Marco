@@ -22,6 +22,7 @@ module Alignment_Moudle
 #include <string.h>
 // #include "Ledit_Alignment.h"
 #include "ldata.h" /* Main UPI header. */
+#include "Ledit_Safety.h"
 
 	void Alignment_Left();
 	void Alignment_Right();
@@ -40,10 +41,11 @@ module Alignment_Moudle
 
 	void Alignment_Left()
 	{
-		long *xLeft = WORLD_MAX;
-		long *xRight = -WORLD_MAX;
-		long *yBottom = WORLD_MAX;
-		long *yTop = -WORLD_MAX;
+        if (!LM_Context()) return;
+		long xLeft = WORLD_MAX;
+		long xRight = -WORLD_MAX;
+		long yBottom = WORLD_MAX;
+		long yTop = -WORLD_MAX;
 		GetObjectListCoordRange(&xLeft, &xRight, &yBottom, &yTop);
 		MoveObjectListLeft(&xLeft);
 		LDisplay_Refresh();
@@ -51,10 +53,11 @@ module Alignment_Moudle
 
 	void Alignment_Right()
 	{
-		long *xLeft = WORLD_MAX;
-		long *xRight = -WORLD_MAX;
-		long *yBottom = WORLD_MAX;
-		long *yTop = -WORLD_MAX;
+        if (!LM_Context()) return;
+		long xLeft = WORLD_MAX;
+		long xRight = -WORLD_MAX;
+		long yBottom = WORLD_MAX;
+		long yTop = -WORLD_MAX;
 		GetObjectListCoordRange(&xLeft, &xRight, &yBottom, &yTop);
 		MoveObjectListRight(&xRight);
 		LDisplay_Refresh();
@@ -62,10 +65,11 @@ module Alignment_Moudle
 
 	void Alignment_Bottom()
 	{
-		long *xLeft = WORLD_MAX;
-		long *xRight = -WORLD_MAX;
-		long *yBottom = WORLD_MAX;
-		long *yTop = -WORLD_MAX;
+        if (!LM_Context()) return;
+		long xLeft = WORLD_MAX;
+		long xRight = -WORLD_MAX;
+		long yBottom = WORLD_MAX;
+		long yTop = -WORLD_MAX;
 		GetObjectListCoordRange(&xLeft, &xRight, &yBottom, &yTop);
 		MoveObjectListBottom(&yBottom);
 		LDisplay_Refresh();
@@ -73,10 +77,11 @@ module Alignment_Moudle
 
 	void Alignment_Top()
 	{
-		long *xLeft = WORLD_MAX;
-		long *xRight = -WORLD_MAX;
-		long *yBottom = WORLD_MAX;
-		long *yTop = -WORLD_MAX;
+        if (!LM_Context()) return;
+		long xLeft = WORLD_MAX;
+		long xRight = -WORLD_MAX;
+		long yBottom = WORLD_MAX;
+		long yTop = -WORLD_MAX;
 		GetObjectListCoordRange(&xLeft, &xRight, &yBottom, &yTop);
 		MoveObjectListTop(&yTop);
 		LDisplay_Refresh();
@@ -84,10 +89,11 @@ module Alignment_Moudle
 
 	void Alignment_Center()
 	{
-		long *xLeft = WORLD_MAX;
-		long *xRight = -WORLD_MAX;
-		long *yBottom = WORLD_MAX;
-		long *yTop = -WORLD_MAX;
+        if (!LM_Context()) return;
+		long xLeft = WORLD_MAX;
+		long xRight = -WORLD_MAX;
+		long yBottom = WORLD_MAX;
+		long yTop = -WORLD_MAX;
 		GetObjectListCoordRange(&xLeft, &xRight, &yBottom, &yTop);
 		MoveObjectListCenter(&xLeft, &xRight, &yBottom, &yTop);
 		LDisplay_Refresh();
@@ -102,10 +108,10 @@ module Alignment_Moudle
 			LObject selectedObject = LSelection_GetObject(selectedInital);
 			LShapeType selectedShapeType = LObject_GetShape(selectedObject);
 
-			long *xLeft = WORLD_MAX;
-			long *xRight = -WORLD_MAX;
-			long *yBottom = WORLD_MAX;
-			long *yTop = -WORLD_MAX;
+			long xLeft = WORLD_MAX;
+			long xRight = -WORLD_MAX;
+			long yBottom = WORLD_MAX;
+			long yTop = -WORLD_MAX;
 			GetObjectCoord(selectedObject, &xLeft, &xRight, &yBottom, &yTop); // Function for selectedObject
 			if (xLeft != WORLD_MAX)
 			{
@@ -136,10 +142,10 @@ module Alignment_Moudle
 			LObject selectedObject = LSelection_GetObject(selectedInital);
 			LShapeType selectedShapeType = LObject_GetShape(selectedObject);
 
-			long *xLeft = WORLD_MAX;
-			long *xRight = -WORLD_MAX;
-			long *yBottom = WORLD_MAX;
-			long *yTop = -WORLD_MAX;
+			long xLeft = WORLD_MAX;
+			long xRight = -WORLD_MAX;
+			long yBottom = WORLD_MAX;
+			long yTop = -WORLD_MAX;
 			GetObjectCoord(selectedObject, &xLeft, &xRight, &yBottom, &yTop); // Function for selectedObject
 			if (xLeft != WORLD_MAX)
 			{
@@ -162,12 +168,12 @@ module Alignment_Moudle
 			LObject selectedObject = LSelection_GetObject(selectedInital);
 			LShapeType selectedShapeType = LObject_GetShape(selectedObject);
 
-			long *xLeft = WORLD_MAX;
-			long *xRight = -WORLD_MAX;
-			long *yBottom = WORLD_MAX;
-			long *yTop = -WORLD_MAX;
+			long xLeft = WORLD_MAX;
+			long xRight = -WORLD_MAX;
+			long yBottom = WORLD_MAX;
+			long yTop = -WORLD_MAX;
 			GetObjectCoord(selectedObject, &xLeft, &xRight, &yBottom, &yTop); // Function for selectedObject
-			if (xRight != WORLD_MAX)
+			if (xRight != -WORLD_MAX)
 			{
 				long _xRightTarget = *xRightTarget;
 				long _xRight = xRight;
@@ -188,10 +194,10 @@ module Alignment_Moudle
 			LObject selectedObject = LSelection_GetObject(selectedInital);
 			LShapeType selectedShapeType = LObject_GetShape(selectedObject);
 
-			long *xLeft = WORLD_MAX;
-			long *xRight = -WORLD_MAX;
-			long *yBottom = WORLD_MAX;
-			long *yTop = -WORLD_MAX;
+			long xLeft = WORLD_MAX;
+			long xRight = -WORLD_MAX;
+			long yBottom = WORLD_MAX;
+			long yTop = -WORLD_MAX;
 			GetObjectCoord(selectedObject, &xLeft, &xRight, &yBottom, &yTop); // Function for selectedObject
 			if (yBottom != WORLD_MAX)
 			{
@@ -214,12 +220,12 @@ module Alignment_Moudle
 			LObject selectedObject = LSelection_GetObject(selectedInital);
 			LShapeType selectedShapeType = LObject_GetShape(selectedObject);
 
-			long *xLeft = WORLD_MAX;
-			long *xRight = -WORLD_MAX;
-			long *yBottom = WORLD_MAX;
-			long *yTop = -WORLD_MAX;
+			long xLeft = WORLD_MAX;
+			long xRight = -WORLD_MAX;
+			long yBottom = WORLD_MAX;
+			long yTop = -WORLD_MAX;
 			GetObjectCoord(selectedObject, &xLeft, &xRight, &yBottom, &yTop); // Function for selectedObject
-			if (yTop != WORLD_MAX)
+			if (yTop != -WORLD_MAX)
 			{
 				long _yTopTarget = *yTopTarget;
 				long _yTop = yTop;
@@ -233,73 +239,15 @@ module Alignment_Moudle
 
 	void MoveObject(LObject selectedObject, long xOffset, long yOffset)
 	{
-		LCell Cell_Now = LCell_GetVisible();
-		LShapeType selectedShapeType = LObject_GetShape(selectedObject);
-		// Function for selectedObject exmple get the left xcoord
-		switch (selectedShapeType)
-		{
-		case 0: // LBox
-		{
-			// get rect xmin
-			LRect rect = LBox_GetRect(selectedObject);
-			rect.x0 += xOffset;
-			rect.y0 += yOffset;
-			rect.x1 += xOffset;
-			rect.y1 += yOffset;
-			LBox_Set(Cell_Now, selectedObject, rect);
-			break;
-		}
-		case 1: // LCircle
-		{
-			LPoint center = LCircle_GetCenter(selectedObject);
-			LCoord r = LCircle_GetRadius(selectedObject);
-			center.x += xOffset;
-			center.y += yOffset;
-			LCircle_Set(Cell_Now, selectedObject, center, r);
-			break;
-		}
-		case 2: // LWire
-		case 3: // LPolygon
-		{
-			LVertex vertex = LObject_GetVertexList(selectedObject);
-			while (vertex != NULL)
-			{
-				LPoint point = LVertex_GetPoint(vertex);
-				point.x += xOffset;
-				point.y += yOffset;
-				LVertex_SetPoint(vertex, point);
-				vertex = LVertex_GetNext(vertex);
-			}
-			break;
-		}
-		case 4: // LTorus
-		{
-			LTorusParams pParams;
-			LStatus lStatus = LTorus_GetParams(selectedObject, &pParams);
-			if (lStatus == 0)
-			{
-				pParams.ptCenter.x += xOffset;
-				pParams.ptCenter.y += yOffset;
-				LTorus_SetParams(Cell_Now, selectedObject, &pParams);
-			}
-			break;
-		}
-		case 5: // LPie
-		{
-			LPieParams pParams;
-			LStatus lStatus = LPie_GetParams(selectedObject, &pParams);
-			if (lStatus == 0)
-			{
-				pParams.ptCenter.x += xOffset;
-				pParams.ptCenter.y += yOffset;
-				LPie_SetParams(Cell_Now, selectedObject, &pParams);
-			}
-			break;
-		}
-		default:
-			break;
-		}
-	}
+        LTransform_Ex99 transform;
+        if (!LM_CanMove(selectedObject, xOffset, yOffset)) {
+            LDialog_AlertBox("Alignment would exceed layout coordinate limits.");
+            return;
+        }
+        transform = LTransform_Zero_Ex99();
+        transform.translation = LPoint_Set(xOffset, yOffset);
+        LObject_Transform_Ex99(selectedObject, transform);
+    }
 
 	void GetObjectListCoordRange(long *xLeft, long *xRight, long *yBottom, long *yTop)
 	{
@@ -318,122 +266,14 @@ module Alignment_Moudle
 
 	void GetObjectCoord(LObject selectedObject, long *xLeft, long *xRight, long *yBottom, long *yTop)
 	{
-		LShapeType selectedShapeType = LObject_GetShape(selectedObject);
-		// Function for selectedObject exmple get the left xcoord
-		switch (selectedShapeType)
-		{
-		case 0: // LBox
-		{
-			LRect rect = LBox_GetRect(selectedObject);
-			// get rect xmin
-			if (rect.x0 < rect.x1 && rect.x0 < *xLeft)
-				*xLeft = rect.x0;
-			if (rect.x1 < rect.x0 && rect.x1 < *xLeft)
-				*xLeft = rect.x1;
-			// get rect xmax
-			if (rect.x0 < rect.x1 && rect.x1 > *xRight)
-				*xRight = rect.x1;
-			if (rect.x1 < rect.x0 && rect.x0 > *xRight)
-				*xRight = rect.x0;
-			// get rect ymin
-			if (rect.y0 < rect.y1 && rect.y0 < *yBottom)
-				*yBottom = rect.y0;
-			if (rect.y1 < rect.y0 && rect.y1 < *yBottom)
-				*yBottom = rect.y1;
-			// get rect ymax
-			if (rect.y0 < rect.y1 && rect.y1 > *yTop)
-				*yTop = rect.y1;
-			if (rect.y1 < rect.y0 && rect.y0 > *yTop)
-				*yTop = rect.y0;
-			break;
-		}
-		case 1: // LCircle
-		{
-			LPoint center = LCircle_GetCenter(selectedObject);
-			LCoord r = LCircle_GetRadius(selectedObject);
-			// get Circle xmin
-			if (center.x - r < *xLeft)
-				*xLeft = center.x - r;
-			// get Circle xmax
-			if (center.x + r > *xRight)
-				*xRight = center.x + r;
-			// get Circle ymin
-			if (center.y - r < *yBottom)
-				*yBottom = center.y - r;
-			// get Circle ymax
-			if (center.y + r > *yTop)
-				*yTop = center.y + r;
-			break;
-		}
-		case 2: // LWire
-		case 3: // LPolygon
-		{
-			LVertex vertex = LObject_GetVertexList(selectedObject);
-			while (vertex != NULL)
-			{
-				LPoint point = LVertex_GetPoint(vertex);
-				// get Polygon xmin
-				if (point.x < *xLeft)
-					*xLeft = point.x;
-				// get Polygon xmax
-				if (point.x > *xRight)
-					*xRight = point.x;
-				// get Polygon ymin
-				if (point.y < *yBottom)
-					*yBottom = point.y;
-				// get Polygon xmax
-				if (point.y > *yTop)
-					*yTop = point.y;
-				vertex = LVertex_GetNext(vertex);
-			}
-			break;
-		}
-		case 4: // LTorus
-		{
-			LTorusParams pParams;
-			LStatus lStatus = LTorus_GetParams(selectedObject, &pParams);
-			if (lStatus == 0)
-			{
-				// get Torus xmin
-				if (pParams.ptCenter.x - pParams.nOuterRadius < *xLeft)
-					*xLeft = pParams.ptCenter.x - pParams.nOuterRadius;
-				// get Torus xmax
-				if (pParams.ptCenter.x + pParams.nOuterRadius > *xRight)
-					*xRight = pParams.ptCenter.x + pParams.nOuterRadius;
-				// get Torus ymin
-				if (pParams.ptCenter.y - pParams.nOuterRadius < *yBottom)
-					*yBottom = pParams.ptCenter.y - pParams.nOuterRadius;
-				// get Torus ymax
-				if (pParams.ptCenter.y + pParams.nOuterRadius > *yTop)
-					*yTop = pParams.ptCenter.y + pParams.nOuterRadius;
-			}
-			break;
-		}
-		case 5: // LPie
-		{
-			LPieParams pParams;
-			LStatus lStatus = LPie_GetParams(selectedObject, &pParams);
-			if (lStatus == 0)
-			{
-				// get Pie xmin
-				if (pParams.ptCenter.x - pParams.nRadius < *xLeft)
-					*xLeft = pParams.ptCenter.x - pParams.nRadius;
-				// get Pie xmax
-				if (pParams.ptCenter.x + pParams.nRadius > *xRight)
-					*xRight = pParams.ptCenter.x + pParams.nRadius;
-				// get Pie ymin
-				if (pParams.ptCenter.y - pParams.nRadius < *yBottom)
-					*yBottom = pParams.ptCenter.y - pParams.nRadius;
-				// get Pie ymax
-				if (pParams.ptCenter.y + pParams.nRadius > *yTop)
-					*yTop = pParams.ptCenter.y + pParams.nRadius;
-			}
-			break;
-		}
-		default:
-			break;
-		}
-	}
+        LRect box;
+        if (!selectedObject) return;
+        box = LObject_GetMbb(selectedObject);
+        if (box.x0 < *xLeft) *xLeft = box.x0;
+        if (box.x1 > *xRight) *xRight = box.x1;
+        if (box.y0 < *yBottom) *yBottom = box.y0;
+        if (box.y1 > *yTop) *yTop = box.y1;
+    }
 
 	void Register_Alignment_func(void)
 	{

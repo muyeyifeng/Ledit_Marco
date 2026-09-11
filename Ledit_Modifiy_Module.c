@@ -23,6 +23,7 @@ module Modifiy_Module
 #include <math.h>
 // #include "Ledit_Modifiy.h"
 #include "ldata.h" /* Main UPI header. */
+#include "Ledit_Safety.h"
 
 	void Route_Circle();
 	int GetCrossPoint(LObject polygon, LPoint * crossPoint);
@@ -45,15 +46,16 @@ module Modifiy_Module
 
 	void Route_Circle()
 	{
+        if (!LM_Context()) return;
 		//****************************Input Params****************************//
 		LDialogItem Dialog_Items[2] = {{"Target radius (um)", "1.5"},
 									   {"Distance (um)", "7.8"}};
 		long tar_radius;
 		long distance;
-		if (LDialog_MultiLineInputBox("Modifiy Selected Object", Dialog_Items, 2))
+		if (LM_Dialog("Modifiy Selected Object", Dialog_Items, 2))
 		{
-			tar_radius = (long)(atof(Dialog_Items[0].value) * 1000); // get the tar_radius
-			distance = (long)(atof(Dialog_Items[1].value) * 1000);	 // get the keep
+			tar_radius = (long)(atof(Dialog_Items[0].value) * LM_UnitsPerMicron()); // get the tar_radius
+			distance = (long)(atof(Dialog_Items[1].value) * LM_UnitsPerMicron());	 // get the keep
 		}
 		else
 		{
@@ -64,7 +66,8 @@ module Modifiy_Module
 		LCell Cell_Now = LCell_GetVisible();
 		LFile File_Now = LCell_GetFile(Cell_Now);
 		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
-		double perimeter, true_distance;
+		if (distance <= 0 || tar_radius <= 0) { LDialog_AlertBox("Radius and distance must be positive."); return; }
+        double perimeter, true_distance;
 		int num;
 		LSelection selectedInital = LSelection_GetList();
 		while (selectedInital != NULL)
@@ -76,7 +79,9 @@ module Modifiy_Module
 				break;
 			case 3: // LPolygon
 				perimeter = LObject_Perimeter(selectedObject);
-				num = (int)(perimeter / distance);
+				if (LPolygon_HasCurve(selectedObject) || perimeter / distance > LM_MAX_OBJECTS) break;
+                num = (int)(perimeter / distance);
+                if (num < 4) { LDialog_AlertBox("At least four circles must fit the route."); break; }
 
 				while (num % 4 != 0)
 					num--;						 // 由于对称，需要是偶数的数量
@@ -113,11 +118,12 @@ module Modifiy_Module
 		LVertex routePoint1 = LObject_GetVertexList(polygon); // firstPoint
 
 		int i = 0;
-		while (i <= polygonPointsNum)
+		while (routePoint1 != NULL && i < polygonPointsNum)
 		{
 			LPoint point1 = LVertex_GetPoint(routePoint1);
 			LVertex routePoint2 = LVertex_GetNext(routePoint1);
-			LPoint point2 = LVertex_GetPoint(routePoint2);
+			if (!routePoint2) routePoint2 = LObject_GetVertexList(polygon);
+            LPoint point2 = LVertex_GetPoint(routePoint2);
 			if (calculateIntersection(polygonCenter, virtualPoint, point1, point2, crossPoint) == 1)
 			{
 				// LDialog_MsgBox(LFormat("polygonCenter.x: %d,y: %d\npoint1.x: %d,y: %d\npoint2.x: %d,y: %d",polygonCenter.x,polygonCenter.y,point1.x,point1.y,point2.x,point2.y));
@@ -172,7 +178,8 @@ module Modifiy_Module
 
 		// 二次方程系数
 		double a_coeff = dx * dx + dy * dy;
-		double b_coeff = 2 * (fx * dx + fy * dy);
+		if (a_coeff == 0 || radius < 0) return 0;
+        double b_coeff = 2 * (fx * dx + fy * dy);
 		double c_coeff = fx * fx + fy * fy - radius * radius;
 
 		// 计算判别式
@@ -201,7 +208,7 @@ module Modifiy_Module
 		}
 
 		// 判断t2是否在[0, 1]之间
-		if (t2 >= 0 && t2 <= 1)
+		if (t2 >= 0 && t2 <= 1 && (count == 0 || discriminant > 0))
 		{
 			if (count == 0)
 			{
@@ -221,59 +228,47 @@ module Modifiy_Module
 
 	void DrawCircleByRouteDistance(double distance, long radius, int circleNumber, LPoint start, LObject route) // LPolygon
 	{
-		LCell Cell_Now = LCell_GetVisible();
-		LFile File_Now = LCell_GetFile(Cell_Now);
-		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
-
-		long xLeft = WORLD_MAX;
-		long xRight = -WORLD_MAX;
-		long yBottom = WORLD_MAX;
-		long yTop = -WORLD_MAX;
-		GetObjectCoord(route, &xLeft, &xRight, &yBottom, &yTop);
-		LPoint polygonCenter = LPoint_Set((long)((xLeft + xRight) / 2), (long)((yBottom + yTop) / 2));
-		long routePointsNum = LVertex_GetCount(route);
-
-		LVertex routePoint1 = LObject_GetVertexList(route); // firstPoint
-
-		LPoint *point_arr = (LPoint *)malloc((routePointsNum) * sizeof(LPoint));
-
-		LVertex_GetArray(route, point_arr, routePointsNum);
-
-		// LDialog_MsgBox(LFormat("point_arr[1] x: %d,y:%d\n,point_arr[0] x: %d,y:%d",point_arr[1].x,point_arr[1].y,point_arr[0].x,point_arr[0].y));
-
-		LPoint point0 = start;
-		LCircle_New(Cell_Now, LLayer_Now, point0, radius);
-		int i = 0, j = 0;
-		while (i <= circleNumber)
-		{
-			LPoint point1 = point_arr[j];
-			LPoint point2 = point_arr[(j + 1) % routePointsNum];
-
-			LPoint intersection1;
-			LPoint intersection2;
-			if (calculateCircleSegmentIntersection(point1, point2, point0, distance, &intersection1, &intersection2) > 0)
-			{
-				/*
-				if(isClockwise(polygonCenter, point0 ,intersection1) == 1)
-				{
-					//LCircle_New(Cell_Now, LLayer_Now, intersection1, radius);
-					point0 = intersection1;
-					i++;
-				}
-				if(isClockwise(polygonCenter, point0 ,intersection2) == 1)
-				{
-					//LCircle_New(Cell_Now, LLayer_Now, intersection2, radius);
-					point0 = intersection2;
-					i++;
-				}
-				*/
-				point0 = intersection1;
-				LCircle_New(Cell_Now, LLayer_Now, point0, radius);
-				i++;
-			}
-			j = (j + 1) % routePointsNum;
-		}
-	}
+        long n = LVertex_GetCount(route);
+        LPoint *points;
+        double perimeter = 0, startAt = 0, best = 1e100;
+        int i, k, edge = 0;
+        double base = 0;
+        if (n < 3 || n > LM_MAX_POINTS || circleNumber < 1 || circleNumber > LM_MAX_OBJECTS || distance <= 0 || radius <= 0 || LPolygon_HasCurve(route)) return;
+        points = (LPoint *)malloc(n * sizeof(LPoint));
+        if (!points) return;
+        if (LVertex_GetArray(route, points, n) != n) { free(points); return; }
+        for (i = 0; i < n; ++i) {
+            LPoint a = points[i], b = points[(i + 1) % n];
+            double dx = (double)b.x - a.x, dy = (double)b.y - a.y;
+            double len = hypot(dx, dy), t, error;
+            if (len == 0) continue;
+            t = ((start.x - a.x) * dx + (start.y - a.y) * dy) / (len * len);
+            t = fmax(0, fmin(1, t));
+            error = hypot(start.x - a.x - t * dx, start.y - a.y - t * dy);
+            if (error < best) { best = error; startAt = perimeter + t * len; }
+            perimeter += len;
+        }
+        if (perimeter <= 0) { free(points); return; }
+        /* Start at the projected point and visit at most two laps of edges. */
+        for (k = 0; k < circleNumber; ++k) {
+            double target = fmod(startAt + k * (perimeter / circleNumber), perimeter);
+            double len;
+            LPoint a, b, p;
+            if (target < base) { edge = 0; base = 0; }
+            while (edge < n - 1) {
+                len = GetPointsDistance(points[edge], points[(edge + 1) % n]);
+                if (len > 0 && target <= base + len) break;
+                base += len; ++edge;
+            }
+            a = points[edge]; b = points[(edge + 1) % n];
+            len = GetPointsDistance(a, b);
+            if (len == 0) continue;
+            p = LPoint_Set((long)(a.x + (target - base) / len * (b.x - a.x)),
+                           (long)(a.y + (target - base) / len * (b.y - a.y)));
+            if (!LM_NewCircle(LCell_GetVisible(), LLayer_GetCurrent(LCell_GetFile(LCell_GetVisible())), p, radius)) break;
+        }
+        free(points);
+    }
 
 	// 判断三个点是否构成顺时针方向
 	int isClockwise(LPoint a, LPoint b, LPoint c)
@@ -297,127 +292,19 @@ module Modifiy_Module
 
 	double GetPointsDistance(LPoint point1, LPoint point2)
 	{
-		return sqrt((point1.x - point2.x) * (point1.x - point2.x) + (point1.y - point2.y) * (point1.y - point2.y));
+		return hypot((double)point1.x - point2.x, (double)point1.y - point2.y);
 	}
 
 	void GetObjectCoord(LObject selectedObject, long *xLeft, long *xRight, long *yBottom, long *yTop)
 	{
-		LShapeType selectedShapeType = LObject_GetShape(selectedObject);
-		// Function for selectedObject exmple get the left xcoord
-		switch (selectedShapeType)
-		{
-		case 0: // LBox
-		{
-			LRect rect = LBox_GetRect(selectedObject);
-			// get rect xmin
-			if (rect.x0 < rect.x1 && rect.x0 < *xLeft)
-				*xLeft = rect.x0;
-			if (rect.x1 < rect.x0 && rect.x1 < *xLeft)
-				*xLeft = rect.x1;
-			// get rect xmax
-			if (rect.x0 < rect.x1 && rect.x1 > *xRight)
-				*xRight = rect.x1;
-			if (rect.x1 < rect.x0 && rect.x0 > *xRight)
-				*xRight = rect.x0;
-			// get rect ymin
-			if (rect.y0 < rect.y1 && rect.y0 < *yBottom)
-				*yBottom = rect.y0;
-			if (rect.y1 < rect.y0 && rect.y1 < *yBottom)
-				*yBottom = rect.y1;
-			// get rect ymax
-			if (rect.y0 < rect.y1 && rect.y1 > *yTop)
-				*yTop = rect.y1;
-			if (rect.y1 < rect.y0 && rect.y0 > *yTop)
-				*yTop = rect.y0;
-			break;
-		}
-		case 1: // LCircle
-		{
-			LPoint center = LCircle_GetCenter(selectedObject);
-			LCoord r = LCircle_GetRadius(selectedObject);
-			// get Circle xmin
-			if (center.x - r < *xLeft)
-				*xLeft = center.x - r;
-			// get Circle xmax
-			if (center.x + r > *xRight)
-				*xRight = center.x + r;
-			// get Circle ymin
-			if (center.y - r < *yBottom)
-				*yBottom = center.y - r;
-			// get Circle ymax
-			if (center.y + r > *yTop)
-				*yTop = center.y + r;
-			break;
-		}
-		case 2: // LWire
-		case 3: // LPolygon
-		{
-			LVertex vertex = LObject_GetVertexList(selectedObject);
-			while (vertex != NULL)
-			{
-				LPoint point = LVertex_GetPoint(vertex);
-				// get Polygon xmin
-				if (point.x < *xLeft)
-					*xLeft = point.x;
-				// get Polygon xmax
-				if (point.x > *xRight)
-					*xRight = point.x;
-				// get Polygon ymin
-				if (point.y < *yBottom)
-					*yBottom = point.y;
-				// get Polygon xmax
-				if (point.y > *yTop)
-					*yTop = point.y;
-				vertex = LVertex_GetNext(vertex);
-			}
-			break;
-		}
-		case 4: // LTorus
-		{
-			LTorusParams pParams;
-			LStatus lStatus = LTorus_GetParams(selectedObject, &pParams);
-			if (lStatus == 0)
-			{
-				// get Torus xmin
-				if (pParams.ptCenter.x - pParams.nOuterRadius < *xLeft)
-					*xLeft = pParams.ptCenter.x - pParams.nOuterRadius;
-				// get Torus xmax
-				if (pParams.ptCenter.x + pParams.nOuterRadius > *xRight)
-					*xRight = pParams.ptCenter.x + pParams.nOuterRadius;
-				// get Torus ymin
-				if (pParams.ptCenter.y - pParams.nOuterRadius < *yBottom)
-					*yBottom = pParams.ptCenter.y - pParams.nOuterRadius;
-				// get Torus ymax
-				if (pParams.ptCenter.y + pParams.nOuterRadius > *yTop)
-					*yTop = pParams.ptCenter.y + pParams.nOuterRadius;
-			}
-			break;
-		}
-		case 5: // LPie
-		{
-			LPieParams pParams;
-			LStatus lStatus = LPie_GetParams(selectedObject, &pParams);
-			if (lStatus == 0)
-			{
-				// get Pie xmin
-				if (pParams.ptCenter.x - pParams.nRadius < *xLeft)
-					*xLeft = pParams.ptCenter.x - pParams.nRadius;
-				// get Pie xmax
-				if (pParams.ptCenter.x + pParams.nRadius > *xRight)
-					*xRight = pParams.ptCenter.x + pParams.nRadius;
-				// get Pie ymin
-				if (pParams.ptCenter.y - pParams.nRadius < *yBottom)
-					*yBottom = pParams.ptCenter.y - pParams.nRadius;
-				// get Pie ymax
-				if (pParams.ptCenter.y + pParams.nRadius > *yTop)
-					*yTop = pParams.ptCenter.y + pParams.nRadius;
-			}
-			break;
-		}
-		default:
-			break;
-		}
-	}
+        LRect box;
+        if (!selectedObject) return;
+        box = LObject_GetMbb(selectedObject);
+        if (box.x0 < *xLeft) *xLeft = box.x0;
+        if (box.x1 > *xRight) *xRight = box.x1;
+        if (box.y0 < *yBottom) *yBottom = box.y0;
+        if (box.y1 > *yTop) *yTop = box.y1;
+    }
 
 	void Modifiy_Circle(LObject circle, long target_radius)
 	{
@@ -433,13 +320,26 @@ module Modifiy_Module
 		LCell Cell_Now = LCell_GetVisible();
 		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, selectedObject);
 
-		LShapeType selectedShapeType = LObject_GetShape(selectedObject);
+		LRect bounds = LObject_GetMbb(selectedObject);
+        if (!(scaleFactor > 0) ||
+            !LM_PointValid(polygonCenter.x + ((double)bounds.x0 - polygonCenter.x) * scaleFactor, polygonCenter.y + ((double)bounds.y0 - polygonCenter.y) * scaleFactor) ||
+            !LM_PointValid(polygonCenter.x + ((double)bounds.x1 - polygonCenter.x) * scaleFactor, polygonCenter.y + ((double)bounds.y1 - polygonCenter.y) * scaleFactor)) {
+            LDialog_AlertBox("Invalid scale or result outside layout limits."); return;
+        }
+        LShapeType selectedShapeType = LObject_GetShape(selectedObject);
 		// Function for selectedObject exmple get the left xcoord
 		switch (selectedShapeType)
 		{
 		case 0: // LBox
-		{
-		}
+        {
+            LRect rect = LBox_GetRect(selectedObject);
+            LBox_New(Cell_Now, LLayer_Now,
+                (long)(polygonCenter.x + (rect.x0 - polygonCenter.x) * scaleFactor),
+                (long)(polygonCenter.y + (rect.y0 - polygonCenter.y) * scaleFactor),
+                (long)(polygonCenter.x + (rect.x1 - polygonCenter.x) * scaleFactor),
+                (long)(polygonCenter.y + (rect.y1 - polygonCenter.y) * scaleFactor));
+            break;
+        }
 		case 1: // LCircle
 		{
 			LPoint center = LCircle_GetCenter(selectedObject);
@@ -448,16 +348,19 @@ module Modifiy_Module
 			long point_y = (long)(polygonCenter.y + (center.y - polygonCenter.y) * scaleFactor);
 			LPoint newPoint = LPoint_Set(point_x, point_y);
 			LCoord r_Scaled = (long)(r * scaleFactor);
-			LCircle_New(Cell_Now, LLayer_Now, newPoint, r_Scaled);
+			if (r_Scaled > 0) LM_NewCircle(Cell_Now, LLayer_Now, newPoint, r_Scaled);
+            break;
 		}
 		case 3: // LPolygon
 		{
 			LVertex vertex = LObject_GetVertexList(selectedObject);
 			long cnt = LVertex_GetCount(selectedObject);
-			LPoint *points;
+			if (cnt < 3 || cnt > LM_MAX_POINTS || LPolygon_HasCurve(selectedObject)) return;
+            LPoint *points;
 			points = (LPoint *)malloc((cnt) * sizeof(LPoint));
-			int j = 0;
-			while (vertex != NULL)
+			if (!points) return;
+            int j = 0;
+			while (vertex != NULL && j < cnt)
 			{
 				LPoint point = LVertex_GetPoint(vertex);
 				// point.x
@@ -468,7 +371,8 @@ module Modifiy_Module
 				j++;
 				vertex = LVertex_GetNext(vertex);
 			}
-			LPolygon_New(Cell_Now, LLayer_Now, points, cnt);
+			LM_NewPolygon(Cell_Now, LLayer_Now, points, j);
+            free(points);
 			break;
 		}
 		case 4: // LTorus
@@ -491,6 +395,7 @@ module Modifiy_Module
 
 				LTorus_CreateNew(Cell_Now, LLayer_Now, &_tParams);
 			}
+            break;
 		}
 		case 5: // LPie
 		{
@@ -499,8 +404,8 @@ module Modifiy_Module
 			if (lStatus == 0)
 			{
 				LPieParams _pParams;
-				long point_x = (long)(polygonCenter.x + (_pParams.ptCenter.x - polygonCenter.x) * scaleFactor);
-				long point_y = (long)(polygonCenter.y + (_pParams.ptCenter.y - polygonCenter.y) * scaleFactor);
+				long point_x = (long)(polygonCenter.x + (pParams.ptCenter.x - polygonCenter.x) * scaleFactor);
+				long point_y = (long)(polygonCenter.y + (pParams.ptCenter.y - polygonCenter.y) * scaleFactor);
 				LPoint newPoint = LPoint_Set(point_x, point_y);
 
 				_pParams.ptCenter = newPoint;
@@ -510,6 +415,7 @@ module Modifiy_Module
 
 				LPie_CreateNew(Cell_Now, LLayer_Now, &_pParams);
 			}
+            break;
 		}
 		default:
 			break;
@@ -518,6 +424,7 @@ module Modifiy_Module
 
 	void Scale_SelectedObject_SetCenter()
 	{
+        if (!LM_Context()) return;
 		LCell Cell_Now = LCell_GetVisible();
 		//****************************Input Params****************************//
 		LDialogItem Dialog_Items[3] = {{"Scale Factor (>0)", "1"},
@@ -525,8 +432,7 @@ module Modifiy_Module
 									   {"Center Coord Y (um)", "0"}};
 		double scaleFactor;
 		double center_x, center_y;
-		int keep;
-		if (LDialog_MultiLineInputBox("Scale Selected Object", Dialog_Items, 3))
+		if (LM_Dialog("Scale Selected Object", Dialog_Items, 3))
 		{
 			scaleFactor = (double)(atof(Dialog_Items[0].value)); // get the Scale Factor
 			center_x = (double)(atof(Dialog_Items[1].value));
@@ -541,7 +447,7 @@ module Modifiy_Module
 		while (selectedInital != NULL)
 		{
 			LObject selectedObject = LSelection_GetObject(selectedInital);
-			LPoint polygonCenter = LPoint_Set((long)(center_x * 1000), (long)(center_y * 1000));
+			LPoint polygonCenter = LPoint_Set((long)(center_x * LM_UnitsPerMicron()), (long)(center_y * LM_UnitsPerMicron()));
 			Scale_Object(selectedObject, polygonCenter, scaleFactor);
 			selectedInital = LSelection_GetNext(selectedInital);
 		}
@@ -550,12 +456,12 @@ module Modifiy_Module
 
 	void Scale_SelectedObject_ByObjectCenter()
 	{
+        if (!LM_Context()) return;
 		LCell Cell_Now = LCell_GetVisible();
 		//****************************Input Params****************************//
 		LDialogItem Dialog_Items[1] = {{"Scale Factor (>0)", "1"}};
 		double scaleFactor;
-		int keep;
-		if (LDialog_MultiLineInputBox("Scale Selected Object", Dialog_Items, 1))
+		if (LM_Dialog("Scale Selected Object", Dialog_Items, 1))
 		{
 			scaleFactor = (double)(atof(Dialog_Items[0].value)); // get the Scale Factor
 		}
@@ -583,47 +489,43 @@ module Modifiy_Module
 
 	void Modifiy_Selected_Object_Offset()
 	{
+        if (!LM_Context()) return;
 		LCell Cell_Now = LCell_GetVisible();
 		//****************************Input Params****************************//
 		LDialogItem Dialog_Items[2] = {{"Radius Change (um) (±Inf)", "0"},
 									   {"Keep Original Objects (1 = yes, 0 = no)", "1"}};
 		long radiusChange;
 		int keep;
-		if (LDialog_MultiLineInputBox("Modifiy Selected Object", Dialog_Items, 2))
+		if (LM_Dialog("Modifiy Selected Object", Dialog_Items, 2))
 		{
-			radiusChange = (long)(atof(Dialog_Items[0].value) * 1000); // get the radius_offset
-			keep = atoi(Dialog_Items[1].value);						   // get the keep
+			radiusChange = (long)(atof(Dialog_Items[0].value) * LM_UnitsPerMicron()); // get the radius_offset
+			keep = (int)atof(Dialog_Items[1].value);						   // get the keep
 		}
 		else
 		{
 			return;
 		}
 		//****************************Input Params****************************//
-		LSelection selectedInital = LSelection_GetList();
-		while (selectedInital != NULL)
-		{
-			LObject selectedObject = LSelection_GetObject(selectedInital);
-			switch (LObject_GetShape(selectedObject))
-			{
-				long tar_radius;
-			case 1: // LCircle
-				tar_radius = LCircle_GetRadius(selectedObject) + radiusChange;
-				Modifiy_Circle(selectedObject, tar_radius);
-				break;
-			default:
-				break;
-			}
-			if (keep != 1)
-			{
-				LObject_Delete(Cell_Now, selectedObject);
-			}
-			selectedInital = LSelection_GetNext(selectedInital);
-		}
-		LDisplay_Refresh();
-	}
+        LSelection selection = LSelection_GetList();
+        while (selection) {
+            LObject selectedObject = LSelection_GetObject(selection);
+            selection = LSelection_GetNext(selection);
+            if (LObject_GetShape(selectedObject) == LCircle) {
+                long target = LCircle_GetRadius(selectedObject) + radiusChange;
+                LPoint center = LCircle_GetCenter(selectedObject);
+                if (target <= 0 || !LM_PointValid((double)center.x + target, (double)center.y + target) || !LM_PointValid((double)center.x - target, (double)center.y - target)) {
+                    LDialog_AlertBox("Invalid resulting radius; circle skipped."); continue;
+                }
+                if (keep) LM_NewCircle(Cell_Now, LObject_GetLayer(Cell_Now, selectedObject), center, target);
+                else LCircle_Set(Cell_Now, selectedObject, center, target);
+            }
+        }
+        LDisplay_Refresh();
+}
 
 	bool Compare_Objects(LObject object1, LObject object2)
 	{
+        if (!object1 || !object2 || LObject_GetLayer(LCell_GetVisible(), object1) != LObject_GetLayer(LCell_GetVisible(), object2) || LObject_GetGDSIIDataType(object1) != LObject_GetGDSIIDataType(object2)) return false;
 		if (LObject_GetShape(object1) != LObject_GetShape(object2))
 		{
 			return false;
@@ -646,6 +548,7 @@ module Modifiy_Module
 		}
 		case 3: // LPolygon
 		{
+            if (LPolygon_HasCurve(object1) || LPolygon_HasCurve(object2)) return false;
 			LVertex vertex1 = LObject_GetVertexList(object1);
 			long cnt1 = LVertex_GetCount(object1);
 			LVertex vertex2 = LObject_GetVertexList(object2);
@@ -702,82 +605,69 @@ module Modifiy_Module
 
 	void Modifiy_Delete_Duplicates()
 	{
-		LCell Cell_Now = LCell_GetVisible();
-		//****************************Input Params****************************//
-		LSelection loop1SelectionPoint = LSelection_GetList();
-
-		LObject *selectedObjects;
-		selectedObjects = (LObject *)malloc(sizeof(LObject));
-		int j = 0;
-		while (loop1SelectionPoint != NULL)
-		{
-			LObject loop1Object = LSelection_GetObject(loop1SelectionPoint);
-
-			LSelection loop2SelectionPoint = loop1SelectionPoint;
-			loop2SelectionPoint = LSelection_GetNext(loop2SelectionPoint);
-			while (loop2SelectionPoint != NULL)
-			{
-				LObject loop2Object = LSelection_GetObject(loop2SelectionPoint);
-				if (Compare_Objects(loop1Object, loop2Object))
-				{
-					// LDialog_MsgBox(LFormat("object1: %d, object2: %d", LObject_GetShape(loop1Object), LObject_GetShape(loop2Object)));
-					selectedObjects[j] = loop2Object;
-					selectedObjects = (LObject *)realloc(selectedObjects, (j + 2) * sizeof(LObject)); // 将内存大小扩展
-					j++;
-				}
-				loop2SelectionPoint = LSelection_GetNext(loop2SelectionPoint);
-			}
-			loop1SelectionPoint = LSelection_GetNext(loop1SelectionPoint);
-		}
-		int i;
-		for (i = 0; i < j; i++)
-		{
-			LObject_Delete(Cell_Now, selectedObjects[i]);
-		}
-		LDisplay_Refresh();
-	}
+        LSelection selection;
+        LObject *objects;
+        int n = 0, i, j;
+        if (!LM_Context()) return;
+        selection = LSelection_GetList();
+        while (selection) { ++n; selection = LSelection_GetNext(selection); }
+        if (n < 2) return;
+        if (n > 5000) { LDialog_AlertBox("Select at most 5000 objects for duplicate removal."); return; }
+        objects = (LObject *)malloc(n * sizeof(LObject));
+        if (!objects) return;
+        selection = LSelection_GetList();
+        for (i = 0; i < n; ++i) { objects[i] = LSelection_GetObject(selection); selection = LSelection_GetNext(selection); }
+        for (i = 0; i < n; ++i) {
+            if (!objects[i]) continue;
+            for (j = i + 1; j < n; ++j) {
+                if (objects[j] && Compare_Objects(objects[i], objects[j])) {
+                    if (LObject_Delete(LCell_GetVisible(), objects[j]) == LStatusOK) objects[j] = NULL;
+                }
+            }
+        }
+        free(objects);
+        LDisplay_Refresh();
+    }
 
 	void Modifiy_Selected_Object_UnionSize()
 	{
+        if (!LM_Context()) return;
 		LCell Cell_Now = LCell_GetVisible();
 		//****************************Input Params****************************//
 		LDialogItem Dialog_Items[2] = {{"Target radius (um)", "0"},
 									   {"Keep Original Objects (1 = yes, 0 = no)", "1"}};
 		long tar_radius;
 		int keep;
-		if (LDialog_MultiLineInputBox("Modifiy Selected Object", Dialog_Items, 2))
+		if (LM_Dialog("Modifiy Selected Object", Dialog_Items, 2))
 		{
-			tar_radius = (long)(atof(Dialog_Items[0].value) * 1000); // get the tar_radius
-			keep = atoi(Dialog_Items[1].value);						 // get the keep
+			tar_radius = (long)(atof(Dialog_Items[0].value) * LM_UnitsPerMicron()); // get the tar_radius
+			keep = (int)atof(Dialog_Items[1].value);						 // get the keep
 		}
 		else
 		{
 			return;
 		}
 		//****************************Input Params****************************//
-		LSelection selectedInital = LSelection_GetList();
-		while (selectedInital != NULL)
-		{
-			LObject selectedObject = LSelection_GetObject(selectedInital);
-			switch (LObject_GetShape(selectedObject))
-			{
-			case 1: // LCircle
-				Modifiy_Circle(selectedObject, tar_radius);
-				break;
-			default:
-				break;
-			}
-			if (keep != 1)
-			{
-				LObject_Delete(Cell_Now, selectedObject);
-			}
-			selectedInital = LSelection_GetNext(selectedInital);
-		}
-		LDisplay_Refresh();
-	}
+        LSelection selection = LSelection_GetList();
+        while (selection) {
+            LObject selectedObject = LSelection_GetObject(selection);
+            selection = LSelection_GetNext(selection);
+            if (LObject_GetShape(selectedObject) == LCircle) {
+                long target = tar_radius;
+                LPoint center = LCircle_GetCenter(selectedObject);
+                if (target <= 0 || !LM_PointValid((double)center.x + target, (double)center.y + target) || !LM_PointValid((double)center.x - target, (double)center.y - target)) {
+                    LDialog_AlertBox("Invalid resulting radius; circle skipped."); continue;
+                }
+                if (keep) LM_NewCircle(Cell_Now, LObject_GetLayer(Cell_Now, selectedObject), center, target);
+                else LCircle_Set(Cell_Now, selectedObject, center, target);
+            }
+        }
+        LDisplay_Refresh();
+}
 
 	void Modifiy_Delete_Objects_ByType()
 	{
+        if (!LM_Context()) return;
 		LCell Cell_Now = LCell_GetVisible();
 		//****************************Input Params****************************//
 		/*
@@ -833,6 +723,7 @@ module Modifiy_Module
 
 	void TestFunc()
 	{
+        if (!LM_Context()) return;
 		LCell Cell_Now = LCell_GetVisible();
 		LFile File_Now = LCell_GetFile(Cell_Now);
 		LPoint zero = LPoint_Set(0, 0);
