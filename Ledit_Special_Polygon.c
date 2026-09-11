@@ -38,19 +38,78 @@ module Special_Polygon_Module
     LPoint CalculateCentroid(LPoint * points, int n);
     double get_short_arc_interpolated_angle(double start_angle, double end_angle);
     void DrawTangentRing();
-    void Draw_Boundry(LObject * orderedObjects, int orderedObjectNum, long innerDistance, long outterDistance, long standerRadius, long minDistance, LPoint shapeCenter, int drawHelpers);
-    void Draw_Boundry_Hex(LObject * orderedObjects, int orderedObjectNum, long innerDistance, long outterDistance, long standerRadius, long minDistance, LPoint shapeCenter, long RoundRadius, int drawHelpers);
+    void Draw_Boundry(LObject * orderedObjects, int orderedObjectNum, long innerDistance, long outterDistance, long standerRadius, long minDistance, LPoint shapeCenter, int drawHelpers, LLayer targetLayer);
+    void Draw_Boundry_Hex(LObject * orderedObjects, int orderedObjectNum, long innerDistance, long outterDistance, long standerRadius, long minDistance, LPoint shapeCenter, long RoundRadius, int drawHelpers, LLayer targetLayer);
     void FindLineEquation(LPoint p1, LPoint p2, double *abc);
     bool Find_Next_Circle(LObject * orderedObjects, int orderedObjectNum, LObject *objects, int objectNum, double search_max_radius, double search_min_radius);
     int LSelection_GetNumber(LSelection selectedInital);
     double normalize_angle(double angle);
     void Order_Boundry_Circles();
     void Order_Boundry_Hex();
-    void Order_Circle(LObject * objects, int objectNum, long innerDistance, long outterDistance, long standerRadius, int drawHelpers);
-    void Order_Hex(LObject * objects, int objectNum, long innerDistance, long outterDistance, long standerRadius, long RoundRadius, int drawHelpers);
+    void Order_Circle(LObject * objects, int objectNum, long innerDistance, long outterDistance, long standerRadius, int drawHelpers, LLayer targetLayer);
+    void Order_Hex(LObject * objects, int objectNum, long innerDistance, long outterDistance, long standerRadius, long RoundRadius, int drawHelpers, LLayer targetLayer);
     void Select_Boundry_Object(LSelection selectedInital, long search_radius);
     void Select_Boundry_Circles();
     void SpecialPolygon_func(void);
+
+    /* LDialog_MultiLineInputBox has text fields only; use the native pick list. */
+    LLayer ChooseBoundaryLayer(LFile file)
+    {
+        LLayer layer, current = LLayer_GetCurrent(file), result = NULL;
+        LLayer *layers;
+        char *names;
+        const char **choices;
+        int count = 0, i = 0, selected, defaultChoice = 0;
+        for (layer = LLayer_GetList(file); layer; layer = LLayer_GetNext(layer)) ++count;
+        if (count < 1 || count > 10000) { LDialog_AlertBox("No available layer, or too many layers."); return NULL; }
+        layers = (LLayer *)malloc(count * sizeof(LLayer));
+        names = (char *)malloc(count * MAX_LAYER_NAME);
+        choices = (const char **)malloc(count * sizeof(char *));
+        if (!layers || !names || !choices) { free(layers); free(names); free(choices); return NULL; }
+        for (layer = LLayer_GetList(file); layer && i < count; layer = LLayer_GetNext(layer)) {
+            /* Exclude drawing-system layers, but keep FirstMaskLayer. */
+            if (layer == LLayer_GetSpecial(file, GridLayer) ||
+                layer == LLayer_GetSpecial(file, OriginLayer) ||
+                layer == LLayer_GetSpecial(file, CellOutlineLayer) ||
+                layer == LLayer_GetSpecial(file, ErrorLayer) ||
+                layer == LLayer_GetSpecial(file, IconLayer) ||
+                layer == LLayer_GetSpecial(file, DragBoxLayer)) continue;
+            layers[i] = layer;
+            names[i * MAX_LAYER_NAME] = 0;
+            LLayer_GetName(layer, names + i * MAX_LAYER_NAME, MAX_LAYER_NAME);
+            names[(i + 1) * MAX_LAYER_NAME - 1] = 0;
+            choices[i] = names + i * MAX_LAYER_NAME;
+            if (layer == current) defaultChoice = i;
+            ++i;
+        }
+        if (i > 0) {
+            selected = LDialog_PickList("Boundary polygon target layer", choices, i, defaultChoice);
+            if (selected >= 0 && selected < i) result = layers[selected];
+        }
+        free(choices); free(names); free(layers);
+        return result;
+    }
+
+    LLayer CreateHelperLayer(LFile file)
+    {
+        char name[MAX_LAYER_NAME];
+        LLayer last = NULL, layer;
+        int suffix;
+        for (layer = LLayer_GetList(file); layer; layer = LLayer_GetNext(layer)) last = layer;
+        for (suffix = 1; suffix <= 10000; ++suffix) {
+            snprintf(name, sizeof(name), "Boundary_Helpers_%d", suffix);
+            if (LLayer_Find(file, name)) continue;
+            if (LLayer_New(file, last, name) != LStatusOK) {
+                LDialog_AlertBox("Cannot create the helper layer. Boundary polygon was created without helpers.");
+                return NULL;
+            }
+            layer = LLayer_Find(file, name);
+            if (!layer) LDialog_AlertBox("The new helper layer could not be retrieved.");
+            return layer;
+        }
+        LDialog_AlertBox("No unused helper layer name found.");
+        return NULL;
+    }
 
     void DrawTangentRing()
     {
@@ -577,7 +636,7 @@ module Special_Polygon_Module
         return centroid;
     }
 
-    void Order_Circle(LObject * objects, int objectNum, long innerDistance, long outterDistance, long standerRadius, int drawHelpers)
+    void Order_Circle(LObject * objects, int objectNum, long innerDistance, long outterDistance, long standerRadius, int drawHelpers, LLayer targetLayer)
     {
         if (innerDistance < 0 || outterDistance < 0 ||
             (double)innerDistance + outterDistance + 2.0 * standerRadius > WORLD_MAX) {
@@ -642,7 +701,7 @@ module Special_Polygon_Module
         LPoint center;
         center = CalculateCentroid(centerPoints, objectNum);
 
-        Draw_Boundry(orderedObjects, objectNum, innerDistance, outterDistance, standerRadius, (long)minDistance, center, drawHelpers);
+        Draw_Boundry(orderedObjects, objectNum, innerDistance, outterDistance, standerRadius, (long)minDistance, center, drawHelpers, targetLayer);
         free(centerPoints);
         free(orderedObjects);
 
@@ -766,14 +825,14 @@ module Special_Polygon_Module
         return angle;
     }
 
-    void Draw_Boundry(LObject * orderedObjects, int orderedObjectNum, long innerDistance, long outterDistance, long standerRadius, long minDistance, LPoint shapeCenter, int drawHelpers)
+    void Draw_Boundry(LObject * orderedObjects, int orderedObjectNum, long innerDistance, long outterDistance, long standerRadius, long minDistance, LPoint shapeCenter, int drawHelpers, LLayer targetLayer)
     {
         /* One external construction center per boundary segment, at most 256. */
         LPoint helperCenters[256];
         int helperCount = 0;
         if (orderedObjectNum < 3 || orderedObjectNum > 256) return;
         LCell Cell_Now = LCell_GetVisible();
-        LLayer LLayer_Now = LObject_GetLayer(Cell_Now, orderedObjects[0]);
+        LLayer LLayer_Now = targetLayer;
         double startAngle = -135; // start from left bottom circle
         double angle1, angle2;
         int i, j;
@@ -936,9 +995,11 @@ module Special_Polygon_Module
         /* Drop only an actually duplicated closing point. */
         if (currentSize > 1 && totalPolygon[0].x == totalPolygon[currentSize - 1].x && totalPolygon[0].y == totalPolygon[currentSize - 1].y) --currentSize;
         if (currentSize >= 3 && LM_NewPolygon(Cell_Now, LLayer_Now, totalPolygon, currentSize)) {
-            /* Publish helpers only after the boundary polygon exists. */
-            for (i = 0; drawHelpers && i < helperCount; ++i) {
-                if (!LM_NewCircle(Cell_Now, LLayer_Now, helperCenters[i], standerRadius)) {
+            /* Only create a dedicated layer if helpers will actually be drawn. */
+            LLayer helperLayer = NULL;
+            if (drawHelpers && helperCount > 0) helperLayer = CreateHelperLayer(LCell_GetFile(Cell_Now));
+            for (i = 0; helperLayer && i < helperCount; ++i) {
+                if (!LM_NewCircle(Cell_Now, helperLayer, helperCenters[i], standerRadius)) {
                     LDialog_AlertBox("Could not create all helper circles.");
                     break;
                 }
@@ -1043,7 +1104,9 @@ module Special_Polygon_Module
         /****************************Input Params****************************/
 
         // void Order_Circle(LObject* objects, int objectNum, long innerDistance, long outterDistance, long standerRadius)
-        Order_Circle(objects, objectNum, innerDistance, outterDistance, standerRadius, drawHelpers);
+        LLayer targetLayer = ChooseBoundaryLayer(LCell_GetFile(LCell_GetVisible()));
+        if (!targetLayer) { free(objects); return; }
+        Order_Circle(objects, objectNum, innerDistance, outterDistance, standerRadius, drawHelpers, targetLayer);
         free(objects);
         LDisplay_Refresh();
     }
@@ -1119,12 +1182,14 @@ module Special_Polygon_Module
         /****************************Input Params****************************/
 
         // void Order_Circle(LObject* objects, int objectNum, long innerDistance, long outterDistance, long standerRadius)
-        Order_Hex(objects, objectNum, innerDistance, outterDistance, standerRadius, RoundRadius, drawHelpers);
+        LLayer targetLayer = ChooseBoundaryLayer(LCell_GetFile(LCell_GetVisible()));
+        if (!targetLayer) { free(objects); return; }
+        Order_Hex(objects, objectNum, innerDistance, outterDistance, standerRadius, RoundRadius, drawHelpers, targetLayer);
         free(objects);
         LDisplay_Refresh();
     }
 
-    void Order_Hex(LObject * objects, int objectNum, long innerDistance, long outterDistance, long standerRadius, long RoundRadius, int drawHelpers)
+    void Order_Hex(LObject * objects, int objectNum, long innerDistance, long outterDistance, long standerRadius, long RoundRadius, int drawHelpers, LLayer targetLayer)
     {
         if (innerDistance < 0 || outterDistance < 0 ||
             (double)innerDistance + outterDistance + 2.0 * standerRadius > WORLD_MAX) {
@@ -1189,12 +1254,12 @@ module Special_Polygon_Module
         LPoint center;
         center = CalculateCentroid(centerPoints, objectNum);
 
-        Draw_Boundry_Hex(orderedObjects, objectNum, innerDistance, outterDistance, standerRadius, (long)minDistance, center, RoundRadius, drawHelpers);
+        Draw_Boundry_Hex(orderedObjects, objectNum, innerDistance, outterDistance, standerRadius, (long)minDistance, center, RoundRadius, drawHelpers, targetLayer);
         free(centerPoints);
         free(orderedObjects);
     }
 
-    void Draw_Boundry_Hex(LObject * orderedObjects, int orderedObjectNum, long innerDistance, long outterDistance, long standerRadius, long minDistance, LPoint shapeCenter, long RoundRadius, int drawHelpers)
+    void Draw_Boundry_Hex(LObject * orderedObjects, int orderedObjectNum, long innerDistance, long outterDistance, long standerRadius, long minDistance, LPoint shapeCenter, long RoundRadius, int drawHelpers, LLayer targetLayer)
     {
         /* One external construction center per boundary segment, at most 256. */
         LPoint helperCenters[256];
@@ -1203,7 +1268,7 @@ module Special_Polygon_Module
         // standerRadius means the radius of the circle
         LCell Cell_Now = LCell_GetVisible();
         LFile File_Now = LCell_GetFile(Cell_Now);
-        LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+        LLayer LLayer_Now = targetLayer;
 
         double startAngle = -135; // start from left bottom circle
         double angle1, angle2;
@@ -1382,9 +1447,11 @@ module Special_Polygon_Module
         /* Drop only an actually duplicated closing point. */
         if (currentSize > 1 && totalPolygon[0].x == totalPolygon[currentSize - 1].x && totalPolygon[0].y == totalPolygon[currentSize - 1].y) --currentSize;
         if (currentSize >= 3 && LM_NewPolygon(Cell_Now, LLayer_Now, totalPolygon, currentSize)) {
-            /* Publish helpers only after the boundary polygon exists. */
-            for (i = 0; drawHelpers && i < helperCount; ++i) {
-                if (!LM_NewCircle(Cell_Now, LLayer_Now, helperCenters[i], standerRadius)) {
+            /* Only create a dedicated layer if helpers will actually be drawn. */
+            LLayer helperLayer = NULL;
+            if (drawHelpers && helperCount > 0) helperLayer = CreateHelperLayer(LCell_GetFile(Cell_Now));
+            for (i = 0; helperLayer && i < helperCount; ++i) {
+                if (!LM_NewCircle(Cell_Now, helperLayer, helperCenters[i], standerRadius)) {
                     LDialog_AlertBox("Could not create all helper circles.");
                     break;
                 }

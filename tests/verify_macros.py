@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def function(source, name):
-    match = re.search(r"\b(?:void|int|double|bool|Point|LPoint|LObject)\s+\*?\s*" + name + r"\([^;{}]*\)\s*(?://[^\n]*)?\s*\{", source)
+    match = re.search(r"\b(?:void|int|double|bool|Point|LPoint|LObject|LLayer)\s+\*?\s*" + name + r"\([^;{}]*\)\s*(?://[^\n]*)?\s*\{", source)
     if not match:
         raise ValueError(name)
     pos = source.index("{", match.start()) + 1
@@ -45,7 +45,7 @@ def run():
             groups = {
                 "Ledit_Array_Module.c": ["MirrorCoordinates", "CalculateOffset", "MirrorObject", "RotateObject", "LSelection_GetNumber", "_ArrayInObjectByDistanceHexagon"],
                 "Ledit_Modifiy_Module.c": ["calculateIntersection", "calculateCircleSegmentIntersection", "GetPointsDistance", "DrawCircleByRouteDistance", "Compare_Objects", "Modifiy_Delete_Duplicates"],
-                "Ledit_Special_Polygon.c": ["Calculate_Outside_Circle", "normalize_angle", "get_short_arc_interpolated_angle", "calculate_arc_points"],
+                "Ledit_Special_Polygon.c": ["Calculate_Outside_Circle", "normalize_angle", "get_short_arc_interpolated_angle", "calculate_arc_points", "ChooseBoundaryLayer", "CreateHelperLayer"],
                 "Ledit_Conversion.c": ["computeCentroid", "computeInertiaMatrix", "computeEccentricity", "fitCircle"],
                 "Ledit_ShapeCenter_Module.c": ["swap", "compare", "CalculateCentroid"],
                 "Ledit_Regular_Polygon.c": ["CalculateEllipsePoints"],

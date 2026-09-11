@@ -17,6 +17,8 @@ static int deletedCount, createdCount, failCreation, contextMissing;
 static double unitMicrons = .001;
 static LPoint routePoints[4], created[1000];
 static const char *dialogOverride;
+static int layerCount = 3, pickChoice = 0, failLayerCreate;
+static char layerNames[16][MAX_LAYER_NAME] = {"", "Metal", "Boundary_Helpers_1", "Boundary_Helpers_3"};
 LPoint globalReferencePoint;
 
 LCell LCell_GetVisible(void) { return contextMissing ? NULL : (LCell)1; }
@@ -30,6 +32,13 @@ LRect LObject_GetMbb(LObject object) { LRect r; r.x0 = object->data.center.x - o
 double LObject_Area(LObject object) { return M_PI * object->data.radius * object->data.radius; }
 LCoord LObject_DistanceToPoint(LObject object, LPoint p, LFile file) { return (long)(hypot((double)p.x - object->data.center.x, (double)p.y - object->data.center.y) - object->data.radius); }
 LLayer LLayer_GetCurrent(LFile file) { return (LLayer)1; }
+LLayer LLayer_GetList(LFile file) { return layerCount ? (LLayer)1 : NULL; }
+LLayer LLayer_GetNext(LLayer layer) { size_t i = (size_t)layer; return i < layerCount ? (LLayer)(i + 1) : NULL; }
+LLayer LLayer_GetSpecial(LFile file, LSpecialLayer special) { return NULL; }
+char *LLayer_GetName(LLayer layer, const char *name, const int maxlen) { snprintf((char *)name, maxlen, "%s", layerNames[(size_t)layer]); return (char *)name; }
+LLayer LLayer_Find(LFile file, const char *name) { int i; for (i = 1; i <= layerCount; ++i) if (!strcmp(name, layerNames[i])) return (LLayer)(size_t)i; return NULL; }
+LStatus LLayer_New(LFile file, LLayer preceding, const char *name) { if (failLayerCreate) return LCreateError; assert(!LLayer_Find(file, name) && layerCount < 15); strcpy(layerNames[++layerCount], name); return LStatusOK; }
+int LDialog_PickList(const char *title, const char *choices[], int total, int defaultChoice) { assert(total == layerCount && defaultChoice == 0); assert(!strcmp(choices[0], "Metal")); return pickChoice; }
 LLayer LObject_GetLayer(LCell cell, LObject object) { return (LLayer)(size_t)object->data.layer; }
 LShapeType LObject_GetShape(LObject object) { assert(object && !object->data.deleted); return (LShapeType)object->data.shape; }
 int LObject_GetGDSIIDataType(LObject object) { return object->data.datatype; }
@@ -88,6 +97,8 @@ LPoint CalculateCentroid(LPoint *, int);
 LPoint *CalculateEllipsePoints(long, long, int, double);
 int LSelection_GetNumber(LSelection);
 void _ArrayInObjectByDistanceHexagon(LPoint **, int *, long *);
+LLayer ChooseBoundaryLayer(LFile);
+LLayer CreateHelperLayer(LFile);
 
 int main(void)
 {
@@ -174,6 +185,14 @@ int main(void)
     assert(!CalculateEllipsePoints(100, 100, 4, 0));
     createdCount = 0; DrawCircleByRouteDistance(50, 1, 8, routePoints[0], objects); assert(!createdCount);
     failAllocation = 0; assert(allocations == 0);
+    pickChoice = 2; assert(ChooseBoundaryLayer((LFile)1) == (LLayer)3);
+    pickChoice = -1; assert(!ChooseBoundaryLayer((LFile)1));
+    failAllocation = 1; assert(!ChooseBoundaryLayer((LFile)1)); failAllocation = 0;
+    assert(CreateHelperLayer((LFile)1) == (LLayer)4 && !strcmp(layerNames[4], "Boundary_Helpers_2"));
+    assert(CreateHelperLayer((LFile)1) == (LLayer)5 && !strcmp(layerNames[5], "Boundary_Helpers_4"));
+    failLayerCreate = 1; assert(!CreateHelperLayer((LFile)1) && layerCount == 5);
+    assert(allocations == 0);
+    puts("PASS: target layer selection/cancellation, unique helper layer names, layer creation and allocation failure");
     puts("PASS: geometry, numeric validation, alternate units, failed allocation/creation, centroid, circle fit, unique hex array, route spacing, duplicate deletion, allocation balance");
     return 0;
 }
