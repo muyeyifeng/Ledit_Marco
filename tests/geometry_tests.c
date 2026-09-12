@@ -18,6 +18,8 @@ static double unitMicrons = .001;
 static LPoint routePoints[4], created[1000];
 static const char *dialogOverride;
 static int layerCount = 3, pickChoice = 0, failLayerCreate;
+static LLayer lastCreatedLayer;
+static int polygonCount;
 static char layerNames[16][MAX_LAYER_NAME] = {"", "Metal", "Boundary_Helpers_1", "Boundary_Helpers_3"};
 LPoint globalReferencePoint;
 
@@ -57,8 +59,8 @@ LStatus LObject_Delete(LCell cell, LObject object) { assert(!object->data.delete
 LSelection LSelection_GetList(void) { return selections; }
 LSelection LSelection_GetNext(LSelection selection) { return selection->next; }
 LObject LSelection_GetObject(LSelection selection) { return selection->object; }
-LObject LCircle_New(LCell cell, LLayer layer, LPoint p, LCoord radius) { assert(createdCount < 1000); created[createdCount++] = p; return &replacement; }
-LObject LPolygon_New(LCell cell, LLayer layer, LPoint *points, const int count) { return &replacement; }
+LObject LCircle_New(LCell cell, LLayer layer, LPoint p, LCoord radius) { assert(createdCount < 1000); lastCreatedLayer = layer; created[createdCount++] = p; return &replacement; }
+LObject LPolygon_New(LCell cell, LLayer layer, LPoint *points, const int count) { lastCreatedLayer = layer; ++polygonCount; return &replacement; }
 LObject CopyObject(LObject object, long dx, long dy) { return LCircle_New((LCell)1, (LLayer)1, LPoint_Set(object->data.center.x + dx, object->data.center.y + dy), object->data.radius); }
 
 static int allocations, failAllocation;
@@ -98,7 +100,12 @@ LPoint *CalculateEllipsePoints(long, long, int, double);
 int LSelection_GetNumber(LSelection);
 void _ArrayInObjectByDistanceHexagon(LPoint **, int *, long *);
 LLayer ChooseBoundaryLayer(LFile);
+LLayer ChooseConversionLayer(LFile);
 LLayer CreateHelperLayer(LFile);
+void DrawPolygonByCenterRadiusAndEdgeNumber(LPoint, long, int, double, LLayer);
+LPoint *Calculate_Rounded_Hexagon_Points(LPoint, LCoord, double);
+void Conversion_To_Polygon(void);
+void Conversion_To_Rounded_Hexagon(void);
 
 int main(void)
 {
@@ -186,11 +193,22 @@ int main(void)
     createdCount = 0; DrawCircleByRouteDistance(50, 1, 8, routePoints[0], objects); assert(!createdCount);
     failAllocation = 0; assert(allocations == 0);
     pickChoice = 2; assert(ChooseBoundaryLayer((LFile)1) == (LLayer)3);
+    assert(ChooseConversionLayer((LFile)1) == (LLayer)3);
     pickChoice = -1; assert(!ChooseBoundaryLayer((LFile)1));
+    assert(!ChooseConversionLayer((LFile)1));
     failAllocation = 1; assert(!ChooseBoundaryLayer((LFile)1)); failAllocation = 0;
     assert(CreateHelperLayer((LFile)1) == (LLayer)4 && !strcmp(layerNames[4], "Boundary_Helpers_2"));
     assert(CreateHelperLayer((LFile)1) == (LLayer)5 && !strcmp(layerNames[5], "Boundary_Helpers_4"));
     failLayerCreate = 1; assert(!CreateHelperLayer((LFile)1) && layerCount == 5);
+    pickChoice = 1; polygonCount = 0;
+    Conversion_To_Polygon(); assert(polygonCount == 2 && lastCreatedLayer == (LLayer)2);
+    polygonCount = 0;
+    Conversion_To_Rounded_Hexagon(); assert(polygonCount == 2 && lastCreatedLayer == (LLayer)2);
+    dialogOverride = "1"; createdCount = 0;
+    Conversion_To_Rounded_Hexagon(); assert(createdCount == 2 && lastCreatedLayer == (LLayer)2);
+    dialogOverride = NULL; pickChoice = -1; polygonCount = createdCount = 0;
+    Conversion_To_Polygon(); Conversion_To_Rounded_Hexagon();
+    assert(polygonCount == 0 && createdCount == 0);
     assert(allocations == 0);
     puts("PASS: target layer selection/cancellation, unique helper layer names, layer creation and allocation failure");
     puts("PASS: geometry, numeric validation, alternate units, failed allocation/creation, centroid, circle fit, unique hex array, route spacing, duplicate deletion, allocation balance");

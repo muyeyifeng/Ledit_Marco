@@ -38,10 +38,47 @@ module Conversion_Module
     void Approximate_Circle();
     void Approximate_Circle_Sample();
     void Conversion_func(void);
-    void DrawPolygonByCenterRadiusAndEdgeNumber(LPoint center, long radius, int edgeNum, double rad);
+    void DrawPolygonByCenterRadiusAndEdgeNumber(LPoint center, long radius, int edgeNum, double rad, LLayer targetLayer);
     void Conversion_To_Polygon();
     LPoint *Calculate_Rounded_Hexagon_Points(LPoint center, LCoord R, double r);
     void Conversion_To_Rounded_Hexagon();
+
+    LLayer ChooseConversionLayer(LFile file)
+    {
+        LLayer layer, current = LLayer_GetCurrent(file), result = NULL;
+        LLayer *layers;
+        char *names;
+        const char **choices;
+        int count = 0, i = 0, selected, defaultChoice = 0;
+        for (layer = LLayer_GetList(file); layer; layer = LLayer_GetNext(layer)) ++count;
+        if (count < 1 || count > 10000) { LDialog_AlertBox("No available layer, or too many layers."); return NULL; }
+        layers = (LLayer *)malloc(count * sizeof(LLayer));
+        names = (char *)malloc(count * MAX_LAYER_NAME);
+        choices = (const char **)malloc(count * sizeof(char *));
+        if (!layers || !names || !choices) { free(layers); free(names); free(choices); return NULL; }
+        for (layer = LLayer_GetList(file); layer && i < count; layer = LLayer_GetNext(layer)) {
+            /* Exclude drawing-system layers, but keep FirstMaskLayer. */
+            if (layer == LLayer_GetSpecial(file, GridLayer) ||
+                layer == LLayer_GetSpecial(file, OriginLayer) ||
+                layer == LLayer_GetSpecial(file, CellOutlineLayer) ||
+                layer == LLayer_GetSpecial(file, ErrorLayer) ||
+                layer == LLayer_GetSpecial(file, IconLayer) ||
+                layer == LLayer_GetSpecial(file, DragBoxLayer)) continue;
+            layers[i] = layer;
+            names[i * MAX_LAYER_NAME] = 0;
+            LLayer_GetName(layer, names + i * MAX_LAYER_NAME, MAX_LAYER_NAME);
+            names[(i + 1) * MAX_LAYER_NAME - 1] = 0;
+            choices[i] = names + i * MAX_LAYER_NAME;
+            if (layer == current) defaultChoice = i;
+            ++i;
+        }
+        if (i > 0) {
+            selected = LDialog_PickList("Conversion target layer", choices, i, defaultChoice);
+            if (selected >= 0 && selected < i) result = layers[selected];
+        }
+        free(choices); free(names); free(layers);
+        return result;
+    }
 
     Point computeCentroid(Point points[], int n)
     {
@@ -245,11 +282,11 @@ module Conversion_Module
         LDisplay_Refresh();
     }
 
-    void DrawPolygonByCenterRadiusAndEdgeNumber(LPoint center, long radius, int edgeNum, double rad)
+    void DrawPolygonByCenterRadiusAndEdgeNumber(LPoint center, long radius, int edgeNum, double rad, LLayer targetLayer)
     {
         LCell Cell_Now = LCell_GetVisible();
         LFile File_Now = LCell_GetFile(Cell_Now);
-        LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+        LLayer LLayer_Now = targetLayer;
         if (edgeNum < 3 || edgeNum > LM_MAX_POINTS || radius <= 0 ||
             !LM_PointValid((double)center.x + radius, (double)center.y + radius) ||
             !LM_PointValid((double)center.x - radius, (double)center.y - radius)) return;
@@ -291,6 +328,8 @@ module Conversion_Module
             LDialog_AlertBox("Polygon edge number must lagger than 3");
             return;
         }
+        LLayer targetLayer = ChooseConversionLayer(LCell_GetFile(LCell_GetVisible()));
+        if (!targetLayer) return;
         LSelection selectedInital = LSelection_GetList();
         while (selectedInital != NULL)
         {
@@ -304,7 +343,7 @@ module Conversion_Module
             LCoord radius = LCircle_GetRadius(selectedObject);
             double radius_outer = radius / cos(1.0 * M_PI / edgeNum);
             if (radius_outer > WORLD_MAX) { LDialog_AlertBox("Polygon radius exceeds coordinate limits."); return; }
-            DrawPolygonByCenterRadiusAndEdgeNumber(center, radius_outer, edgeNum, rad);
+            DrawPolygonByCenterRadiusAndEdgeNumber(center, radius_outer, edgeNum, rad, targetLayer);
             selectedInital = LSelection_GetNext(selectedInital);
         }
         LDisplay_Refresh();
@@ -315,7 +354,7 @@ module Conversion_Module
         if (!LM_Context()) return;
         LCell Cell_Now = LCell_GetVisible();
         LFile File_Now = LCell_GetFile(Cell_Now);
-        LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+        LLayer LLayer_Now;
 
         LSelection selectedInital = LSelection_GetList();
         if (selectedInital == NULL)
@@ -354,6 +393,8 @@ module Conversion_Module
             return;
         }
 
+        LLayer_Now = ChooseConversionLayer(File_Now);
+        if (!LLayer_Now) return;
         while (selectedInital != NULL)
         {
             LObject selectedObject = LSelection_GetObject(selectedInital);

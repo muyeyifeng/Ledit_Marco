@@ -46,7 +46,7 @@ def run():
                 "Ledit_Array_Module.c": ["MirrorCoordinates", "CalculateOffset", "MirrorObject", "RotateObject", "LSelection_GetNumber", "_ArrayInObjectByDistanceHexagon"],
                 "Ledit_Modifiy_Module.c": ["calculateIntersection", "calculateCircleSegmentIntersection", "GetPointsDistance", "DrawCircleByRouteDistance", "Compare_Objects", "Modifiy_Delete_Duplicates"],
                 "Ledit_Special_Polygon.c": ["Calculate_Outside_Circle", "normalize_angle", "get_short_arc_interpolated_angle", "calculate_arc_points", "ChooseBoundaryLayer", "CreateHelperLayer"],
-                "Ledit_Conversion.c": ["computeCentroid", "computeInertiaMatrix", "computeEccentricity", "fitCircle"],
+                "Ledit_Conversion.c": ["computeCentroid", "computeInertiaMatrix", "computeEccentricity", "fitCircle", "ChooseConversionLayer", "DrawPolygonByCenterRadiusAndEdgeNumber", "Calculate_Rounded_Hexagon_Points", "Conversion_To_Polygon", "Conversion_To_Rounded_Hexagon"],
                 "Ledit_ShapeCenter_Module.c": ["swap", "compare", "CalculateCentroid"],
                 "Ledit_Regular_Polygon.c": ["CalculateEllipsePoints"],
             }
