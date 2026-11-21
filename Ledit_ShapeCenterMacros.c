@@ -1,6 +1,5 @@
 /*
- * ShapeCenter_Module
- * ShapeCenter_Module Marco for Ledit
+ * Find the center of a group of selected circles and place a marker circle there.
  *
  * Copyright (c) 2024 muyeyifeng
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,42 +14,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-module ShapeCenter_Module
+module ShapeCenterMacros
 {
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-// #include "Ledit_ShapeCenter.h"
 #include "ldata.h" /* Main UPI header. */
+#include "Ledit_OutputLayer.h"
 
-    void swap(LPoint * a, LPoint * b);
-    double distance(LPoint p1, LPoint p2);
-    int compare(const void *a, const void *b);
-    LPoint CalculateCentroid(LPoint * points, int n);
-    int LSelection_GetNumber(LSelection selectedInital);
-    bool CheckIsCircles(LSelection selectedInital, LPoint * centerPoints);
-    void DrawCircleAtShapeCenter(void);
-    void ShapeCenter_func(void);
+    void SwapPoints(LPoint * a, LPoint * b);
+    double DistanceBetweenPoints(LPoint p1, LPoint p2);
+    int ComparePointsByPolarAngle(const void *a, const void *b);
+    LPoint CalculatePolygonCentroid(LPoint * points, int n);
+    int CountSelectedObjects(LSelection selection);
+    bool ReadSelectedCircleCenters(LSelection selection, LPoint * centerPoints);
+    void DrawCircleAtSelectionCenter(void);
+    void RegisterShapeCenterMacros(void);
 
     LPoint globalReferencePoint; // global
 
-    // swap two point
-    void swap(LPoint * a, LPoint * b)
+    void SwapPoints(LPoint * a, LPoint * b)
     {
         LPoint temp = *a;
         *a = *b;
         *b = temp;
     }
 
-    // Calculate the distance between two points
-    double distance(LPoint p1, LPoint p2)
+    double DistanceBetweenPoints(LPoint p1, LPoint p2)
     {
         return sqrt((p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y));
     }
 
-    // Comparison functions sorted from small to large by polar angle and distance from the origin
-    int compare(const void *a, const void *b)
+    // Order points by polar angle around the common reference.
+    int ComparePointsByPolarAngle(const void *a, const void *b)
     {
         LPoint *p1 = (LPoint *)a;
         LPoint *p2 = (LPoint *)b;
@@ -62,7 +59,7 @@ module ShapeCenter_Module
 
         double angle1 = atan2(y1, x1);
         double angle2 = atan2(y2, x2);
-        //  If the polar angles are the same, sort by distance from the origin from smallest to largest.
+        // Break ties by distance from the reference point.
         if (angle1 == angle2)
         {
             double distance1 = hypot(x1, y1);
@@ -75,7 +72,7 @@ module ShapeCenter_Module
     }
 
     // Calculate the centroid coordinates of a convex polygon
-    LPoint CalculateCentroid(LPoint * points, int n)
+    LPoint CalculatePolygonCentroid(LPoint * points, int n)
     {
         // Find the bottom and leftmost point as the pole
         int minIndex = 0;
@@ -88,12 +85,12 @@ module ShapeCenter_Module
             }
         }
 
-        swap(&points[0], &points[minIndex]);
+        SwapPoints(&points[0], &points[minIndex]);
 
         globalReferencePoint = points[0];
 
         // Sort by polar angle
-        qsort(&points[1], n - 1, sizeof(LPoint), compare);
+        qsort(&points[1], n - 1, sizeof(LPoint), ComparePointsByPolarAngle);
 
         double cx = 0.0, cy = 0.0;
         double totalArea = 0.0;
@@ -131,43 +128,46 @@ module ShapeCenter_Module
         return centroid;
     }
 
-    int LSelection_GetNumber(LSelection selectedInital)
+    int CountSelectedObjects(LSelection selection)
     {
         int counter = 0;
-        while (selectedInital != NULL)
+        while (selection != NULL)
         {
-            selectedInital = LSelection_GetNext(selectedInital);
+            selection = LSelection_GetNext(selection);
             counter++;
         }
         return counter;
     }
 
-    bool CheckIsCircles(LSelection selectedInital, LPoint * centerPoints)
+    bool ReadSelectedCircleCenters(LSelection selection, LPoint * centerPoints)
     {
         int i = 0;
-        while (selectedInital != NULL)
+        while (selection != NULL)
         {
-            LObject object1 = LSelection_GetObject(selectedInital);
+            LObject object1 = LSelection_GetObject(selection);
             LPoint center = LCircle_GetCenter(object1);
             centerPoints[i] = center;
             if (LObject_GetShape(object1) != 1)
             {
                 return false;
             }
-            selectedInital = LSelection_GetNext(selectedInital);
+            selection = LSelection_GetNext(selection);
             i++;
         }
         return true;
     }
 
-    void DrawCircleAtShapeCenter()
+    /* Two centers define a midpoint. For a larger selection, use the area centroid of the ordered centers. */
+    void DrawCircleAtSelectionCenter()
     {
-        LCell Cell_Now = LCell_GetVisible();
-        LFile File_Now = LCell_GetFile(Cell_Now);
-        LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
+        LLayer outputLayer = PickOutputLayer(LCell_GetVisible());
+        if (outputLayer == NULL)
+            return;
 
-        LSelection selectedInital = LSelection_GetList();
-        int selectedObjectNumber = LSelection_GetNumber(selectedInital);
+        LCell Cell_Now = LCell_GetVisible();
+
+        LSelection selection = LSelection_GetList();
+        int selectedObjectNumber = CountSelectedObjects(selection);
         if (selectedObjectNumber < 2)
         {
             LDialog_AlertBox("Need more than 2 Object");
@@ -175,12 +175,11 @@ module ShapeCenter_Module
         }
         LPoint *centerPoints;
         centerPoints = (LPoint *)malloc((selectedObjectNumber) * sizeof(LPoint));
-        if (!CheckIsCircles(LSelection_GetList(), centerPoints))
+        if (!ReadSelectedCircleCenters(LSelection_GetList(), centerPoints))
         {
             LDialog_AlertBox("All object must be circel");
             return;
         }
-        //****************************Input Params****************************//
         LDialogItem Dialog_Items[1] = {{"Radius (um)", "1"}};
         long radius;
         if (LDialog_MultiLineInputBox("Draw Circle At Shape Center", Dialog_Items, 1))
@@ -191,27 +190,26 @@ module ShapeCenter_Module
         {
             return;
         }
-        //****************************Input Params****************************//
 
         if (selectedObjectNumber == 2)
         {
             long x = (centerPoints[0].x + centerPoints[1].x) / 2;
             long y = (centerPoints[0].y + centerPoints[1].y) / 2;
             LPoint center = LPoint_Set(x, y);
-            LCircle_New(Cell_Now, LLayer_Now, center, radius);
+            LCircle_New(Cell_Now, outputLayer, center, radius);
             return;
         }
 
-        LPoint center = CalculateCentroid(centerPoints, selectedObjectNumber);
-        LCircle_New(Cell_Now, LLayer_Now, center, radius);
+        LPoint center = CalculatePolygonCentroid(centerPoints, selectedObjectNumber);
+        LCircle_New(Cell_Now, outputLayer, center, radius);
 
         LDisplay_Refresh();
     }
 
-    void ShapeCenter_func(void)
+    void RegisterShapeCenterMacros(void)
     {
-        LMacro_Register("DrawCircleAtShapeCenter_func", "DrawCircleAtShapeCenter");
+        LMacro_Register("DrawCircleAtShapeCenter_func", "DrawCircleAtSelectionCenter");
     }
-} /* end of module ShapeCenter_Module */
+} /* End of ShapeCenterMacros. */
 
-ShapeCenter_func();
+RegisterShapeCenterMacros();

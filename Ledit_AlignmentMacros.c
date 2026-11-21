@@ -1,6 +1,5 @@
 /*
- * Alignment_Moudle
- * Alignment_Moudle Marco for Ledit
+ * Align selected layout objects to the bounds or center of the selection.
  *
  * Copyright (c) 2024 muyeyifeng
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,98 +14,99 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-module Alignment_Moudle
+module AlignmentMacros
 {
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-// #include "Ledit_Alignment.h"
 #include "ldata.h" /* Main UPI header. */
 
-	void Alignment_Left();
-	void Alignment_Right();
-	void Alignment_Bottom();
-	void Alignment_Top();
-	void Alignment_Center();
-	void MoveObjectListCenter(long *xLeftTarget, long *xRightTarget, long *yBottomTarget, long *yTopTarget);
-	void MoveObjectListLeft(long *xLeftTarget);
-	void MoveObjectListRight(long *xRightTarget);
-	void MoveObjectListBottom(long *yBottomTarget);
-	void MoveObjectListTop(long *yTopTarget);
-	void MoveObject(LObject selectedObject, long xOffset, long yOffset);
-	void GetObjectListCoordRange(long *xLeft, long *xRight, long *yBottom, long *yTop);
-	void GetObjectCoord(LObject selectedObject, long *xLeft, long *xRight, long *yBottom, long *yTop);
-	void Register_Alignment_func(void);
+	void AlignSelectionLeft();
+	void AlignSelectionRight();
+	void AlignSelectionBottom();
+	void AlignSelectionTop();
+	void AlignSelectionCenters();
+	void MoveSelectionToBoundsCenter(long *xLeftTarget, long *xRightTarget, long *yBottomTarget, long *yTopTarget);
+	void MoveSelectionToLeftEdge(long *xLeftTarget);
+	void MoveSelectionToRightEdge(long *xRightTarget);
+	void MoveSelectionToBottomEdge(long *yBottomTarget);
+	void MoveSelectionToTopEdge(long *yTopTarget);
+	void TranslateObject(LObject selectedObject, long xOffset, long yOffset);
+	void AccumulateSelectionBounds(long *xLeft, long *xRight, long *yBottom, long *yTop);
+	void AccumulateObjectBounds(LObject selectedObject, long *xLeft, long *xRight, long *yBottom, long *yTop);
+	void RegisterAlignmentMacros(void);
 
-	void Alignment_Left()
+	/* Compute one reference boundary from the whole selection before moving any object. */
+	void AlignSelectionLeft()
 	{
-		long *xLeft = WORLD_MAX;
-		long *xRight = -WORLD_MAX;
-		long *yBottom = WORLD_MAX;
-		long *yTop = -WORLD_MAX;
-		GetObjectListCoordRange(&xLeft, &xRight, &yBottom, &yTop);
-		MoveObjectListLeft(&xLeft);
+		long xLeft = WORLD_MAX;
+		long xRight = -WORLD_MAX;
+		long yBottom = WORLD_MAX;
+		long yTop = -WORLD_MAX;
+		AccumulateSelectionBounds(&xLeft, &xRight, &yBottom, &yTop);
+		MoveSelectionToLeftEdge(&xLeft);
 		LDisplay_Refresh();
 	}
 
-	void Alignment_Right()
+	void AlignSelectionRight()
 	{
-		long *xLeft = WORLD_MAX;
-		long *xRight = -WORLD_MAX;
-		long *yBottom = WORLD_MAX;
-		long *yTop = -WORLD_MAX;
-		GetObjectListCoordRange(&xLeft, &xRight, &yBottom, &yTop);
-		MoveObjectListRight(&xRight);
+		long xLeft = WORLD_MAX;
+		long xRight = -WORLD_MAX;
+		long yBottom = WORLD_MAX;
+		long yTop = -WORLD_MAX;
+		AccumulateSelectionBounds(&xLeft, &xRight, &yBottom, &yTop);
+		MoveSelectionToRightEdge(&xRight);
 		LDisplay_Refresh();
 	}
 
-	void Alignment_Bottom()
+	void AlignSelectionBottom()
 	{
-		long *xLeft = WORLD_MAX;
-		long *xRight = -WORLD_MAX;
-		long *yBottom = WORLD_MAX;
-		long *yTop = -WORLD_MAX;
-		GetObjectListCoordRange(&xLeft, &xRight, &yBottom, &yTop);
-		MoveObjectListBottom(&yBottom);
+		long xLeft = WORLD_MAX;
+		long xRight = -WORLD_MAX;
+		long yBottom = WORLD_MAX;
+		long yTop = -WORLD_MAX;
+		AccumulateSelectionBounds(&xLeft, &xRight, &yBottom, &yTop);
+		MoveSelectionToBottomEdge(&yBottom);
 		LDisplay_Refresh();
 	}
 
-	void Alignment_Top()
+	void AlignSelectionTop()
 	{
-		long *xLeft = WORLD_MAX;
-		long *xRight = -WORLD_MAX;
-		long *yBottom = WORLD_MAX;
-		long *yTop = -WORLD_MAX;
-		GetObjectListCoordRange(&xLeft, &xRight, &yBottom, &yTop);
-		MoveObjectListTop(&yTop);
+		long xLeft = WORLD_MAX;
+		long xRight = -WORLD_MAX;
+		long yBottom = WORLD_MAX;
+		long yTop = -WORLD_MAX;
+		AccumulateSelectionBounds(&xLeft, &xRight, &yBottom, &yTop);
+		MoveSelectionToTopEdge(&yTop);
 		LDisplay_Refresh();
 	}
 
-	void Alignment_Center()
+	void AlignSelectionCenters()
 	{
-		long *xLeft = WORLD_MAX;
-		long *xRight = -WORLD_MAX;
-		long *yBottom = WORLD_MAX;
-		long *yTop = -WORLD_MAX;
-		GetObjectListCoordRange(&xLeft, &xRight, &yBottom, &yTop);
-		MoveObjectListCenter(&xLeft, &xRight, &yBottom, &yTop);
+		long xLeft = WORLD_MAX;
+		long xRight = -WORLD_MAX;
+		long yBottom = WORLD_MAX;
+		long yTop = -WORLD_MAX;
+		AccumulateSelectionBounds(&xLeft, &xRight, &yBottom, &yTop);
+		MoveSelectionToBoundsCenter(&xLeft, &xRight, &yBottom, &yTop);
 		LDisplay_Refresh();
 	}
 
-	void MoveObjectListCenter(long *xLeftTarget, long *xRightTarget, long *yBottomTarget, long *yTopTarget)
+	/* Each object moves from its own bounds center to the shared selection center. */
+	void MoveSelectionToBoundsCenter(long *xLeftTarget, long *xRightTarget, long *yBottomTarget, long *yTopTarget)
 	{
 		int counter = 0;
-		LSelection selectedInital = LSelection_GetList();
-		while (selectedInital != NULL)
+		LSelection selection = LSelection_GetList();
+		while (selection != NULL)
 		{
-			LObject selectedObject = LSelection_GetObject(selectedInital);
+			LObject selectedObject = LSelection_GetObject(selection);
 			LShapeType selectedShapeType = LObject_GetShape(selectedObject);
 
-			long *xLeft = WORLD_MAX;
-			long *xRight = -WORLD_MAX;
-			long *yBottom = WORLD_MAX;
-			long *yTop = -WORLD_MAX;
-			GetObjectCoord(selectedObject, &xLeft, &xRight, &yBottom, &yTop); // Function for selectedObject
+			long xLeft = WORLD_MAX;
+			long xRight = -WORLD_MAX;
+			long yBottom = WORLD_MAX;
+			long yTop = -WORLD_MAX;
+			AccumulateObjectBounds(selectedObject, &xLeft, &xRight, &yBottom, &yTop); // Function for selectedObject
 			if (xLeft != WORLD_MAX)
 			{
 				long _xTarget = (*xLeftTarget + *xRightTarget) / 2;
@@ -120,118 +120,119 @@ module Alignment_Moudle
 				long _yT = yTop;
 				long _y = (_yB + _yT) / 2;
 				long yOffset = _yTarget - _y;
-				MoveObject(selectedObject, xOffset, yOffset);
+				TranslateObject(selectedObject, xOffset, yOffset);
 			}
-			selectedInital = LSelection_GetNext(selectedInital);
+			selection = LSelection_GetNext(selection);
 			counter++;
 		}
 	}
 
-	void MoveObjectListLeft(long *xLeftTarget)
+	void MoveSelectionToLeftEdge(long *xLeftTarget)
 	{
 		int counter = 0;
-		LSelection selectedInital = LSelection_GetList();
-		while (selectedInital != NULL)
+		LSelection selection = LSelection_GetList();
+		while (selection != NULL)
 		{
-			LObject selectedObject = LSelection_GetObject(selectedInital);
+			LObject selectedObject = LSelection_GetObject(selection);
 			LShapeType selectedShapeType = LObject_GetShape(selectedObject);
 
-			long *xLeft = WORLD_MAX;
-			long *xRight = -WORLD_MAX;
-			long *yBottom = WORLD_MAX;
-			long *yTop = -WORLD_MAX;
-			GetObjectCoord(selectedObject, &xLeft, &xRight, &yBottom, &yTop); // Function for selectedObject
+			long xLeft = WORLD_MAX;
+			long xRight = -WORLD_MAX;
+			long yBottom = WORLD_MAX;
+			long yTop = -WORLD_MAX;
+			AccumulateObjectBounds(selectedObject, &xLeft, &xRight, &yBottom, &yTop); // Function for selectedObject
 			if (xLeft != WORLD_MAX)
 			{
 				long _xLeftTarget = *xLeftTarget;
 				long _xLeft = xLeft;
 				long xOffset = _xLeftTarget - _xLeft;
-				MoveObject(selectedObject, xOffset, 0);
+				TranslateObject(selectedObject, xOffset, 0);
 			}
-			selectedInital = LSelection_GetNext(selectedInital);
+			selection = LSelection_GetNext(selection);
 			counter++;
 		}
 	}
 
-	void MoveObjectListRight(long *xRightTarget)
+	void MoveSelectionToRightEdge(long *xRightTarget)
 	{
 		int counter = 0;
-		LSelection selectedInital = LSelection_GetList();
-		while (selectedInital != NULL)
+		LSelection selection = LSelection_GetList();
+		while (selection != NULL)
 		{
-			LObject selectedObject = LSelection_GetObject(selectedInital);
+			LObject selectedObject = LSelection_GetObject(selection);
 			LShapeType selectedShapeType = LObject_GetShape(selectedObject);
 
-			long *xLeft = WORLD_MAX;
-			long *xRight = -WORLD_MAX;
-			long *yBottom = WORLD_MAX;
-			long *yTop = -WORLD_MAX;
-			GetObjectCoord(selectedObject, &xLeft, &xRight, &yBottom, &yTop); // Function for selectedObject
+			long xLeft = WORLD_MAX;
+			long xRight = -WORLD_MAX;
+			long yBottom = WORLD_MAX;
+			long yTop = -WORLD_MAX;
+			AccumulateObjectBounds(selectedObject, &xLeft, &xRight, &yBottom, &yTop); // Function for selectedObject
 			if (xRight != WORLD_MAX)
 			{
 				long _xRightTarget = *xRightTarget;
 				long _xRight = xRight;
 				long xOffset = _xRightTarget - _xRight;
-				MoveObject(selectedObject, xOffset, 0);
+				TranslateObject(selectedObject, xOffset, 0);
 			}
-			selectedInital = LSelection_GetNext(selectedInital);
+			selection = LSelection_GetNext(selection);
 			counter++;
 		}
 	}
 
-	void MoveObjectListBottom(long *yBottomTarget)
+	void MoveSelectionToBottomEdge(long *yBottomTarget)
 	{
 		int counter = 0;
-		LSelection selectedInital = LSelection_GetList();
-		while (selectedInital != NULL)
+		LSelection selection = LSelection_GetList();
+		while (selection != NULL)
 		{
-			LObject selectedObject = LSelection_GetObject(selectedInital);
+			LObject selectedObject = LSelection_GetObject(selection);
 			LShapeType selectedShapeType = LObject_GetShape(selectedObject);
 
-			long *xLeft = WORLD_MAX;
-			long *xRight = -WORLD_MAX;
-			long *yBottom = WORLD_MAX;
-			long *yTop = -WORLD_MAX;
-			GetObjectCoord(selectedObject, &xLeft, &xRight, &yBottom, &yTop); // Function for selectedObject
+			long xLeft = WORLD_MAX;
+			long xRight = -WORLD_MAX;
+			long yBottom = WORLD_MAX;
+			long yTop = -WORLD_MAX;
+			AccumulateObjectBounds(selectedObject, &xLeft, &xRight, &yBottom, &yTop); // Function for selectedObject
 			if (yBottom != WORLD_MAX)
 			{
 				long _yBottomTarget = *yBottomTarget;
 				long _yBottom = yBottom;
 				long yOffset = _yBottomTarget - _yBottom;
-				MoveObject(selectedObject, 0, yOffset);
+				TranslateObject(selectedObject, 0, yOffset);
 			}
-			selectedInital = LSelection_GetNext(selectedInital);
+			selection = LSelection_GetNext(selection);
 			counter++;
 		}
 	}
 
-	void MoveObjectListTop(long *yTopTarget)
+	void MoveSelectionToTopEdge(long *yTopTarget)
 	{
 		int counter = 0;
-		LSelection selectedInital = LSelection_GetList();
-		while (selectedInital != NULL)
+		LSelection selection = LSelection_GetList();
+		while (selection != NULL)
 		{
-			LObject selectedObject = LSelection_GetObject(selectedInital);
+			LObject selectedObject = LSelection_GetObject(selection);
 			LShapeType selectedShapeType = LObject_GetShape(selectedObject);
 
-			long *xLeft = WORLD_MAX;
-			long *xRight = -WORLD_MAX;
-			long *yBottom = WORLD_MAX;
-			long *yTop = -WORLD_MAX;
-			GetObjectCoord(selectedObject, &xLeft, &xRight, &yBottom, &yTop); // Function for selectedObject
+			long xLeft = WORLD_MAX;
+			long xRight = -WORLD_MAX;
+			long yBottom = WORLD_MAX;
+			long yTop = -WORLD_MAX;
+			AccumulateObjectBounds(selectedObject, &xLeft, &xRight, &yBottom, &yTop); // Function for selectedObject
 			if (yTop != WORLD_MAX)
 			{
 				long _yTopTarget = *yTopTarget;
 				long _yTop = yTop;
 				long yOffset = _yTopTarget - _yTop;
-				MoveObject(selectedObject, 0, yOffset);
+				TranslateObject(selectedObject, 0, yOffset);
 			}
-			selectedInital = LSelection_GetNext(selectedInital);
+			selection = LSelection_GetNext(selection);
 			counter++;
 		}
 	}
 
-	void MoveObject(LObject selectedObject, long xOffset, long yOffset)
+	/* Translate coordinates in place using the setter for each supported UPI shape. */
+	void TranslateObject(LObject selectedObject, long xOffset, long yOffset)
 	{
 		LCell Cell_Now = LCell_GetVisible();
 		LShapeType selectedShapeType = LObject_GetShape(selectedObject);
@@ -301,22 +302,23 @@ module Alignment_Moudle
 		}
 	}
 
-	void GetObjectListCoordRange(long *xLeft, long *xRight, long *yBottom, long *yTop)
+	void AccumulateSelectionBounds(long *xLeft, long *xRight, long *yBottom, long *yTop)
 	{
 		int counter = 0;
-		LSelection selectedInital = LSelection_GetList();
-		while (selectedInital != NULL)
+		LSelection selection = LSelection_GetList();
+		while (selection != NULL)
 		{
-			LObject selectedObject = LSelection_GetObject(selectedInital);
+			LObject selectedObject = LSelection_GetObject(selection);
 			LShapeType selectedShapeType = LObject_GetShape(selectedObject);
-			GetObjectCoord(selectedObject, xLeft, xRight, yBottom, yTop); // Function for selectedObject xcoord
+			AccumulateObjectBounds(selectedObject, xLeft, xRight, yBottom, yTop); // Function for selectedObject xcoord
 
-			selectedInital = LSelection_GetNext(selectedInital);
+			selection = LSelection_GetNext(selection);
 			counter++;
 		}
 	}
 
-	void GetObjectCoord(LObject selectedObject, long *xLeft, long *xRight, long *yBottom, long *yTop)
+	/* Expand the caller-provided coordinate range to include this object. */
+	void AccumulateObjectBounds(LObject selectedObject, long *xLeft, long *xRight, long *yBottom, long *yTop)
 	{
 		LShapeType selectedShapeType = LObject_GetShape(selectedObject);
 		// Function for selectedObject exmple get the left xcoord
@@ -435,14 +437,35 @@ module Alignment_Moudle
 		}
 	}
 
-	void Register_Alignment_func(void)
+	void AlignSelection(void)
 	{
-		LMacro_Register("Alignment_Left_func", "Alignment_Left");
-		LMacro_Register("Alignment_Right_func", "Alignment_Right");
-		LMacro_Register("Alignment_Bottom_func", "Alignment_Bottom");
-		LMacro_Register("Alignment_Top_func", "Alignment_Top");
-		LMacro_Register("Alignment_Center_func", "Alignment_Center");
+		const char *modes[] = {"Left edges", "Right edges", "Bottom edges", "Top edges", "Centers"};
+		int mode = LDialog_PickList("Align selection", modes, 5, 0);
+		switch (mode)
+		{
+		case 0:
+			AlignSelectionLeft();
+			break;
+		case 1:
+			AlignSelectionRight();
+			break;
+		case 2:
+			AlignSelectionBottom();
+			break;
+		case 3:
+			AlignSelectionTop();
+			break;
+		case 4:
+			AlignSelectionCenters();
+			break;
+		}
 	}
-} /* end of module Alignment_Moudle*/
 
-Register_Alignment_func();
+	void RegisterAlignmentMacros(void)
+	{
+		LMacro_Register("Align_Selection_func", "AlignSelection");
+	}
+
+} /* End of AlignmentMacros. */
+
+RegisterAlignmentMacros();

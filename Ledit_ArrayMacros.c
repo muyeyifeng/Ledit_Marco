@@ -1,6 +1,5 @@
 /*
- * Array_Module
- * Array_Module Marco for Ledit
+ * Copy, rotate, and mirror layout objects and place them in linear, circular, or hexagonal arrays.
  *
  * Copyright (c) 2024 muyeyifeng
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,58 +15,60 @@
  * limitations under the License.
  */
 
-module Array_Module
+module ArrayMacros
 {
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-// #include "Ledit_Array.h"
 #include "ldata.h" /* Main UPI header. */
+#include "Ledit_OutputLayer.h"
 
-	void MirrorObjectsByPointAndRad();
-	LObject Mirror_Rect(LObject selectRect, LPoint mirrorPoint, double rad);
-	LObject Mirror_Circle(LObject selectCircle, LPoint mirrorPoint, double rad);
-	LObject Mirror_Polygon(LObject selectPolygon, LPoint mirrorPoint, double rad);
-	LObject Mirror_Torus(LObject selectTorus, LPoint mirrorPoint, double rad);
-	LObject Mirror_Pie(LObject selectPie, LPoint mirrorPoint, double rad);
-	LObject MirrorObject(LObject selectedObject, LPoint mirrorPoint, double rad, int keep);
-	void RotateObjectsByPoint();
-	LObject Rotate_Rect(LObject selectRect, LPoint rotateCenter, double rad);
-	LObject Rotate_Circle(LObject selectCircle, LPoint rotateCenter, double rad);
-	LObject Rotate_Polygon(LObject selectPolygon, LPoint rotateCenter, double rad);
-	LObject Rotate_Torus(LObject selectTorus, LPoint rotateCenter, double rad);
-	LObject Rotate_Pie(LObject selectPie, LPoint rotateCenter, double rad);
-	LObject RotateObject(LObject selectedObject, LPoint rotateCenter, double rad, int keep);
-	void ArrayByRingSetRad();
-	void ArrayByRingSetDistance();
-	void ArrayInObjectByRing();
-	void ArrayInObjectByDistanceHexagon();
-	void _ArrayInObjectByDistanceHexagon(LPoint * *points, int *num, long *_distance);
-	int LSelection_GetNumber(LSelection selectedInital);
-	void ArrayByEdgeDistanceOneDimension();
-	void CopySelectedObjectsByEdgeDistance(int arrayNumber, long distance, double deg);
-	int CalculateOffset(LObject selectedObject, long distance, double rad, double *offset);
-	void ArrayByOffsetOneDimension();
-	void CopySelectedObjects(int arrayNumber, double xOffset, double yOffset);
-	LObject Copy_Rect(LObject originObject, long xOffset, long yOffset);
-	LObject Copy_Circle(LObject originObject, long xOffset, long yOffset);
-	LObject Copy_Polygon(LObject originObject, long xOffset, long yOffset);
-	LObject Copy_Torus(LObject originObject, long xOffset, long yOffset);
-	LObject Copy_Pie(LObject originObject, long xOffset, long yOffset);
-	LObject CopyObject(LObject selectedObject, long xOffset, long yOffset);
-	void GetObjectCoord(LObject selectedObject, long *box);
-	double GetPointDistance(LPoint point1, LPoint point2);
+	void MirrorSelectionAcrossLine();
+	LObject MirrorRectangle(LLayer outputLayer, LObject selectRect, LPoint mirrorPoint, double rad);
+	LObject MirrorCircle(LLayer outputLayer, LObject selectCircle, LPoint mirrorPoint, double rad);
+	LObject MirrorPolygon(LLayer outputLayer, LObject selectPolygon, LPoint mirrorPoint, double rad);
+	LObject MirrorTorus(LLayer outputLayer, LObject selectTorus, LPoint mirrorPoint, double rad);
+	LObject MirrorPie(LLayer outputLayer, LObject selectPie, LPoint mirrorPoint, double rad);
+	LObject MirrorObject(LLayer outputLayer, LObject selectedObject, LPoint mirrorPoint, double rad, int keep);
+	void RotateSelectionAboutPoint();
+	LObject RotateRectangle(LLayer outputLayer, LObject selectRect, LPoint rotateCenter, double rad);
+	LObject RotateCircle(LLayer outputLayer, LObject selectCircle, LPoint rotateCenter, double rad);
+	LObject RotatePolygon(LLayer outputLayer, LObject selectPolygon, LPoint rotateCenter, double rad);
+	LObject RotateTorus(LLayer outputLayer, LObject selectTorus, LPoint rotateCenter, double rad);
+	LObject RotatePie(LLayer outputLayer, LObject selectPie, LPoint rotateCenter, double rad);
+	LObject RotateObject(LLayer outputLayer, LObject selectedObject, LPoint rotateCenter, double rad, int keep);
+	void CreateRingArrayByAngle();
+	void CreateRingArrayBySpacing();
+	void FillShapeWithConcentricRings();
+	void FillShapeWithHexagonalArray();
+	int CountSelectedObjects(LSelection selection);
+	void CreateLinearArrayByEdgeSpacing();
+	void CopySelectionByEdgeSpacing(LLayer outputLayer, int arrayNumber, long distance, double deg);
+	int CalculateEdgeSpacingOffset(LObject selectedObject, long distance, double rad, double *offset);
+	void CreateLinearArrayByOffset();
+	void CopySelectionByOffset(LLayer outputLayer, int arrayNumber, double xOffset, double yOffset);
+	LObject CopyRectangle(LLayer outputLayer, LObject originObject, long xOffset, long yOffset);
+	LObject CopyCircle(LLayer outputLayer, LObject originObject, long xOffset, long yOffset);
+	LObject CopyPolygon(LLayer outputLayer, LObject originObject, long xOffset, long yOffset);
+	LObject CopyTorus(LLayer outputLayer, LObject originObject, long xOffset, long yOffset);
+	LObject CopyPie(LLayer outputLayer, LObject originObject, long xOffset, long yOffset);
+	LObject CopyObject(LLayer outputLayer, LObject selectedObject, long xOffset, long yOffset);
+	void AccumulateObjectBounds(LObject selectedObject, long *box);
+	double DistanceBetweenPoints(LPoint point1, LPoint point2);
 	double CalculatePolarAngle(LPoint p1, LPoint p2);
 	LPoint RotatePoint(LPoint p1, LPoint p2, double rad);
-	LPoint MirrorCoordinates(LPoint p, LPoint linePoint, double rad);
-	void Diffusion_Selected_Object_ByOffset();
-	void Diffusion_Selected_Object_ByRadius();
-	void Array_func(void);
+	LPoint ReflectPointAcrossLine(LPoint p, LPoint linePoint, double rad);
+	void CopySelectionByRadialOffset();
+	void CopySelectionToRadius();
+	void RegisterArrayMacros(void);
 
-	void MirrorObjectsByPointAndRad()
+	void MirrorSelectionAcrossLine()
 	{
-		//****************************Input Params****************************//
+		LLayer outputLayer = PickOutputLayer(LCell_GetVisible());
+		if (outputLayer == NULL)
+			return;
+
 		LDialogItem Dialog_Items[4] = {{"Mirror Center X Coordinate (um)", "0"},
 									   {"Mirror Center Y Coordinate (um)", "0"},
 									   {"Mirror Degree (0-180)", "0"},
@@ -87,55 +88,51 @@ module Array_Module
 		{
 			return;
 		}
-		//****************************Input Params****************************//
 		double rad = rotate * M_PI / 180;
 		int counter = 0;
-		LSelection selectedInital = LSelection_GetList();
-		while (selectedInital != NULL)
+		LSelection selection = LSelection_GetList();
+		while (selection != NULL)
 		{
-			LObject selectedObject = LSelection_GetObject(selectedInital);
+			LObject selectedObject = LSelection_GetObject(selection);
 
 			LPoint mirrorPoint = LPoint_Set(xcoord, ycoord);
-			MirrorObject(selectedObject, mirrorPoint, rad, keep);
-			selectedInital = LSelection_GetNext(selectedInital);
+			MirrorObject(outputLayer, selectedObject, mirrorPoint, rad, keep);
+			selection = LSelection_GetNext(selection);
 			counter++;
 		}
 		LDisplay_Refresh();
 	}
 
-	LObject Mirror_Rect(LObject selectRect, LPoint mirrorPoint, double rad)
+	LObject MirrorRectangle(LLayer outputLayer, LObject selectRect, LPoint mirrorPoint, double rad)
 	{
 		LCell Cell_Now = LCell_GetVisible();
-		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, selectRect);
 		LRect rect = LBox_GetRect(selectRect);
 		LPoint p1 = LPoint_Set(rect.x0, rect.y0);
 		LPoint p2 = LPoint_Set(rect.x0, rect.y1);
 		LPoint p3 = LPoint_Set(rect.x1, rect.y1);
 		LPoint p4 = LPoint_Set(rect.x1, rect.y0);
 		LPoint points[4];
-		points[0] = MirrorCoordinates(p1, mirrorPoint, rad);
-		points[1] = MirrorCoordinates(p2, mirrorPoint, rad);
-		points[2] = MirrorCoordinates(p3, mirrorPoint, rad);
-		points[3] = MirrorCoordinates(p4, mirrorPoint, rad);
-		return LPolygon_New(Cell_Now, LLayer_Now, points, 4);
+		points[0] = ReflectPointAcrossLine(p1, mirrorPoint, rad);
+		points[1] = ReflectPointAcrossLine(p2, mirrorPoint, rad);
+		points[2] = ReflectPointAcrossLine(p3, mirrorPoint, rad);
+		points[3] = ReflectPointAcrossLine(p4, mirrorPoint, rad);
+		return LPolygon_New(Cell_Now, outputLayer, points, 4);
 	}
 
-	LObject Mirror_Circle(LObject selectCircle, LPoint mirrorPoint, double rad)
+	LObject MirrorCircle(LLayer outputLayer, LObject selectCircle, LPoint mirrorPoint, double rad)
 	{
 		LCell Cell_Now = LCell_GetVisible();
-		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, selectCircle);
 		LPoint center = LCircle_GetCenter(selectCircle);
 		LCoord r = LCircle_GetRadius(selectCircle);
 
-		LPoint newPoint = MirrorCoordinates(center, mirrorPoint, rad);
+		LPoint newPoint = ReflectPointAcrossLine(center, mirrorPoint, rad);
 
-		return LCircle_New(Cell_Now, LLayer_Now, newPoint, r);
+		return LCircle_New(Cell_Now, outputLayer, newPoint, r);
 	}
 
-	LObject Mirror_Polygon(LObject selectPolygon, LPoint mirrorPoint, double rad)
+	LObject MirrorPolygon(LLayer outputLayer, LObject selectPolygon, LPoint mirrorPoint, double rad)
 	{
 		LCell Cell_Now = LCell_GetVisible();
-		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, selectPolygon);
 		LVertex vertex = LObject_GetVertexList(selectPolygon);
 		long cnt = LVertex_GetCount(selectPolygon);
 		LPoint *points;
@@ -144,18 +141,17 @@ module Array_Module
 		while (vertex != NULL)
 		{
 			LPoint point = LVertex_GetPoint(vertex);
-			LPoint newPoint = MirrorCoordinates(point, mirrorPoint, rad);
+			LPoint newPoint = ReflectPointAcrossLine(point, mirrorPoint, rad);
 			points[j] = newPoint;
 			j++;
 			vertex = LVertex_GetNext(vertex);
 		}
-		return LPolygon_New(Cell_Now, LLayer_Now, points, cnt);
+		return LPolygon_New(Cell_Now, outputLayer, points, cnt);
 	}
 
-	LObject Mirror_Torus(LObject selectTorus, LPoint mirrorPoint, double rad)
+	LObject MirrorTorus(LLayer outputLayer, LObject selectTorus, LPoint mirrorPoint, double rad)
 	{
 		LCell Cell_Now = LCell_GetVisible();
-		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, selectTorus);
 		LTorusParams tParams;
 		LStatus lStatus = LTorus_GetParams(selectTorus, &tParams);
 		if (lStatus == 0)
@@ -163,7 +159,7 @@ module Array_Module
 			/* Define parameters for a torus */
 			LTorusParams _tParams;
 
-			LPoint newPoint = MirrorCoordinates(tParams.ptCenter, mirrorPoint, rad);
+			LPoint newPoint = ReflectPointAcrossLine(tParams.ptCenter, mirrorPoint, rad);
 
 			_tParams.ptCenter = newPoint;
 			_tParams.nInnerRadius = tParams.nInnerRadius;
@@ -176,21 +172,20 @@ module Array_Module
 
 			_tParams.dStartAngle = 2 * rad * 180 / M_PI - startAngle - angle;
 			_tParams.dStopAngle = 2 * rad * 180 / M_PI - startAngle;
-			return LTorus_CreateNew(Cell_Now, LLayer_Now, &_tParams);
+			return LTorus_CreateNew(Cell_Now, outputLayer, &_tParams);
 		}
 		return NULL;
 	}
 
-	LObject Mirror_Pie(LObject selectPie, LPoint mirrorPoint, double rad)
+	LObject MirrorPie(LLayer outputLayer, LObject selectPie, LPoint mirrorPoint, double rad)
 	{
 		LCell Cell_Now = LCell_GetVisible();
-		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, selectPie);
 		LPieParams pParams;
 		LStatus lStatus = LPie_GetParams(selectPie, &pParams);
 		if (lStatus == 0)
 		{
 			LPieParams _pParams;
-			LPoint newPoint = MirrorCoordinates(pParams.ptCenter, mirrorPoint, rad);
+			LPoint newPoint = ReflectPointAcrossLine(pParams.ptCenter, mirrorPoint, rad);
 
 			_pParams.ptCenter = newPoint;
 			_pParams.nRadius = pParams.nRadius;
@@ -202,12 +197,12 @@ module Array_Module
 
 			_pParams.dStartAngle = 2 * rad * 180 / M_PI - startAngle - angle;
 			_pParams.dStopAngle = 2 * rad * 180 / M_PI - startAngle;
-			return LPie_CreateNew(Cell_Now, LLayer_Now, &_pParams);
+			return LPie_CreateNew(Cell_Now, outputLayer, &_pParams);
 		}
 		return NULL;
 	}
 
-	LObject MirrorObject(LObject selectedObject, LPoint mirrorPoint, double rad, int keep)
+	LObject MirrorObject(LLayer outputLayer, LObject selectedObject, LPoint mirrorPoint, double rad, int keep)
 	{
 		LShapeType selectedShapeType = LObject_GetShape(selectedObject);
 
@@ -215,23 +210,23 @@ module Array_Module
 		{
 		case 0: // LBox
 		{
-			return Mirror_Rect(selectedObject, mirrorPoint, rad);
+			return MirrorRectangle(outputLayer, selectedObject, mirrorPoint, rad);
 		}
 		case 1: // LCircle
 		{
-			return Mirror_Circle(selectedObject, mirrorPoint, rad);
+			return MirrorCircle(outputLayer, selectedObject, mirrorPoint, rad);
 		}
 		case 3: // LPolygon
 		{
-			return Mirror_Polygon(selectedObject, mirrorPoint, rad);
+			return MirrorPolygon(outputLayer, selectedObject, mirrorPoint, rad);
 		}
 		case 4: // LTorus
 		{
-			return Mirror_Torus(selectedObject, mirrorPoint, rad);
+			return MirrorTorus(outputLayer, selectedObject, mirrorPoint, rad);
 		}
 		case 5: // LPie
 		{
-			return Mirror_Pie(selectedObject, mirrorPoint, rad);
+			return MirrorPie(outputLayer, selectedObject, mirrorPoint, rad);
 		}
 		default:
 			return NULL;
@@ -241,9 +236,12 @@ module Array_Module
 			LObject_Delete(Cell_Now, selectedObject);
 	}
 
-	void RotateObjectsByPoint()
+	void RotateSelectionAboutPoint()
 	{
-		//****************************Input Params****************************//
+		LLayer outputLayer = PickOutputLayer(LCell_GetVisible());
+		if (outputLayer == NULL)
+			return;
+
 		LDialogItem Dialog_Items[4] = {{"Rotate Center X Coordinate (um)", "0"},
 									   {"Rotate Center Y Coordinate (um)", "0"},
 									   {"Rotate degree (0-360)", "0"},
@@ -263,27 +261,25 @@ module Array_Module
 		{
 			return;
 		}
-		//****************************Input Params****************************//
 		double rad = rotate * M_PI / 180;
 
 		int counter = 0;
-		LSelection selectedInital = LSelection_GetList();
-		while (selectedInital != NULL)
+		LSelection selection = LSelection_GetList();
+		while (selection != NULL)
 		{
-			LObject selectedObject = LSelection_GetObject(selectedInital);
+			LObject selectedObject = LSelection_GetObject(selection);
 
 			LPoint rotateCenter = LPoint_Set(xcoord, ycoord);
-			RotateObject(selectedObject, rotateCenter, rad, keep);
-			selectedInital = LSelection_GetNext(selectedInital);
+			RotateObject(outputLayer, selectedObject, rotateCenter, rad, keep);
+			selection = LSelection_GetNext(selection);
 			counter++;
 		}
 		LDisplay_Refresh();
 	}
 
-	LObject Rotate_Rect(LObject selectRect, LPoint rotateCenter, double rad)
+	LObject RotateRectangle(LLayer outputLayer, LObject selectRect, LPoint rotateCenter, double rad)
 	{
 		LCell Cell_Now = LCell_GetVisible();
-		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, selectRect);
 		LRect rect = LBox_GetRect(selectRect);
 
 		LPoint p1 = LPoint_Set(rect.x0, rect.y0);
@@ -295,25 +291,23 @@ module Array_Module
 		points[1] = RotatePoint(p2, rotateCenter, rad);
 		points[2] = RotatePoint(p3, rotateCenter, rad);
 		points[3] = RotatePoint(p4, rotateCenter, rad);
-		return LPolygon_New(Cell_Now, LLayer_Now, points, 4);
+		return LPolygon_New(Cell_Now, outputLayer, points, 4);
 	}
 
-	LObject Rotate_Circle(LObject selectCircle, LPoint rotateCenter, double rad)
+	LObject RotateCircle(LLayer outputLayer, LObject selectCircle, LPoint rotateCenter, double rad)
 	{
 		LCell Cell_Now = LCell_GetVisible();
-		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, selectCircle);
 		LPoint center = LCircle_GetCenter(selectCircle);
 		LCoord r = LCircle_GetRadius(selectCircle);
 
 		LPoint newPoint = RotatePoint(center, rotateCenter, rad);
 
-		return LCircle_New(Cell_Now, LLayer_Now, newPoint, r);
+		return LCircle_New(Cell_Now, outputLayer, newPoint, r);
 	}
 
-	LObject Rotate_Polygon(LObject selectPolygon, LPoint rotateCenter, double rad)
+	LObject RotatePolygon(LLayer outputLayer, LObject selectPolygon, LPoint rotateCenter, double rad)
 	{
 		LCell Cell_Now = LCell_GetVisible();
-		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, selectPolygon);
 		LVertex vertex = LObject_GetVertexList(selectPolygon);
 		long cnt = LVertex_GetCount(selectPolygon);
 		LPoint *points;
@@ -328,13 +322,12 @@ module Array_Module
 			j++;
 			vertex = LVertex_GetNext(vertex);
 		}
-		return LPolygon_New(Cell_Now, LLayer_Now, points, cnt);
+		return LPolygon_New(Cell_Now, outputLayer, points, cnt);
 	}
 
-	LObject Rotate_Torus(LObject selectTorus, LPoint rotateCenter, double rad)
+	LObject RotateTorus(LLayer outputLayer, LObject selectTorus, LPoint rotateCenter, double rad)
 	{
 		LCell Cell_Now = LCell_GetVisible();
-		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, selectTorus);
 		LTorusParams tParams;
 		LStatus lStatus = LTorus_GetParams(selectTorus, &tParams);
 		if (lStatus == 0)
@@ -350,15 +343,14 @@ module Array_Module
 
 			_tParams.dStartAngle = tParams.dStartAngle + rad * 180 / M_PI;
 			_tParams.dStopAngle = tParams.dStopAngle + rad * 180 / M_PI;
-			return LTorus_CreateNew(Cell_Now, LLayer_Now, &_tParams);
+			return LTorus_CreateNew(Cell_Now, outputLayer, &_tParams);
 		}
 		return NULL;
 	}
 
-	LObject Rotate_Pie(LObject selectPie, LPoint rotateCenter, double rad)
+	LObject RotatePie(LLayer outputLayer, LObject selectPie, LPoint rotateCenter, double rad)
 	{
 		LCell Cell_Now = LCell_GetVisible();
-		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, selectPie);
 		LPieParams pParams;
 		LStatus lStatus = LPie_GetParams(selectPie, &pParams);
 		if (lStatus == 0)
@@ -371,12 +363,12 @@ module Array_Module
 
 			_pParams.dStartAngle = pParams.dStartAngle + rad * 180 / M_PI;
 			_pParams.dStopAngle = pParams.dStopAngle + rad * 180 / M_PI;
-			return LPie_CreateNew(Cell_Now, LLayer_Now, &_pParams);
+			return LPie_CreateNew(Cell_Now, outputLayer, &_pParams);
 		}
 		return NULL;
 	}
 
-	LObject RotateObject(LObject selectedObject, LPoint rotateCenter, double rad, int keep)
+	LObject RotateObject(LLayer outputLayer, LObject selectedObject, LPoint rotateCenter, double rad, int keep)
 	{
 
 		LShapeType selectedShapeType = LObject_GetShape(selectedObject);
@@ -385,23 +377,23 @@ module Array_Module
 		{
 		case 0: // LBox
 		{
-			return Rotate_Rect(selectedObject, rotateCenter, rad);
+			return RotateRectangle(outputLayer, selectedObject, rotateCenter, rad);
 		}
 		case 1: // LCircle
 		{
-			return Rotate_Circle(selectedObject, rotateCenter, rad);
+			return RotateCircle(outputLayer, selectedObject, rotateCenter, rad);
 		}
 		case 3: // LPolygon
 		{
-			return Rotate_Polygon(selectedObject, rotateCenter, rad);
+			return RotatePolygon(outputLayer, selectedObject, rotateCenter, rad);
 		}
 		case 4: // LTorus
 		{
-			return Rotate_Torus(selectedObject, rotateCenter, rad);
+			return RotateTorus(outputLayer, selectedObject, rotateCenter, rad);
 		}
 		case 5: // LPie
 		{
-			return Rotate_Pie(selectedObject, rotateCenter, rad);
+			return RotatePie(outputLayer, selectedObject, rotateCenter, rad);
 		}
 		default:
 			return NULL;
@@ -412,23 +404,27 @@ module Array_Module
 			LObject_Delete(Cell_Now, selectedObject);
 	}
 
-	void ArrayByRingSetRad()
+	/* Use the selected circle center as the origin of the polar array. */
+	void CreateRingArrayByAngle()
 	{
-		LSelection selectedInital = LSelection_GetList();
-		int selectedObjectNumber = LSelection_GetNumber(selectedInital);
+		LLayer outputLayer = PickOutputLayer(LCell_GetVisible());
+		if (outputLayer == NULL)
+			return;
+
+		LSelection selection = LSelection_GetList();
+		int selectedObjectNumber = CountSelectedObjects(selection);
 		if (selectedObjectNumber != 1)
 		{
 			LDialog_AlertBox("Just Support 1 Object");
 			return;
 		}
-		LObject object1 = LSelection_GetObject(selectedInital);
+		LObject object1 = LSelection_GetObject(selection);
 		if (LObject_GetShape(object1) != 1)
 		{
 			LDialog_AlertBox("Just Support Circle Object Array");
 			return;
 		}
 
-		//****************************Input Params****************************//
 		LDialogItem Dialog_Items[3] = {{"Array Degree Offset (0-360)", "0"},
 									   {"Array Start Dimension deg (0-360)", "0"},
 									   {"Ring Radius(um)", "1"}};
@@ -445,11 +441,7 @@ module Array_Module
 		{
 			return;
 		}
-		//****************************Input Params****************************//
 		double rad = deg * M_PI / 180;
-		LCell Cell_Now = LCell_GetVisible();
-
-		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, object1);
 
 		LPoint center = LCircle_GetCenter(object1);
 		LCoord r = LCircle_GetRadius(object1);
@@ -461,28 +453,31 @@ module Array_Module
 		{
 			int yOffset = radius * sin(rad + rad_offset * j);
 			int xOffset = radius * cos(rad + rad_offset * j);
-			CopyObject(object1, xOffset, yOffset);
+			CopyObject(outputLayer, object1, xOffset, yOffset);
 		}
 		LDisplay_Refresh();
 	}
 
-	void ArrayByRingSetDistance()
+	void CreateRingArrayBySpacing()
 	{
-		LSelection selectedInital = LSelection_GetList();
-		int selectedObjectNumber = LSelection_GetNumber(selectedInital);
+		LLayer outputLayer = PickOutputLayer(LCell_GetVisible());
+		if (outputLayer == NULL)
+			return;
+
+		LSelection selection = LSelection_GetList();
+		int selectedObjectNumber = CountSelectedObjects(selection);
 		if (selectedObjectNumber != 1)
 		{
 			LDialog_AlertBox("Just Support 1 Object");
 			return;
 		}
-		LObject object1 = LSelection_GetObject(selectedInital);
+		LObject object1 = LSelection_GetObject(selection);
 		if (LObject_GetShape(object1) != 1)
 		{
 			LDialog_AlertBox("Just Support Circle Object Array");
 			return;
 		}
 
-		//****************************Input Params****************************//
 		LDialogItem Dialog_Items[4] = {{"Array Edge Distance(um)", "1"},
 									   {"Array Start Dimension deg (0-360)", "0"},
 									   {"Ring Radius(um)", "1"},
@@ -502,10 +497,7 @@ module Array_Module
 		{
 			return;
 		}
-		//****************************Input Params****************************//
 		double rad = deg * M_PI / 180;
-		LCell Cell_Now = LCell_GetVisible();
-		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, object1);
 
 		LPoint center = LCircle_GetCenter(object1);
 		LCoord r = LCircle_GetRadius(object1);
@@ -528,24 +520,29 @@ module Array_Module
 		{
 			int yOffset = radius * sin(rad + rad_offset * j);
 			int xOffset = radius * cos(rad + rad_offset * j);
-			CopyObject(object1, xOffset, yOffset);
+			CopyObject(outputLayer, object1, xOffset, yOffset);
 		}
 		LDisplay_Refresh();
 	}
 
-	void ArrayInObjectByRing()
+	/* Use the smaller selected object as the repeated circle and the larger object as the boundary. */
+	void FillShapeWithConcentricRings()
 	{
-		LSelection selectedInital = LSelection_GetList();
-		int selectedObjectNumber = LSelection_GetNumber(selectedInital);
+		LLayer outputLayer = PickOutputLayer(LCell_GetVisible());
+		if (outputLayer == NULL)
+			return;
+
+		LSelection selection = LSelection_GetList();
+		int selectedObjectNumber = CountSelectedObjects(selection);
 		if (selectedObjectNumber != 2)
 		{
 			LDialog_AlertBox("Just Support 2 Object");
 			return;
 		}
 
-		LObject object1 = LSelection_GetObject(selectedInital);
-		selectedInital = LSelection_GetNext(selectedInital);
-		LObject object2 = LSelection_GetObject(selectedInital);
+		LObject object1 = LSelection_GetObject(selection);
+		selection = LSelection_GetNext(selection);
+		LObject object2 = LSelection_GetObject(selection);
 
 		double area1 = LObject_Area(object1);
 		double area2 = LObject_Area(object2);
@@ -559,7 +556,6 @@ module Array_Module
 			return;
 		}
 
-		//****************************Input Params****************************//
 		LDialogItem Dialog_Items[2] = {{"Array Edge Distance(um)", "1"},
 									   {"Array Start Dimension deg (0-360)", "0"}};
 		long distance;
@@ -573,20 +569,17 @@ module Array_Module
 		{
 			return;
 		}
-		//****************************Input Params****************************//
 
 		double rad = deg * M_PI / 180;
 		LCell Cell_Now = LCell_GetVisible();
 		LFile File_Now = LCell_GetFile(Cell_Now);
-
-		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, smallerObject);
 
 		long box[4];
 		box[0] = WORLD_MAX;	 // x0
 		box[1] = WORLD_MAX;	 // y0
 		box[2] = -WORLD_MAX; // x1
 		box[3] = -WORLD_MAX; // y1
-		GetObjectCoord(biggerObject, box);
+		AccumulateObjectBounds(biggerObject, box);
 		LPoint center = LCircle_GetCenter(smallerObject);
 		LCoord r = LCircle_GetRadius(smallerObject);
 		if (2 * r + distance <= 0)
@@ -594,10 +587,10 @@ module Array_Module
 			LDialog_AlertBox("Value of 'distance' error");
 			return;
 		}
-		double distance1 = GetPointDistance(center, LPoint_Set(box[0], box[1])); // x0 y0
-		double distance2 = GetPointDistance(center, LPoint_Set(box[0], box[3])); // x0 y1
-		double distance3 = GetPointDistance(center, LPoint_Set(box[2], box[1])); // x1 y0
-		double distance4 = GetPointDistance(center, LPoint_Set(box[2], box[3])); // x1 y1
+		double distance1 = DistanceBetweenPoints(center, LPoint_Set(box[0], box[1])); // x0 y0
+		double distance2 = DistanceBetweenPoints(center, LPoint_Set(box[0], box[3])); // x0 y1
+		double distance3 = DistanceBetweenPoints(center, LPoint_Set(box[2], box[1])); // x1 y0
+		double distance4 = DistanceBetweenPoints(center, LPoint_Set(box[2], box[3])); // x1 y1
 
 		// long time long too big, convert to double to calculate
 		double radius_max = max(max(distance1, distance2), max(distance3, distance4));
@@ -618,39 +611,31 @@ module Array_Module
 				long center_y = center.y + yOffset;
 				LPoint centerOffset = LPoint_Set((long)center_x, (long)center_y);
 				if (LObject_DistanceToPoint(biggerObject, centerOffset, File_Now) < 0)
-					LCircle_New(Cell_Now, LLayer_Now, centerOffset, r);
+					LCircle_New(Cell_Now, outputLayer, centerOffset, r);
 			}
 		}
 
 		LDisplay_Refresh();
 	}
 
-	void ArrayInObjectByDistanceHexagon()
+	/* Generate staggered rows around the seed circle and keep centers inside the selected boundary. */
+	void FillShapeWithHexagonalArray()
 	{
-		LPoint *points = NULL;
-		int *num = 0;
-		long *_distance = 0;
-		_ArrayInObjectByDistanceHexagon(&points, &num, &_distance);
-		LDisplay_Refresh();
-	}
+		LLayer outputLayer = PickOutputLayer(LCell_GetVisible());
+		if (outputLayer == NULL)
+			return;
 
-	void _ArrayInObjectByDistanceHexagon(LPoint * *points, int *num, long *_distance)
-	{
-		// Dynamic size
-		int initalSize = 100;
-		*points = (LPoint *)malloc(initalSize * sizeof(LPoint));
-
-		LSelection selectedInital = LSelection_GetList();
-		int selectedObjectNumber = LSelection_GetNumber(selectedInital);
+		LSelection selection = LSelection_GetList();
+		int selectedObjectNumber = CountSelectedObjects(selection);
 		if (selectedObjectNumber != 2)
 		{
 			LDialog_AlertBox("Just Support 2 Object");
 			return;
 		}
 
-		LObject object1 = LSelection_GetObject(selectedInital);
-		selectedInital = LSelection_GetNext(selectedInital);
-		LObject object2 = LSelection_GetObject(selectedInital);
+		LObject object1 = LSelection_GetObject(selection);
+		selection = LSelection_GetNext(selection);
+		LObject object2 = LSelection_GetObject(selection);
 
 		double area1 = LObject_Area(object1);
 		double area2 = LObject_Area(object2);
@@ -664,32 +649,27 @@ module Array_Module
 			return;
 		}
 
-		//****************************Input Params****************************//
 		LDialogItem Dialog_Items[1] = {{"Array Edge Distance(um)", "1"}};
 		long distance;
 		double deg = 60;
 		if (LDialog_MultiLineInputBox("Hexagon Properties", Dialog_Items, 1))
 		{
 			distance = (long)(atof(Dialog_Items[0].value) * 1000); // get the distance
-			*_distance = distance;
 		}
 		else
 		{
 			return;
 		}
-		//****************************Input Params****************************//
 		double rad = deg * M_PI / 180;
 		LCell Cell_Now = LCell_GetVisible();
 		LFile File_Now = LCell_GetFile(Cell_Now);
-
-		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, smallerObject);
 
 		long box[4];
 		box[0] = WORLD_MAX;	 // x0
 		box[1] = WORLD_MAX;	 // y0
 		box[2] = -WORLD_MAX; // x1
 		box[3] = -WORLD_MAX; // y1
-		GetObjectCoord(biggerObject, box);
+		AccumulateObjectBounds(biggerObject, box);
 		LPoint center = LCircle_GetCenter(smallerObject);
 		LCoord r = LCircle_GetRadius(smallerObject);
 		if (2 * r + distance <= 0)
@@ -716,14 +696,7 @@ module Array_Module
 				LPoint centerOffset = LPoint_Set((long)center_x, (long)center_y);
 				if (LObject_DistanceToPoint(biggerObject, centerOffset, File_Now) < 0)
 				{
-					LCircle_New(Cell_Now, LLayer_Now, centerOffset, r);
-					(*points)[*num] = centerOffset;
-					(*num) = (*num) + 1;
-					if (*num > initalSize / 2)
-					{
-						initalSize *= 2;
-						*points = (LPoint *)realloc(*points, initalSize * sizeof(LPoint));
-					}
+					LCircle_New(Cell_Now, outputLayer, centerOffset, r);
 				}
 				m++;
 			}
@@ -746,14 +719,7 @@ module Array_Module
 				LPoint centerOffset = LPoint_Set((long)center_x, (long)center_y);
 				if (LObject_DistanceToPoint(biggerObject, centerOffset, File_Now) < 0)
 				{
-					LCircle_New(Cell_Now, LLayer_Now, centerOffset, r);
-					(*points)[*num] = centerOffset;
-					(*num) = (*num) + 1;
-					if (*num > initalSize / 2)
-					{
-						initalSize *= 2;
-						*points = (LPoint *)realloc(*points, initalSize * sizeof(LPoint));
-					}
+					LCircle_New(Cell_Now, outputLayer, centerOffset, r);
 				}
 				m++;
 			}
@@ -780,14 +746,7 @@ module Array_Module
 				LPoint centerOffset = LPoint_Set((long)center_x, (long)center_y);
 				if (LObject_DistanceToPoint(biggerObject, centerOffset, File_Now) < 0)
 				{
-					LCircle_New(Cell_Now, LLayer_Now, centerOffset, r);
-					(*points)[*num] = centerOffset;
-					(*num) = (*num) + 1;
-					if (*num > initalSize / 2)
-					{
-						initalSize *= 2;
-						*points = (LPoint *)realloc(*points, initalSize * sizeof(LPoint));
-					}
+					LCircle_New(Cell_Now, outputLayer, centerOffset, r);
 				}
 				m++;
 			}
@@ -814,36 +773,32 @@ module Array_Module
 				LPoint centerOffset = LPoint_Set((long)center_x, (long)center_y);
 				if (LObject_DistanceToPoint(biggerObject, centerOffset, File_Now) < 0)
 				{
-					LCircle_New(Cell_Now, LLayer_Now, centerOffset, r);
-					(*points)[*num] = centerOffset;
-					(*num) = (*num) + 1;
-					if (*num > initalSize / 2)
-					{
-						initalSize *= 2;
-						*points = (LPoint *)realloc(*points, initalSize * sizeof(LPoint));
-					}
+					LCircle_New(Cell_Now, outputLayer, centerOffset, r);
 				}
 				m++;
 			}
 			n++;
 			yOffset = (2 * r + distance) * (sin(rad) - 1) * n;
 		}
+		LDisplay_Refresh();
 	}
 
-	int LSelection_GetNumber(LSelection selectedInital)
+	int CountSelectedObjects(LSelection selection)
 	{
 		int counter = 0;
-		while (selectedInital != NULL)
+		while (selection != NULL)
 		{
-			selectedInital = LSelection_GetNext(selectedInital);
+			selection = LSelection_GetNext(selection);
 			counter++;
 		}
 		return counter;
 	}
 
-	void ArrayByEdgeDistanceOneDimension()
+	void CreateLinearArrayByEdgeSpacing()
 	{
-		//****************************Input Params****************************//
+		LLayer outputLayer = PickOutputLayer(LCell_GetVisible());
+		if (outputLayer == NULL)
+			return;
 
 		LDialogItem Dialog_Items[3] = {{"Array Edge Distance(um)", "1"},
 									   {"Array Number", "2"},
@@ -862,41 +817,41 @@ module Array_Module
 			return;
 		}
 
-		//****************************Input Params****************************//
 		if ((distance >= 0 || arrayNumber > 1) || (deg >= 0 && deg <= 360))
 		{
-			CopySelectedObjectsByEdgeDistance(arrayNumber, distance, deg);
+			CopySelectionByEdgeSpacing(outputLayer, arrayNumber, distance, deg);
 		}
 
 		LDisplay_Refresh();
 	}
 
-	void CopySelectedObjectsByEdgeDistance(int arrayNumber, long distance, double deg)
+	void CopySelectionByEdgeSpacing(LLayer outputLayer, int arrayNumber, long distance, double deg)
 	{
 
 		int counter = 0;
-		LSelection selectedInital = LSelection_GetList();
-		while (selectedInital != NULL)
+		LSelection selection = LSelection_GetList();
+		while (selection != NULL)
 		{
-			LObject selectedObject = LSelection_GetObject(selectedInital);
+			LObject selectedObject = LSelection_GetObject(selection);
 			double rad = deg * M_PI / 180; //
 			double *offset = (double *)malloc(sizeof(double));
-			if (CalculateOffset(selectedObject, distance, rad, offset) == 1)
+			if (CalculateEdgeSpacingOffset(selectedObject, distance, rad, offset) == 1)
 			{
 				double xOffset = offset[0]; //
 				double yOffset = offset[1]; //
 				int i;
 				for (i = 1; i < arrayNumber; i++)
 				{
-					CopyObject(selectedObject, i * xOffset, i * yOffset);
+					CopyObject(outputLayer, selectedObject, i * xOffset, i * yOffset);
 				}
 				counter++;
 			}
-			selectedInital = LSelection_GetNext(selectedInital);
+			selection = LSelection_GetNext(selection);
 		}
 	}
 
-	int CalculateOffset(LObject selectedObject, long distance, double rad, double *offset)
+	/* Convert an edge-to-edge gap to a translation along the requested direction. */
+	int CalculateEdgeSpacingOffset(LObject selectedObject, long distance, double rad, double *offset)
 	{
 		LShapeType selectedShapeType = LObject_GetShape(selectedObject);
 		// Function for selectedObject exmple get the left xcoord
@@ -945,9 +900,11 @@ module Array_Module
 		//
 	}
 
-	void ArrayByOffsetOneDimension()
+	void CreateLinearArrayByOffset()
 	{
-		//****************************Input Params****************************//
+		LLayer outputLayer = PickOutputLayer(LCell_GetVisible());
+		if (outputLayer == NULL)
+			return;
 
 		LDialogItem Dialog_Items[3] = {{"Array Center Distance(um)", "1"},
 									   {"Array Number", "2"},
@@ -966,64 +923,60 @@ module Array_Module
 			return;
 		}
 
-		//****************************Input Params****************************//
 		if ((distance >= 0 || arrayNumber > 1) || (deg >= 0 && deg <= 360))
 		{
 			double rad = deg * M_PI / 180;
 			double xOffset = distance * cos(rad);
 			double yOffset = distance * sin(rad);
-			CopySelectedObjects(arrayNumber, xOffset, yOffset);
+			CopySelectionByOffset(outputLayer, arrayNumber, xOffset, yOffset);
 		}
 
 		LDisplay_Refresh();
 	}
 
-	void CopySelectedObjects(int arrayNumber, double xOffset, double yOffset)
+	void CopySelectionByOffset(LLayer outputLayer, int arrayNumber, double xOffset, double yOffset)
 	{
 		int counter = 0;
-		LSelection selectedInital = LSelection_GetList();
-		while (selectedInital != NULL)
+		LSelection selection = LSelection_GetList();
+		while (selection != NULL)
 		{
-			LObject selectedObject = LSelection_GetObject(selectedInital);
+			LObject selectedObject = LSelection_GetObject(selection);
 			int i;
 			for (i = 1; i < arrayNumber; i++)
 			{
-				CopyObject(selectedObject, (long)(i * xOffset), (long)(i * yOffset));
+				CopyObject(outputLayer, selectedObject, (long)(i * xOffset), (long)(i * yOffset));
 			}
-			selectedInital = LSelection_GetNext(selectedInital);
+			selection = LSelection_GetNext(selection);
 			counter++;
 		}
 	}
 
-	LObject Copy_Rect(LObject originObject, long xOffset, long yOffset)
+	LObject CopyRectangle(LLayer outputLayer, LObject originObject, long xOffset, long yOffset)
 	{
 		LCell Cell_Now = LCell_GetVisible();
-		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, originObject);
 		LRect rect = LBox_GetRect(originObject);
 		long rect_x0 = rect.x0 + xOffset;
 		long rect_y0 = rect.y0 + yOffset;
 		long rect_x1 = rect.x1 + xOffset;
 		long rect_y1 = rect.y1 + yOffset;
-		return LBox_New(Cell_Now, LLayer_Now, rect_x0, rect_y0, rect_x1, rect_y1);
+		return LBox_New(Cell_Now, outputLayer, rect_x0, rect_y0, rect_x1, rect_y1);
 	}
 
-	LObject Copy_Circle(LObject originObject, long xOffset, long yOffset)
+	LObject CopyCircle(LLayer outputLayer, LObject originObject, long xOffset, long yOffset)
 	{
 		LCell Cell_Now = LCell_GetVisible();
-		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, originObject);
 		LPoint center = LCircle_GetCenter(originObject);
 		LCoord r = LCircle_GetRadius(originObject);
 
 		long center_x = center.x + xOffset;
 		long center_y = center.y + yOffset;
 		LPoint centerOffset = LPoint_Set(center_x, center_y);
-		return LCircle_New(Cell_Now, LLayer_Now, centerOffset, r);
+		return LCircle_New(Cell_Now, outputLayer, centerOffset, r);
 	}
 
-	LObject Copy_Polygon(LObject originObject, long xOffset, long yOffset)
+	LObject CopyPolygon(LLayer outputLayer, LObject originObject, long xOffset, long yOffset)
 	{
 		LCell Cell_Now = LCell_GetVisible();
-		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, originObject);
 		LVertex vertex = LObject_GetVertexList(originObject);
 		long cnt = LVertex_GetCount(originObject);
 		LPoint *points;
@@ -1038,13 +991,12 @@ module Array_Module
 			j++;
 			vertex = LVertex_GetNext(vertex);
 		}
-		return LPolygon_New(Cell_Now, LLayer_Now, points, cnt);
+		return LPolygon_New(Cell_Now, outputLayer, points, cnt);
 	}
 
-	LObject Copy_Torus(LObject originObject, long xOffset, long yOffset)
+	LObject CopyTorus(LLayer outputLayer, LObject originObject, long xOffset, long yOffset)
 	{
 		LCell Cell_Now = LCell_GetVisible();
-		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, originObject);
 		LTorusParams tParams;
 		LStatus lStatus = LTorus_GetParams(originObject, &tParams);
 		if (lStatus == 0)
@@ -1058,15 +1010,14 @@ module Array_Module
 			_tParams.nOuterRadius = tParams.nOuterRadius;
 			_tParams.dStartAngle = tParams.dStartAngle;
 			_tParams.dStopAngle = tParams.dStopAngle;
-			return LTorus_CreateNew(Cell_Now, LLayer_Now, &_tParams);
+			return LTorus_CreateNew(Cell_Now, outputLayer, &_tParams);
 		}
 		return NULL;
 	}
 
-	LObject Copy_Pie(LObject originObject, long xOffset, long yOffset)
+	LObject CopyPie(LLayer outputLayer, LObject originObject, long xOffset, long yOffset)
 	{
 		LCell Cell_Now = LCell_GetVisible();
-		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, originObject);
 		LPieParams pParams;
 		LStatus lStatus = LPie_GetParams(originObject, &pParams);
 		if (lStatus == 0)
@@ -1078,46 +1029,44 @@ module Array_Module
 			_pParams.nRadius = pParams.nRadius;
 			_pParams.dStartAngle = pParams.dStartAngle;
 			_pParams.dStopAngle = pParams.dStopAngle;
-			return LPie_CreateNew(Cell_Now, LLayer_Now, &_pParams);
+			return LPie_CreateNew(Cell_Now, outputLayer, &_pParams);
 		}
 		return NULL;
 	}
 
-	LObject CopyObject(LObject selectedObject, long xOffset, long yOffset)
+	LObject CopyObject(LLayer outputLayer, LObject selectedObject, long xOffset, long yOffset)
 	{
-		LCell Cell_Now = LCell_GetVisible();
 
-		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, selectedObject);
 		LShapeType selectedShapeType = LObject_GetShape(selectedObject);
 
 		switch (selectedShapeType)
 		{
 		case 0: // LBox
 		{
-			return Copy_Rect(selectedObject, xOffset, yOffset);
+			return CopyRectangle(outputLayer, selectedObject, xOffset, yOffset);
 		}
 		case 1: // LCircle
 		{
-			return Copy_Circle(selectedObject, xOffset, yOffset);
+			return CopyCircle(outputLayer, selectedObject, xOffset, yOffset);
 		}
 		case 3: // LPolygon
 		{
-			return Copy_Polygon(selectedObject, xOffset, yOffset);
+			return CopyPolygon(outputLayer, selectedObject, xOffset, yOffset);
 		}
 		case 4: // LTorus
 		{
-			return Copy_Torus(selectedObject, xOffset, yOffset);
+			return CopyTorus(outputLayer, selectedObject, xOffset, yOffset);
 		}
 		case 5: // LPie
 		{
-			return Copy_Pie(selectedObject, xOffset, yOffset);
+			return CopyPie(outputLayer, selectedObject, xOffset, yOffset);
 		}
 		default:
 			return NULL;
 		}
 	}
 
-	void GetObjectCoord(LObject selectedObject, long *box)
+	void AccumulateObjectBounds(LObject selectedObject, long *box)
 	{
 		LShapeType selectedShapeType = LObject_GetShape(selectedObject);
 		// Function for selectedObject exmple get the left xcoord
@@ -1191,7 +1140,7 @@ module Array_Module
 		//
 	}
 
-	double GetPointDistance(LPoint point1, LPoint point2)
+	double DistanceBetweenPoints(LPoint point1, LPoint point2)
 	{
 		return sqrt((double)(point1.x - point2.x) * (double)(point1.x - point2.x) + (double)(point1.y - point2.y) * (point1.y - point2.y));
 	}
@@ -1219,7 +1168,7 @@ module Array_Module
 		return LPoint_Set(x, y);
 	}
 
-	LPoint MirrorCoordinates(LPoint p, LPoint linePoint, double rad)
+	LPoint ReflectPointAcrossLine(LPoint p, LPoint linePoint, double rad)
 	{
 		// Calculate the tangent value of the line's angle
 		double slopeTan = tan(rad);
@@ -1251,10 +1200,12 @@ module Array_Module
 		return LPoint_Set(mirrorx, mirrory);
 	}
 
-	void Diffusion_Selected_Object_ByOffset()
+	void CopySelectionByRadialOffset()
 	{
-		LCell Cell_Now = LCell_GetVisible();
-		//****************************Input Params****************************//
+		LLayer outputLayer = PickOutputLayer(LCell_GetVisible());
+		if (outputLayer == NULL)
+			return;
+
 		LDialogItem Dialog_Items[3] = {{"Offset (um) (Inf)", "0"},
 									   {"Center Coord X (um)", "0"},
 									   {"Center Coord Y (um)", "0"}};
@@ -1271,18 +1222,17 @@ module Array_Module
 		{
 			return;
 		}
-		//****************************Input Params****************************//
-		LSelection selectedInital = LSelection_GetList();
-		while (selectedInital != NULL)
+		LSelection selection = LSelection_GetList();
+		while (selection != NULL)
 		{
-			LObject selectedObject = LSelection_GetObject(selectedInital);
+			LObject selectedObject = LSelection_GetObject(selection);
 			LPoint polygonCenter = LPoint_Set((long)(center_x * 1000), (long)(center_y * 1000));
 			long box[4];
 			box[0] = WORLD_MAX;	 // x0
 			box[1] = WORLD_MAX;	 // y0
 			box[2] = -WORLD_MAX; // x1
 			box[3] = -WORLD_MAX; // y1
-			GetObjectCoord(selectedObject, box);
+			AccumulateObjectBounds(selectedObject, box);
 			// calculate object center (box)
 			long objectCenterX = (box[2] + box[0]) / 2;
 			long objectCenterY = (box[3] + box[1]) / 2;
@@ -1291,17 +1241,20 @@ module Array_Module
 			double angle = atan2(vectoryY, vectoryX);
 			long xOffset = cos(angle) * offset * 1000;
 			long yOffset = sin(angle) * offset * 1000;
-			CopyObject(selectedObject, xOffset, yOffset);
+			CopyObject(outputLayer, selectedObject, xOffset, yOffset);
 
-			selectedInital = LSelection_GetNext(selectedInital);
+			selection = LSelection_GetNext(selection);
 		}
 		LDisplay_Refresh();
 	}
 
-	void Diffusion_Selected_Object_ByRadius()
+	/* Preserve each object bearing while placing its center at the requested distance from the origin. */
+	void CopySelectionToRadius()
 	{
-		LCell Cell_Now = LCell_GetVisible();
-		//****************************Input Params****************************//
+		LLayer outputLayer = PickOutputLayer(LCell_GetVisible());
+		if (outputLayer == NULL)
+			return;
+
 		LDialogItem Dialog_Items[3] = {{"Radius (um) (Inf)", "0"},
 									   {"Center Coord X (um)", "0"},
 									   {"Center Coord Y (um)", "0"}};
@@ -1318,18 +1271,17 @@ module Array_Module
 		{
 			return;
 		}
-		//****************************Input Params****************************//
-		LSelection selectedInital = LSelection_GetList();
-		while (selectedInital != NULL)
+		LSelection selection = LSelection_GetList();
+		while (selection != NULL)
 		{
-			LObject selectedObject = LSelection_GetObject(selectedInital);
+			LObject selectedObject = LSelection_GetObject(selection);
 			LPoint polygonCenter = LPoint_Set((long)(center_x * 1000), (long)(center_y * 1000));
 			long box[4];
 			box[0] = WORLD_MAX;	 // x0
 			box[1] = WORLD_MAX;	 // y0
 			box[2] = -WORLD_MAX; // x1
 			box[3] = -WORLD_MAX; // y1
-			GetObjectCoord(selectedObject, box);
+			AccumulateObjectBounds(selectedObject, box);
 			// calculate object center (box)
 			long objectCenterX = (box[2] + box[0]) / 2;
 			long objectCenterY = (box[3] + box[1]) / 2;
@@ -1339,27 +1291,27 @@ module Array_Module
 			double angle = atan2(vectoryY, vectoryX);
 			long xOffset = cos(angle) * (radius * 1000 - distanceToCenter);
 			long yOffset = sin(angle) * (radius * 1000 - distanceToCenter);
-			CopyObject(selectedObject, xOffset, yOffset);
+			CopyObject(outputLayer, selectedObject, xOffset, yOffset);
 
-			selectedInital = LSelection_GetNext(selectedInital);
+			selection = LSelection_GetNext(selection);
 		}
 		LDisplay_Refresh();
 	}
 
-	void Array_func(void)
+	void RegisterArrayMacros(void)
 	{
 		// LMacro_BindToMenu( const char* menu, const char* macro_desc, const char* function_name );
-		LMacro_Register("ArrayByRingSetDistance_func", "ArrayByRingSetDistance");
-		LMacro_Register("ArrayByRingSetRad_func", "ArrayByRingSetRad");
-		LMacro_Register("ArrayByOffsetOneDimension_func", "ArrayByOffsetOneDimension");
-		LMacro_Register("ArrayByEdgeDistanceOneDimension_func", "ArrayByEdgeDistanceOneDimension");
-		LMacro_Register("ArrayInObjectByDistanceHexagon_func", "ArrayInObjectByDistanceHexagon");
-		LMacro_Register("ArrayInObjectByRing_func", "ArrayInObjectByRing");
-		LMacro_Register("RotateObjectsByPoint_func", "RotateObjectsByPoint");
-		LMacro_Register("MirrorObjectsByPointAndRad_func", "MirrorObjectsByPointAndRad");
-		LMacro_Register("Diffusion_Selected_Object_ByOffset_func", "Diffusion_Selected_Object_ByOffset");
-		LMacro_Register("Diffusion_Selected_Object_ByRadius_func", "Diffusion_Selected_Object_ByRadius");
+		LMacro_Register("ArrayByRingSetDistance_func", "CreateRingArrayBySpacing");
+		LMacro_Register("ArrayByRingSetRad_func", "CreateRingArrayByAngle");
+		LMacro_Register("ArrayByOffsetOneDimension_func", "CreateLinearArrayByOffset");
+		LMacro_Register("ArrayByEdgeDistanceOneDimension_func", "CreateLinearArrayByEdgeSpacing");
+		LMacro_Register("ArrayInObjectByDistanceHexagon_func", "FillShapeWithHexagonalArray");
+		LMacro_Register("ArrayInObjectByRing_func", "FillShapeWithConcentricRings");
+		LMacro_Register("RotateObjectsByPoint_func", "RotateSelectionAboutPoint");
+		LMacro_Register("MirrorObjectsByPointAndRad_func", "MirrorSelectionAcrossLine");
+		LMacro_Register("Diffusion_Selected_Object_ByOffset_func", "CopySelectionByRadialOffset");
+		LMacro_Register("Diffusion_Selected_Object_ByRadius_func", "CopySelectionToRadius");
 	}
-} /* end of module Array_Module */
+} /* End of ArrayMacros. */
 
-Array_func();
+RegisterArrayMacros();

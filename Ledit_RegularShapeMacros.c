@@ -1,6 +1,5 @@
 /*
- * Polygon_Module
- * Polygon_Module Marco for Ledit
+ * Draw regular polygons from an edge length or circumradius and approximate ellipses with vertices.
  *
  * Copyright (c) 2024 muyeyifeng
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,25 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-module Polygon_Module
+module RegularShapeMacros
 {
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-// #include "Ledit_Regular.h"
 #include "ldata.h" /* Main UPI header. */
+#include "Ledit_OutputLayer.h"
 
-	void DrawEllipse();
-	void DrawPolygonByEdgeLenght();
-	void DrawPolygonByRadius();
-	void DrawPolygonByCenterRadiusAndEdgeNumber(LPoint center, long radius, int edgeNum, double rad);
-	LPoint *CalculateEllipsePoints(long a, long b, int n, double rad);
-	void Polygon_func(void);
+	void DrawEllipsePolygon();
+	void DrawRegularPolygonBySideLength();
+	void DrawRegularPolygonByCircumradius();
+	void CreateRegularPolygon(LLayer outputLayer, LPoint center, long radius, int edgeNum, double rad);
+	LPoint *SampleEllipseVertices(long a, long b, int n, double rad);
+	void RegisterRegularShapeMacros(void);
 
-	void DrawEllipse()
+	void DrawEllipsePolygon()
 	{
-		//****************************Input Params****************************//
+		LLayer outputLayer = PickOutputLayer(LCell_GetVisible());
+		if (outputLayer == NULL)
+			return;
+
 		LDialogItem Dialog_Items[4] = {{"Ellipse a (um)", "1"},
 									   {"Ellipse b (um)", "1"},
 									   {"Rota Deg (0-360)", "0"},
@@ -53,26 +55,27 @@ module Polygon_Module
 		{
 			return;
 		}
-		//****************************Input Params****************************//
 		double rad = deg * M_PI / 180;
 		LCell Cell_Now = LCell_GetVisible();
-		LFile File_Now = LCell_GetFile(Cell_Now);
-		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
-		LPoint *points = CalculateEllipsePoints(a, b, n, rad);
-		LPolygon_New(Cell_Now, LLayer_Now, points, n);
+		LPoint *points = SampleEllipseVertices(a, b, n, rad);
+		LPolygon_New(Cell_Now, outputLayer, points, n);
 		LDisplay_Refresh();
 	}
 
-	void DrawPolygonByEdgeLenght()
+	/* Convert the requested side length to a circumradius before placing vertices. */
+	void DrawRegularPolygonBySideLength()
 	{
-		//****************************Input Params****************************//
+		LLayer outputLayer = PickOutputLayer(LCell_GetVisible());
+		if (outputLayer == NULL)
+			return;
+
 		LDialogItem Dialog_Items[3] = {{"Edge Number (>=3)", "3"},
-									   {"EdgeLenght (um)", "1"},
+									   {"Side length (um)", "1"},
 									   {"Rota Deg (0-360)", "0"}};
 		int edgeNum;
 		long edgeLen;
 		double deg;
-		if (LDialog_MultiLineInputBox(" Draw Polygon By Edge Lenght", Dialog_Items, 3))
+		if (LDialog_MultiLineInputBox("Draw regular polygon by side length", Dialog_Items, 3))
 		{
 			edgeNum = atoi(Dialog_Items[0].value);				  // get the edgeNum
 			edgeLen = (long)(atof(Dialog_Items[1].value) * 1000); // get the edgeLen
@@ -82,28 +85,30 @@ module Polygon_Module
 		{
 			return;
 		}
-		//****************************Input Params****************************//
 		double rad = deg * M_PI / 180;
 		if (edgeNum < 3)
 		{
-			LDialog_AlertBox("Polygon edge number must lagger than 3");
+			LDialog_AlertBox("A polygon needs at least three sides.");
 			return;
 		}
 		if (edgeLen <= 0)
 		{
-			LDialog_AlertBox("Polygon edge length must lagger than 0");
+			LDialog_AlertBox("The side length must be positive.");
 			return;
 		}
 		LPoint center = LPoint_Set(0, 0);
 		long radius = edgeLen / (2 * sin(M_PI / edgeNum));
-		DrawPolygonByCenterRadiusAndEdgeNumber(center, radius, edgeNum, rad);
+		CreateRegularPolygon(outputLayer, center, radius, edgeNum, rad);
 
 		LDisplay_Refresh();
 	}
 
-	void DrawPolygonByRadius()
+	void DrawRegularPolygonByCircumradius()
 	{
-		//****************************Input Params****************************//
+		LLayer outputLayer = PickOutputLayer(LCell_GetVisible());
+		if (outputLayer == NULL)
+			return;
+
 		LDialogItem Dialog_Items[3] = {{"Edge Number (>=3)", "3"},
 									   {"Radius (Outer, um)", "1"},
 									   {"Rota Deg (0-360)", "0"}};
@@ -120,29 +125,27 @@ module Polygon_Module
 		{
 			return;
 		}
-		//****************************Input Params****************************//
 		double rad = deg * M_PI / 180;
 		if (edgeNum < 3)
 		{
-			LDialog_AlertBox("Polygon edge number must lagger than 3");
+			LDialog_AlertBox("A polygon needs at least three sides.");
 			return;
 		}
 		if (radius <= 0)
 		{
-			LDialog_AlertBox("Polygon radius must lagger than 0");
+			LDialog_AlertBox("The circumradius must be positive.");
 			return;
 		}
 		LPoint center = LPoint_Set(0, 0);
-		DrawPolygonByCenterRadiusAndEdgeNumber(center, radius, edgeNum, rad);
+		CreateRegularPolygon(outputLayer, center, radius, edgeNum, rad);
 
 		LDisplay_Refresh();
 	}
 
-	void DrawPolygonByCenterRadiusAndEdgeNumber(LPoint center, long radius, int edgeNum, double rad)
+	/* Sample one vertex per equal angular step around the supplied center. */
+	void CreateRegularPolygon(LLayer outputLayer, LPoint center, long radius, int edgeNum, double rad)
 	{
 		LCell Cell_Now = LCell_GetVisible();
-		LFile File_Now = LCell_GetFile(Cell_Now);
-		LLayer LLayer_Now = LLayer_GetCurrent(File_Now);
 		LPoint *points;
 		points = (LPoint *)malloc((edgeNum) * sizeof(LPoint));
 		int i;
@@ -152,10 +155,11 @@ module Polygon_Module
 			int point_y = center.y + radius * cos(rad + 2 * i * M_PI / edgeNum);
 			points[i] = LPoint_Set((long)point_x, (long)point_y);
 		}
-		LPolygon_New(Cell_Now, LLayer_Now, points, edgeNum);
+		LPolygon_New(Cell_Now, outputLayer, points, edgeNum);
 	}
 
-	LPoint *CalculateEllipsePoints(long a, long b, int n, double rad)
+	/* Rotate the sampled ellipse coordinates before converting them to the layout grid. */
+	LPoint *SampleEllipseVertices(long a, long b, int n, double rad)
 	{
 		double angle, x, y;
 		LPoint *points;
@@ -177,12 +181,12 @@ module Polygon_Module
 		return points;
 	}
 
-	void Polygon_func(void)
+	void RegisterRegularShapeMacros(void)
 	{
-		LMacro_Register("DrawPolygonByEdgeLenght_func", "DrawPolygonByEdgeLenght");
-		LMacro_Register("DrawPolygonByRadius_func", "DrawPolygonByRadius");
-		LMacro_Register("DrawEllipse_func", "DrawEllipse");
+		LMacro_Register("DrawPolygonByEdgeLenght_func", "DrawRegularPolygonBySideLength");
+		LMacro_Register("DrawPolygonByRadius_func", "DrawRegularPolygonByCircumradius");
+		LMacro_Register("DrawEllipse_func", "DrawEllipsePolygon");
 	}
-} /* end of module Array_Module */
+} /* End of RegularShapeMacros. */
 
-Polygon_func();
+RegisterRegularShapeMacros();
