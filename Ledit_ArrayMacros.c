@@ -22,6 +22,7 @@ module ArrayMacros
 #include <string.h>
 #include <math.h>
 #include "ldata.h" /* Main UPI header. */
+#include "Ledit_MacroUndo.h"
 #include "Ledit_OutputLayer.h"
 
 	void MirrorSelectionAcrossLine();
@@ -44,10 +45,10 @@ module ArrayMacros
 	void FillShapeWithHexagonalArray();
 	int CountSelectedObjects(LSelection selection);
 	void CreateLinearArrayByEdgeSpacing();
-	void CopySelectionByEdgeSpacing(LLayer outputLayer, int arrayNumber, long distance, double deg);
+	void CopySelectionByEdgeSpacing(LCell cell, OutputLayerChoice *output, int arrayNumber, long distance, double deg);
 	int CalculateEdgeSpacingOffset(LObject selectedObject, long distance, double rad, double *offset);
 	void CreateLinearArrayByOffset();
-	void CopySelectionByOffset(LLayer outputLayer, int arrayNumber, double xOffset, double yOffset);
+	void CopySelectionByOffset(LCell cell, OutputLayerChoice *output, int arrayNumber, double xOffset, double yOffset);
 	LObject CopyRectangle(LLayer outputLayer, LObject originObject, long xOffset, long yOffset);
 	LObject CopyCircle(LLayer outputLayer, LObject originObject, long xOffset, long yOffset);
 	LObject CopyPolygon(LLayer outputLayer, LObject originObject, long xOffset, long yOffset);
@@ -65,8 +66,9 @@ module ArrayMacros
 
 	void MirrorSelectionAcrossLine()
 	{
-		LLayer outputLayer = PickOutputLayer(LCell_GetVisible());
-		if (outputLayer == NULL)
+		LCell cell = LCell_GetVisible();
+		OutputLayerChoice output;
+		if (!ChooseOutputLayer(cell, 1, &output))
 			return;
 
 		LDialogItem Dialog_Items[4] = {{"Mirror Center X Coordinate (um)", "0"},
@@ -94,13 +96,17 @@ module ArrayMacros
 		while (selection != NULL)
 		{
 			LObject selectedObject = LSelection_GetObject(selection);
+			selection = LSelection_GetNext(selection);
+			LLayer outputLayer = ResolveObjectOutputLayer(cell, &output, selectedObject);
+			if (outputLayer == NULL)
+				continue;
 
 			LPoint mirrorPoint = LPoint_Set(xcoord, ycoord);
 			MirrorObject(outputLayer, selectedObject, mirrorPoint, rad, keep);
-			selection = LSelection_GetNext(selection);
 			counter++;
 		}
 		LDisplay_Refresh();
+		ReportSkippedOutputLayers(&output);
 	}
 
 	LObject MirrorRectangle(LLayer outputLayer, LObject selectRect, LPoint mirrorPoint, double rad)
@@ -233,13 +239,14 @@ module ArrayMacros
 		}
 		LCell Cell_Now = LCell_GetVisible();
 		if (keep != 1)
-			LObject_Delete(Cell_Now, selectedObject);
+			DeleteMacroObject(Cell_Now, selectedObject);
 	}
 
 	void RotateSelectionAboutPoint()
 	{
-		LLayer outputLayer = PickOutputLayer(LCell_GetVisible());
-		if (outputLayer == NULL)
+		LCell cell = LCell_GetVisible();
+		OutputLayerChoice output;
+		if (!ChooseOutputLayer(cell, 1, &output))
 			return;
 
 		LDialogItem Dialog_Items[4] = {{"Rotate Center X Coordinate (um)", "0"},
@@ -268,13 +275,17 @@ module ArrayMacros
 		while (selection != NULL)
 		{
 			LObject selectedObject = LSelection_GetObject(selection);
+			selection = LSelection_GetNext(selection);
+			LLayer outputLayer = ResolveObjectOutputLayer(cell, &output, selectedObject);
+			if (outputLayer == NULL)
+				continue;
 
 			LPoint rotateCenter = LPoint_Set(xcoord, ycoord);
 			RotateObject(outputLayer, selectedObject, rotateCenter, rad, keep);
-			selection = LSelection_GetNext(selection);
 			counter++;
 		}
 		LDisplay_Refresh();
+		ReportSkippedOutputLayers(&output);
 	}
 
 	LObject RotateRectangle(LLayer outputLayer, LObject selectRect, LPoint rotateCenter, double rad)
@@ -401,14 +412,15 @@ module ArrayMacros
 
 		LCell Cell_Now = LCell_GetVisible();
 		if (keep != 1)
-			LObject_Delete(Cell_Now, selectedObject);
+			DeleteMacroObject(Cell_Now, selectedObject);
 	}
 
 	/* Use the selected circle center as the origin of the polar array. */
 	void CreateRingArrayByAngle()
 	{
-		LLayer outputLayer = PickOutputLayer(LCell_GetVisible());
-		if (outputLayer == NULL)
+		LCell cell = LCell_GetVisible();
+		OutputLayerChoice output;
+		if (!ChooseOutputLayer(cell, 1, &output))
 			return;
 
 		LSelection selection = LSelection_GetList();
@@ -422,6 +434,13 @@ module ArrayMacros
 		if (LObject_GetShape(object1) != 1)
 		{
 			LDialog_AlertBox("Just Support Circle Object Array");
+			return;
+		}
+
+		LLayer outputLayer = ResolveObjectOutputLayer(cell, &output, object1);
+		if (outputLayer == NULL)
+		{
+			ReportSkippedOutputLayers(&output);
 			return;
 		}
 
@@ -460,8 +479,9 @@ module ArrayMacros
 
 	void CreateRingArrayBySpacing()
 	{
-		LLayer outputLayer = PickOutputLayer(LCell_GetVisible());
-		if (outputLayer == NULL)
+		LCell cell = LCell_GetVisible();
+		OutputLayerChoice output;
+		if (!ChooseOutputLayer(cell, 1, &output))
 			return;
 
 		LSelection selection = LSelection_GetList();
@@ -475,6 +495,13 @@ module ArrayMacros
 		if (LObject_GetShape(object1) != 1)
 		{
 			LDialog_AlertBox("Just Support Circle Object Array");
+			return;
+		}
+
+		LLayer outputLayer = ResolveObjectOutputLayer(cell, &output, object1);
+		if (outputLayer == NULL)
+		{
+			ReportSkippedOutputLayers(&output);
 			return;
 		}
 
@@ -528,8 +555,9 @@ module ArrayMacros
 	/* Use the smaller selected object as the repeated circle and the larger object as the boundary. */
 	void FillShapeWithConcentricRings()
 	{
-		LLayer outputLayer = PickOutputLayer(LCell_GetVisible());
-		if (outputLayer == NULL)
+		LCell cell = LCell_GetVisible();
+		OutputLayerChoice output;
+		if (!ChooseOutputLayer(cell, 1, &output))
 			return;
 
 		LSelection selection = LSelection_GetList();
@@ -553,6 +581,13 @@ module ArrayMacros
 		if (LObject_GetShape(smallerObject) != 1)
 		{
 			LDialog_AlertBox("Just Support Circle Object Array");
+			return;
+		}
+
+		LLayer outputLayer = ResolveObjectOutputLayer(cell, &output, smallerObject);
+		if (outputLayer == NULL)
+		{
+			ReportSkippedOutputLayers(&output);
 			return;
 		}
 
@@ -621,8 +656,9 @@ module ArrayMacros
 	/* Generate staggered rows around the seed circle and keep centers inside the selected boundary. */
 	void FillShapeWithHexagonalArray()
 	{
-		LLayer outputLayer = PickOutputLayer(LCell_GetVisible());
-		if (outputLayer == NULL)
+		LCell cell = LCell_GetVisible();
+		OutputLayerChoice output;
+		if (!ChooseOutputLayer(cell, 1, &output))
 			return;
 
 		LSelection selection = LSelection_GetList();
@@ -646,6 +682,13 @@ module ArrayMacros
 		if (LObject_GetShape(smallerObject) != 1)
 		{
 			LDialog_AlertBox("Just Support Circle Object Array");
+			return;
+		}
+
+		LLayer outputLayer = ResolveObjectOutputLayer(cell, &output, smallerObject);
+		if (outputLayer == NULL)
+		{
+			ReportSkippedOutputLayers(&output);
 			return;
 		}
 
@@ -796,8 +839,9 @@ module ArrayMacros
 
 	void CreateLinearArrayByEdgeSpacing()
 	{
-		LLayer outputLayer = PickOutputLayer(LCell_GetVisible());
-		if (outputLayer == NULL)
+		LCell cell = LCell_GetVisible();
+		OutputLayerChoice output;
+		if (!ChooseOutputLayer(cell, 1, &output))
 			return;
 
 		LDialogItem Dialog_Items[3] = {{"Array Edge Distance(um)", "1"},
@@ -819,13 +863,14 @@ module ArrayMacros
 
 		if ((distance >= 0 || arrayNumber > 1) || (deg >= 0 && deg <= 360))
 		{
-			CopySelectionByEdgeSpacing(outputLayer, arrayNumber, distance, deg);
+			CopySelectionByEdgeSpacing(cell, &output, arrayNumber, distance, deg);
 		}
 
 		LDisplay_Refresh();
+		ReportSkippedOutputLayers(&output);
 	}
 
-	void CopySelectionByEdgeSpacing(LLayer outputLayer, int arrayNumber, long distance, double deg)
+	void CopySelectionByEdgeSpacing(LCell cell, OutputLayerChoice *output, int arrayNumber, long distance, double deg)
 	{
 
 		int counter = 0;
@@ -833,8 +878,12 @@ module ArrayMacros
 		while (selection != NULL)
 		{
 			LObject selectedObject = LSelection_GetObject(selection);
+			selection = LSelection_GetNext(selection);
+			LLayer outputLayer = ResolveObjectOutputLayer(cell, output, selectedObject);
+			if (outputLayer == NULL)
+				continue;
 			double rad = deg * M_PI / 180; //
-			double *offset = (double *)malloc(sizeof(double));
+			double offset[2];
 			if (CalculateEdgeSpacingOffset(selectedObject, distance, rad, offset) == 1)
 			{
 				double xOffset = offset[0]; //
@@ -846,7 +895,6 @@ module ArrayMacros
 				}
 				counter++;
 			}
-			selection = LSelection_GetNext(selection);
 		}
 	}
 
@@ -902,8 +950,9 @@ module ArrayMacros
 
 	void CreateLinearArrayByOffset()
 	{
-		LLayer outputLayer = PickOutputLayer(LCell_GetVisible());
-		if (outputLayer == NULL)
+		LCell cell = LCell_GetVisible();
+		OutputLayerChoice output;
+		if (!ChooseOutputLayer(cell, 1, &output))
 			return;
 
 		LDialogItem Dialog_Items[3] = {{"Array Center Distance(um)", "1"},
@@ -928,25 +977,29 @@ module ArrayMacros
 			double rad = deg * M_PI / 180;
 			double xOffset = distance * cos(rad);
 			double yOffset = distance * sin(rad);
-			CopySelectionByOffset(outputLayer, arrayNumber, xOffset, yOffset);
+			CopySelectionByOffset(cell, &output, arrayNumber, xOffset, yOffset);
 		}
 
 		LDisplay_Refresh();
+		ReportSkippedOutputLayers(&output);
 	}
 
-	void CopySelectionByOffset(LLayer outputLayer, int arrayNumber, double xOffset, double yOffset)
+	void CopySelectionByOffset(LCell cell, OutputLayerChoice *output, int arrayNumber, double xOffset, double yOffset)
 	{
 		int counter = 0;
 		LSelection selection = LSelection_GetList();
 		while (selection != NULL)
 		{
 			LObject selectedObject = LSelection_GetObject(selection);
+			selection = LSelection_GetNext(selection);
+			LLayer outputLayer = ResolveObjectOutputLayer(cell, output, selectedObject);
+			if (outputLayer == NULL)
+				continue;
 			int i;
 			for (i = 1; i < arrayNumber; i++)
 			{
 				CopyObject(outputLayer, selectedObject, (long)(i * xOffset), (long)(i * yOffset));
 			}
-			selection = LSelection_GetNext(selection);
 			counter++;
 		}
 	}
@@ -1202,8 +1255,9 @@ module ArrayMacros
 
 	void CopySelectionByRadialOffset()
 	{
-		LLayer outputLayer = PickOutputLayer(LCell_GetVisible());
-		if (outputLayer == NULL)
+		LCell cell = LCell_GetVisible();
+		OutputLayerChoice output;
+		if (!ChooseOutputLayer(cell, 1, &output))
 			return;
 
 		LDialogItem Dialog_Items[3] = {{"Offset (um) (Inf)", "0"},
@@ -1226,6 +1280,10 @@ module ArrayMacros
 		while (selection != NULL)
 		{
 			LObject selectedObject = LSelection_GetObject(selection);
+			selection = LSelection_GetNext(selection);
+			LLayer outputLayer = ResolveObjectOutputLayer(cell, &output, selectedObject);
+			if (outputLayer == NULL)
+				continue;
 			LPoint polygonCenter = LPoint_Set((long)(center_x * 1000), (long)(center_y * 1000));
 			long box[4];
 			box[0] = WORLD_MAX;	 // x0
@@ -1243,16 +1301,17 @@ module ArrayMacros
 			long yOffset = sin(angle) * offset * 1000;
 			CopyObject(outputLayer, selectedObject, xOffset, yOffset);
 
-			selection = LSelection_GetNext(selection);
 		}
 		LDisplay_Refresh();
+		ReportSkippedOutputLayers(&output);
 	}
 
 	/* Preserve each object bearing while placing its center at the requested distance from the origin. */
 	void CopySelectionToRadius()
 	{
-		LLayer outputLayer = PickOutputLayer(LCell_GetVisible());
-		if (outputLayer == NULL)
+		LCell cell = LCell_GetVisible();
+		OutputLayerChoice output;
+		if (!ChooseOutputLayer(cell, 1, &output))
 			return;
 
 		LDialogItem Dialog_Items[3] = {{"Radius (um) (Inf)", "0"},
@@ -1275,6 +1334,10 @@ module ArrayMacros
 		while (selection != NULL)
 		{
 			LObject selectedObject = LSelection_GetObject(selection);
+			selection = LSelection_GetNext(selection);
+			LLayer outputLayer = ResolveObjectOutputLayer(cell, &output, selectedObject);
+			if (outputLayer == NULL)
+				continue;
 			LPoint polygonCenter = LPoint_Set((long)(center_x * 1000), (long)(center_y * 1000));
 			long box[4];
 			box[0] = WORLD_MAX;	 // x0
@@ -1293,24 +1356,35 @@ module ArrayMacros
 			long yOffset = sin(angle) * (radius * 1000 - distanceToCenter);
 			CopyObject(outputLayer, selectedObject, xOffset, yOffset);
 
-			selection = LSelection_GetNext(selection);
 		}
 		LDisplay_Refresh();
+		ReportSkippedOutputLayers(&output);
 	}
+
+	DEFINE_UNDOABLE_MACRO(UndoableCreateRingArrayBySpacing, CreateRingArrayBySpacing, "Ring Array by Spacing")
+	DEFINE_UNDOABLE_MACRO(UndoableCreateRingArrayByAngle, CreateRingArrayByAngle, "Ring Array by Angle")
+	DEFINE_UNDOABLE_MACRO(UndoableCreateLinearArrayByOffset, CreateLinearArrayByOffset, "Linear Array by Offset")
+	DEFINE_UNDOABLE_MACRO(UndoableCreateLinearArrayByEdgeSpacing, CreateLinearArrayByEdgeSpacing, "Linear Array by Edge Spacing")
+	DEFINE_UNDOABLE_MACRO(UndoableFillShapeWithHexagonalArray, FillShapeWithHexagonalArray, "Hexagonal Fill Array")
+	DEFINE_UNDOABLE_MACRO(UndoableFillShapeWithConcentricRings, FillShapeWithConcentricRings, "Concentric Fill Array")
+	DEFINE_UNDOABLE_MACRO(UndoableRotateSelectionAboutPoint, RotateSelectionAboutPoint, "Rotate Selection")
+	DEFINE_UNDOABLE_MACRO(UndoableMirrorSelectionAcrossLine, MirrorSelectionAcrossLine, "Mirror Selection")
+	DEFINE_UNDOABLE_MACRO(UndoableCopySelectionByRadialOffset, CopySelectionByRadialOffset, "Copy by Radial Offset")
+	DEFINE_UNDOABLE_MACRO(UndoableCopySelectionToRadius, CopySelectionToRadius, "Copy to Radius")
 
 	void RegisterArrayMacros(void)
 	{
 		// LMacro_BindToMenu( const char* menu, const char* macro_desc, const char* function_name );
-		LMacro_Register("ArrayByRingSetDistance_func", "CreateRingArrayBySpacing");
-		LMacro_Register("ArrayByRingSetRad_func", "CreateRingArrayByAngle");
-		LMacro_Register("ArrayByOffsetOneDimension_func", "CreateLinearArrayByOffset");
-		LMacro_Register("ArrayByEdgeDistanceOneDimension_func", "CreateLinearArrayByEdgeSpacing");
-		LMacro_Register("ArrayInObjectByDistanceHexagon_func", "FillShapeWithHexagonalArray");
-		LMacro_Register("ArrayInObjectByRing_func", "FillShapeWithConcentricRings");
-		LMacro_Register("RotateObjectsByPoint_func", "RotateSelectionAboutPoint");
-		LMacro_Register("MirrorObjectsByPointAndRad_func", "MirrorSelectionAcrossLine");
-		LMacro_Register("Diffusion_Selected_Object_ByOffset_func", "CopySelectionByRadialOffset");
-		LMacro_Register("Diffusion_Selected_Object_ByRadius_func", "CopySelectionToRadius");
+		LMacro_Register("ArrayByRingSetDistance_func", "UndoableCreateRingArrayBySpacing");
+		LMacro_Register("ArrayByRingSetRad_func", "UndoableCreateRingArrayByAngle");
+		LMacro_Register("ArrayByOffsetOneDimension_func", "UndoableCreateLinearArrayByOffset");
+		LMacro_Register("ArrayByEdgeDistanceOneDimension_func", "UndoableCreateLinearArrayByEdgeSpacing");
+		LMacro_Register("ArrayInObjectByDistanceHexagon_func", "UndoableFillShapeWithHexagonalArray");
+		LMacro_Register("ArrayInObjectByRing_func", "UndoableFillShapeWithConcentricRings");
+		LMacro_Register("RotateObjectsByPoint_func", "UndoableRotateSelectionAboutPoint");
+		LMacro_Register("MirrorObjectsByPointAndRad_func", "UndoableMirrorSelectionAcrossLine");
+		LMacro_Register("Diffusion_Selected_Object_ByOffset_func", "UndoableCopySelectionByRadialOffset");
+		LMacro_Register("Diffusion_Selected_Object_ByRadius_func", "UndoableCopySelectionToRadius");
 	}
 } /* End of ArrayMacros. */
 

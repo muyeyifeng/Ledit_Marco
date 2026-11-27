@@ -28,6 +28,8 @@ Create special structures in your layout, including rounded corners. These scrip
 
 ## Usage
 
+See the [macro handbook](HANDBOOK.md) for operating steps, parameter defaults, and examples for every command.
+
 1. Clone this repository to your local machine.
 2. Copy the desired Macro script from the repository into your Tanner L-Edit environment.
 3. Follow the specific instructions provided within each script for seamless integration and utilization.
@@ -46,6 +48,12 @@ Create special structures in your layout, including rounded corners. These scrip
 
 Update the script paths in L-Edit's UPI Macro Files settings after renaming. The regular boundary and alignment commands now open a mode picker. For corner rounding, load Ledit_ShapeConversionMacros.c from the current checkout. The updated dialog reads **Round corners - select result, report crescent radius (10 nm)**.
 
+### Undoing a macro
+
+Run **Undo Last Macro** from the macro list to reverse the most recent editing macro in the current Cell. Run it again to undo earlier macro edits in reverse order. Each step removes the geometry that run created and restores objects the run changed or deleted. Cancelled commands, selection-only commands, and runs with no changes leave the history intact. This command is separate from native Ctrl+Z.
+
+Undo checks affected geometry, properties, and layers before applying changes. If an undo target was edited or removed in the meantime, the command stops and reports the conflict. Original objects needed for restoration are copied into a hidden `LeditUndo_*` backup Cell in the design. Each backup is kept until its step is successfully undone. An empty helper layer can remain after undoing a boundary. Objects that cannot be backed up are skipped before the macro edits or deletes them.
+
 ### Boundary, alignment, and circle placement commands
 
 - **Draw_Regular_Boundary_func** offers circular and rounded hexagonal contours for edge circles from a regular array. Set **Draw helper circles (0 or 1)** to **1** to draw construction circles on a separate layer. Use **Select_Boundry_Circles_func** to select edge circles from a honeycomb layout.
@@ -60,7 +68,7 @@ Load the desired .c scripts in L-Edit's UPI Macro Files settings. Keep ldata.h a
 - **Round_Selected_Corners_func** converts selected rectangles, polygons, circles, wires, circular sectors, and annular sectors into rounded polygons on the chosen output layer. The sources are kept. The output is checked on the design grid for at least 10 nm between consecutive points, including the closing edge. Re-running the macro with a different radius recalculates fillets from the source contour stored with new results. For older results it can recover sampled circular fillets that still have straight tangent edges. Nearby corners can be merged. For circular crescents and corners on sampled curves, the macro fits a circle tangent to both sides of the corner and reports the smallest radius used on those corners. The new polygons are selected after the macro runs. Shapes with holes or contours that cannot be rounded at this spacing are reported and skipped.
 - **Approximate_Circle_func** offers equal-area, inscribed, and enclosing circles. The original shapes are kept. The older Approximate_Circle_Sample_func entry opens the same dialog.
 - **Conversion_To_Rounded_Hexagon_func** displays the automatic radius in the dialog title. Enter -1 to use each source circle's radius divided by 3.7, or enter a corner radius in micrometres.
-- Commands that create geometry prompt for a writable output layer once per run. The current layer is the default when writable.
+- Commands that create results for individual objects offer **Use each object's source layer** in addition to an explicit output layer. Arrays inside a boundary use the repeated circle's layer in this mode. Unwritable source layers are skipped and reported. Drawing without a source and generating one shared contour or center still use an explicit layer. The current layer remains the default when writable.
 
 ## Contributions
 
@@ -105,9 +113,17 @@ Thank you for choosing our Tanner L-Edit Macro Scripts. We hope they enhance you
 
 ## 使用方法
 
+每个宏的操作步骤、参数默认值、适用情景和示例见[宏操作手册](HANDBOOK.md)。
+
 1. 将此仓库克隆到您的本地机器。
 2. 从仓库中复制所需的Marco脚本到您的Tanner L-Edit环境中。
 3. 按照每个脚本提供的具体说明，轻松集成和使用。
+
+### 撤销宏操作
+
+在宏列表运行 **Undo Last Macro**，可撤销当前 Cell 中最近一次宏编辑。重复运行可以按倒序逐次撤销。每次撤销会删除对应宏创建的图形，并恢复被修改或删除的对象。取消、只改选区或实际没有改动的宏会保留现有撤销记录。此命令独立于原生 Ctrl+Z。
+
+撤销前会检查相关对象的几何、属性和图层。如果之后手工修改或删除了相关对象，宏会提示冲突并停止。需要恢复的原对象保存在设计内隐藏的 `LeditUndo_*` 备份 Cell 中，对应步骤撤销成功后会清理。撤销边界后可能留有空辅助图层。无法备份的对象会在修改或删除前跳过。
 
 ### 边界、对齐与沿路径布圆
 
@@ -123,7 +139,7 @@ Thank you for choosing our Tanner L-Edit Macro Scripts. We hope they enhance you
 - **Round_Selected_Corners_func** 支持处理矩形、多边形、圆、线宽路径（Wire）、扇形和环形扇区。它保留原图形，并在目标图层新建多边形。输出会按设计坐标网格检查，闭合边在内的相邻顶点间距至少为 10 nm。新结果会保存圆角前的轮廓，再运行时可按不同半径重新计算。旧结果若保留了圆弧两侧的直线切边，宏会尝试恢复尖角。相邻近角会尝试合并处理。对于圆弧月牙或曲线采样边上的尖角，宏会沿两侧边界寻找切点，并报告这些角使用的最小半径。执行后会选中新生成的多边形。整圆环等带孔形状，以及无法满足点距和圆滑度的轮廓，会跳过并提示。
 - **Approximate_Circle_func** 可选择等面积圆、内切圆或外切圆，保留原图形。旧的 Approximate_Circle_Sample_func 也进入同一个模式选择窗口。
 - **Conversion_To_Rounded_Hexagon_func** 在标题中显示自动圆角半径。输入 -1 时按每个圆的半径除以 3.7 计算，也可以输入明确的圆角半径（微米）。
-- 新建图形的宏每次运行都可选目标图层。当前图层可写时会默认选中。
+- 逐个对象生成结果的宏可选择 **Use each object's source layer**，也可指定一个统一的输出层。图形内阵列使用被复制圆的图层。源图层不可写时会跳过该对象并提示。直接绘图或根据多个对象生成共享边界、中心时使用指定图层。当前图层可写时仍默认选中。
 
 ## 贡献
 

@@ -990,8 +990,8 @@ void RoundSelectedCorners(void)
         return;
     }
 
-    LLayer layer = PickOutputLayer(cell);
-    if (layer == NULL)
+    OutputLayerChoice output;
+    if (!ChooseOutputLayer(cell, 1, &output))
         return;
 
     double radius = LFile_MicronsToIntU(file, microns);
@@ -1018,10 +1018,19 @@ void RoundSelectedCorners(void)
     for (i = 0; i < selectionCount; i++)
     {
         LObject object = objects[i];
+        if (object == NULL)
+        {
+            counts[RoundUnreadable]++;
+            continue;
+        }
+
+        LLayer layer = ResolveObjectOutputLayer(cell, &output, object);
+        if (layer == NULL)
+            continue;
         double applied = 0;
         LObject created = NULL;
-        RoundedPolygonResult result = object == NULL ? RoundUnreadable :
-                                      CreateRoundedPolygon(cell, layer, object, radius, minStep, &created, &applied);
+        RoundedPolygonResult result = CreateRoundedPolygon(cell, layer, object, radius, minStep,
+                                                            &created, &applied);
         if (created != NULL)
             objects[counts[RoundCreated]] = created;
         counts[result]++;
@@ -1045,6 +1054,7 @@ void RoundSelectedCorners(void)
     }
     free(objects);
     LDisplay_Refresh();
+    ReportSkippedOutputLayers(&output);
 
     char crescentReport[160] = "";
     if (crescentCount > 0)

@@ -22,6 +22,7 @@ module ObjectEditingMacros
 #include <math.h>
 #include <limits.h>
 #include "ldata.h" /* Main UPI header. */
+#include "Ledit_MacroUndo.h"
 #include "Ledit_OutputLayer.h"
 #include "Ledit_Outline.h"
 #include "Ledit_PolygonCircleRoute.h"
@@ -69,8 +70,8 @@ module ObjectEditingMacros
 			LDialog_AlertBox("Enter a positive circle radius and path spacing.");
 			return;
 		}
-		LLayer layer = PickOutputLayer(cell);
-		if (layer == NULL)
+		OutputLayerChoice output;
+		if (!ChooseOutputLayer(cell, 1, &output))
 			return;
 
 		int created = 0, skipped = 0, invalidRoutes = 0;
@@ -83,6 +84,10 @@ module ObjectEditingMacros
 				invalidRoutes++;
 				continue;
 			}
+
+			LLayer layer = ResolveObjectOutputLayer(cell, &output, polygon);
+			if (layer == NULL)
+				continue;
 
 			LayoutOutline edge = {0}, route = {0};
 			int readable = ReadLayoutOutline(polygon, &edge, 0, 0.25, 0);
@@ -100,6 +105,7 @@ module ObjectEditingMacros
 			FreeLayoutOutline(&edge);
 		}
 		LDisplay_Refresh();
+		ReportSkippedOutputLayers(&output);
 
 		if (skipped > 0 || invalidRoutes > 0)
 		{
@@ -236,7 +242,8 @@ module ObjectEditingMacros
 		LLayer LLayer_Now = LObject_GetLayer(Cell_Now, circle);
 
 		LPoint center = LCircle_GetCenter(circle);
-		LCircle_Set(Cell_Now, circle, center, target_radius);
+		if (target_radius != LCircle_GetRadius(circle) && RecordMacroObjectEdit(Cell_Now, circle))
+			LCircle_Set(Cell_Now, circle, center, target_radius);
 	}
 
 	/* Apply the scale to coordinates relative to the supplied pivot and write the new shape to the output layer. */
@@ -342,8 +349,9 @@ module ObjectEditingMacros
 
 	void ScaleSelectionAroundPoint()
 	{
-		LLayer outputLayer = PickOutputLayer(LCell_GetVisible());
-		if (outputLayer == NULL)
+		LCell cell = LCell_GetVisible();
+		OutputLayerChoice output;
+		if (!ChooseOutputLayer(cell, 1, &output))
 			return;
 
 		LDialogItem Dialog_Items[3] = {{"Scale Factor (>0)", "1"},
@@ -366,17 +374,22 @@ module ObjectEditingMacros
 		while (selection != NULL)
 		{
 			LObject selectedObject = LSelection_GetObject(selection);
+			selection = LSelection_GetNext(selection);
+			LLayer outputLayer = ResolveObjectOutputLayer(cell, &output, selectedObject);
+			if (outputLayer == NULL)
+				continue;
 			LPoint polygonCenter = LPoint_Set((long)(center_x * 1000), (long)(center_y * 1000));
 			ScaleObjectAroundPoint(outputLayer, selectedObject, polygonCenter, scaleFactor);
-			selection = LSelection_GetNext(selection);
 		}
 		LDisplay_Refresh();
+		ReportSkippedOutputLayers(&output);
 	}
 
 	void ScaleSelectionAroundObjectCenters()
 	{
-		LLayer outputLayer = PickOutputLayer(LCell_GetVisible());
-		if (outputLayer == NULL)
+		LCell cell = LCell_GetVisible();
+		OutputLayerChoice output;
+		if (!ChooseOutputLayer(cell, 1, &output))
 			return;
 
 		LDialogItem Dialog_Items[1] = {{"Scale Factor (>0)", "1"}};
@@ -394,6 +407,10 @@ module ObjectEditingMacros
 		while (selection != NULL)
 		{
 			LObject selectedObject = LSelection_GetObject(selection);
+			selection = LSelection_GetNext(selection);
+			LLayer outputLayer = ResolveObjectOutputLayer(cell, &output, selectedObject);
+			if (outputLayer == NULL)
+				continue;
 			long xLeft = WORLD_MAX;
 			long xRight = -WORLD_MAX;
 			long yBottom = WORLD_MAX;
@@ -402,9 +419,9 @@ module ObjectEditingMacros
 
 			LPoint polygonCenter = LPoint_Set((long)((xLeft + xRight) / 2), (long)((yBottom + yTop) / 2));
 			ScaleObjectAroundPoint(outputLayer, selectedObject, polygonCenter, scaleFactor);
-			selection = LSelection_GetNext(selection);
 		}
 		LDisplay_Refresh();
+		ReportSkippedOutputLayers(&output);
 	}
 
 	void OffsetSelectedCircleRadii()
@@ -427,6 +444,7 @@ module ObjectEditingMacros
 		while (selection != NULL)
 		{
 			LObject selectedObject = LSelection_GetObject(selection);
+			selection = LSelection_GetNext(selection);
 			switch (LObject_GetShape(selectedObject))
 			{
 				long tar_radius;
@@ -439,9 +457,8 @@ module ObjectEditingMacros
 			}
 			if (keep != 1)
 			{
-				LObject_Delete(Cell_Now, selectedObject);
+				DeleteMacroObject(Cell_Now, selectedObject);
 			}
-			selection = LSelection_GetNext(selection);
 		}
 		LDisplay_Refresh();
 	}
@@ -527,36 +544,40 @@ module ObjectEditingMacros
 
 	void DeleteDuplicateObjects()
 	{
-		LCell Cell_Now = LCell_GetVisible();
-		LSelection loop1SelectionPoint = LSelection_GetList();
-
-		LObject *selectedObjects;
-		selectedObjects = (LObject *)malloc(sizeof(LObject));
-		int j = 0;
-		while (loop1SelectionPoint != NULL)
+		LCell cell = LCell_GetVisible();
+		LSelection selection;
+		size_t count = 0, i, j;
+		for (selection = LSelection_GetList(); selection != NULL; selection = LSelection_GetNext(selection))
+			count++;
+		if (count < 2)
+			return;
+		LObject *objects = malloc(count * sizeof(*objects));
+		if (objects == NULL)
 		{
-			LObject loop1Object = LSelection_GetObject(loop1SelectionPoint);
+			LDialog_AlertBox("Could not read the selection.");
+			return;
+		}
+		i = 0;
+		for (selection = LSelection_GetList(); selection != NULL; selection = LSelection_GetNext(selection))
+			objects[i++] = LSelection_GetObject(selection);
 
-			LSelection loop2SelectionPoint = loop1SelectionPoint;
-			loop2SelectionPoint = LSelection_GetNext(loop2SelectionPoint);
-			while (loop2SelectionPoint != NULL)
+		/* Delete from the end so all preceding objects remain available for comparison. */
+		for (i = count; i > 0; i--)
+		{
+			LObject candidate = objects[i - 1];
+			if (candidate == NULL)
+				continue;
+			for (j = 0; j < i - 1; j++)
 			{
-				LObject loop2Object = LSelection_GetObject(loop2SelectionPoint);
-				if (ObjectsHaveSameGeometry(loop1Object, loop2Object))
+				if (objects[j] != NULL && objects[j] != candidate &&
+				    ObjectsHaveSameGeometry(objects[j], candidate))
 				{
-					selectedObjects[j] = loop2Object;
-					selectedObjects = (LObject *)realloc(selectedObjects, (j + 2) * sizeof(LObject));
-					j++;
+					DeleteMacroObject(cell, candidate);
+					break;
 				}
-				loop2SelectionPoint = LSelection_GetNext(loop2SelectionPoint);
 			}
-			loop1SelectionPoint = LSelection_GetNext(loop1SelectionPoint);
 		}
-		int i;
-		for (i = 0; i < j; i++)
-		{
-			LObject_Delete(Cell_Now, selectedObjects[i]);
-		}
+		free(objects);
 		LDisplay_Refresh();
 	}
 
@@ -580,6 +601,7 @@ module ObjectEditingMacros
 		while (selection != NULL)
 		{
 			LObject selectedObject = LSelection_GetObject(selection);
+			selection = LSelection_GetNext(selection);
 			switch (LObject_GetShape(selectedObject))
 			{
 			case 1: // LCircle
@@ -590,9 +612,8 @@ module ObjectEditingMacros
 			}
 			if (keep != 1)
 			{
-				LObject_Delete(Cell_Now, selectedObject);
+				DeleteMacroObject(Cell_Now, selectedObject);
 			}
-			selection = LSelection_GetNext(selection);
 		}
 		LDisplay_Refresh();
 	}
@@ -641,7 +662,7 @@ module ObjectEditingMacros
 
 			if (selectedObject != NULL && LObject_GetShape(selectedObject) == (LShapeType)Picked)
 			{
-				LObject_Delete(Cell_Now, selectedObject);
+				DeleteMacroObject(Cell_Now, selectedObject);
 			}
 
 			selection = nextSelection;
@@ -667,16 +688,30 @@ module ObjectEditingMacros
 		}
 	}
 
+	DEFINE_UNDOABLE_MACRO(UndoableSetSelectedCircleRadii, SetSelectedCircleRadii, "Set Circle Radii")
+	DEFINE_UNDOABLE_MACRO(UndoableOffsetSelectedCircleRadii, OffsetSelectedCircleRadii, "Offset Circle Radii")
+	DEFINE_UNDOABLE_MACRO(UndoableDeleteDuplicateObjects, DeleteDuplicateObjects, "Delete Duplicates")
+	DEFINE_UNDOABLE_MACRO(UndoableDeleteSelectedObjectsByShape, DeleteSelectedObjectsByShape, "Delete Objects by Shape")
+	DEFINE_UNDOABLE_MACRO(UndoablePlaceCirclesAlongPolygon, PlaceCirclesAlongPolygon, "Place Circles Along Polygon")
+	DEFINE_UNDOABLE_MACRO(UndoableScaleSelectionAroundObjectCenters, ScaleSelectionAroundObjectCenters, "Scale About Object Centers")
+	DEFINE_UNDOABLE_MACRO(UndoableScaleSelectionAroundPoint, ScaleSelectionAroundPoint, "Scale About Point")
+
+	void UndoLastMacro(void)
+	{
+		UndoLastMacroInCell();
+	}
+
 	void RegisterObjectEditingMacros(void)
 	{
-		LMacro_Register("Modifiy_Selected_Object_UnionSize_func", "SetSelectedCircleRadii");
-		LMacro_Register("Modifiy_Selected_Object_Offset", "OffsetSelectedCircleRadii");
-		LMacro_Register("Modifiy_Delete_Duplicates_func", "DeleteDuplicateObjects");
-		LMacro_Register("Modifiy_Delete_Objects_ByType_func", "DeleteSelectedObjectsByShape");
-		LMacro_Register("Route_Circle_func", "PlaceCirclesAlongPolygon");
-		LMacro_Register("Scale_SelectedObject_ByObjectCenter_func", "ScaleSelectionAroundObjectCenters");
-		LMacro_Register("Scale_SelectedObject_SetCenter_func", "ScaleSelectionAroundPoint");
+		LMacro_Register("Modifiy_Selected_Object_UnionSize_func", "UndoableSetSelectedCircleRadii");
+		LMacro_Register("Modifiy_Selected_Object_Offset", "UndoableOffsetSelectedCircleRadii");
+		LMacro_Register("Modifiy_Delete_Duplicates_func", "UndoableDeleteDuplicateObjects");
+		LMacro_Register("Modifiy_Delete_Objects_ByType_func", "UndoableDeleteSelectedObjectsByShape");
+		LMacro_Register("Route_Circle_func", "UndoablePlaceCirclesAlongPolygon");
+		LMacro_Register("Scale_SelectedObject_ByObjectCenter_func", "UndoableScaleSelectionAroundObjectCenters");
+		LMacro_Register("Scale_SelectedObject_SetCenter_func", "UndoableScaleSelectionAroundPoint");
 		LMacro_Register("TestFunc_func", "InspectObjectDistanceFromOrigin");
+		LMacro_Register("Undo Last Macro", "UndoLastMacro");
 	}
 } /* End of ObjectEditingMacros. */
 

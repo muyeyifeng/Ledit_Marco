@@ -22,6 +22,7 @@ module ContourMacros
 #include <math.h>
 #include <limits.h>
 #include "ldata.h" /* Main UPI header. */
+#include "Ledit_MacroUndo.h"
 #include "Ledit_OutputLayer.h"
 #include "Ledit_Outline.h"
 #include "Ledit_ArbitraryCircleContour.h"
@@ -1476,12 +1477,16 @@ module ContourMacros
         return theta;
     }
 
+    DEFINE_UNDOABLE_MACRO(UndoableDrawTangentRing, DrawTangentRing, "Draw Tangent Ring")
+    DEFINE_UNDOABLE_MACRO(UndoableDrawRegularBoundary, DrawRegularBoundary, "Draw Regular Boundary")
+    DEFINE_UNDOABLE_MACRO(UndoableDrawArbitraryCircleBoundary, DrawArbitraryCircleBoundary, "Draw Arbitrary Circle Boundary")
+
     void RegisterContourMacros(void)
     {
-        LMacro_Register("DrawTangentRing_func", "DrawTangentRing");
+        LMacro_Register("DrawTangentRing_func", "UndoableDrawTangentRing");
         LMacro_Register("Select_Boundry_Circles_func", "SelectBoundaryCircles");
-        LMacro_Register("Draw_Regular_Boundary_func", "DrawRegularBoundary");
-        LMacro_Register("Draw_Arbitrary_Circle_Boundary_func", "DrawArbitraryCircleBoundary");
+        LMacro_Register("Draw_Regular_Boundary_func", "UndoableDrawRegularBoundary");
+        LMacro_Register("Draw_Arbitrary_Circle_Boundary_func", "UndoableDrawArbitraryCircleBoundary");
     }
 } /* End of ContourMacros. */
 

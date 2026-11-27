@@ -22,6 +22,7 @@ module ShapeConversionMacros
 #include <math.h>
 #include <limits.h>
 #include "ldata.h"
+#include "Ledit_MacroUndo.h"
 #include "Ledit_OutputLayer.h"
 #include "Ledit_Outline.h"
 #include "Ledit_CircleFit.h"
@@ -106,8 +107,8 @@ module ShapeConversionMacros
         int mode = LDialog_PickList("Convert to circle", modes, 3, EqualAreaCircle);
         if (mode < EqualAreaCircle || mode > EnclosingCircle)
             return;
-        LLayer outputLayer = PickOutputLayer(cell);
-        if (outputLayer == NULL)
+        OutputLayerChoice output;
+        if (!ChooseOutputLayer(cell, 1, &output))
             return;
 
         int created = 0, skipped = 0, approximate = 0;
@@ -115,8 +116,17 @@ module ShapeConversionMacros
         {
             LObject object = LSelection_GetObject(selection);
             selection = LSelection_GetNext(selection);
+            if (object == NULL)
+            {
+                skipped++;
+                continue;
+            }
+
+            LLayer outputLayer = ResolveObjectOutputLayer(cell, &output, object);
+            if (outputLayer == NULL)
+                continue;
             LayoutCircle circle;
-            if (object != NULL && MeasureConversionCircle(cell, outputLayer, object, mode, &circle, &approximate) &&
+            if (MeasureConversionCircle(cell, outputLayer, object, mode, &circle, &approximate) &&
                 LCircle_New(cell, outputLayer, LPoint_Set((LCoord)circle.center.x, (LCoord)circle.center.y),
                             (LCoord)circle.radius) != NULL)
                 created++;
@@ -124,6 +134,7 @@ module ShapeConversionMacros
                 skipped++;
         }
         LDisplay_Refresh();
+        ReportSkippedOutputLayers(&output);
         if (skipped || approximate)
             LDialog_AlertBox(LFormat("Created %d circles. Skipped %d unsupported or degenerate shapes.%s",
                                     created, skipped, approximate ? " At least one inscribed circle reached the search limit." : ""));
@@ -160,8 +171,8 @@ module ShapeConversionMacros
             return;
         }
 
-        LLayer outputLayer = PickOutputLayer(cell);
-        if (outputLayer == NULL)
+        OutputLayerChoice output;
+        if (!ChooseOutputLayer(cell, 1, &output))
             return;
         LPoint *points = malloc(sides * sizeof(*points));
         if (points == NULL)
@@ -175,6 +186,9 @@ module ShapeConversionMacros
             LObject object = LSelection_GetObject(selection);
             selection = LSelection_GetNext(selection);
             if (object == NULL || LObject_GetShape(object) != LCircle)
+                continue;
+            LLayer outputLayer = ResolveObjectOutputLayer(cell, &output, object);
+            if (outputLayer == NULL)
                 continue;
             LPoint center = LCircle_GetCenter(object);
             double radius = LCircle_GetRadius(object) / cos(M_PI / sides);
@@ -193,6 +207,7 @@ module ShapeConversionMacros
         }
         free(points);
         LDisplay_Refresh();
+        ReportSkippedOutputLayers(&output);
     }
 
     /* Build a circumscribed hexagon before tessellating its corner fillets. */
@@ -261,8 +276,8 @@ module ShapeConversionMacros
             LDialog_AlertBox("Enter a positive corner radius or -1 for automatic.");
             return;
         }
-        LLayer outputLayer = PickOutputLayer(cell);
-        if (outputLayer == NULL)
+        OutputLayerChoice output;
+        if (!ChooseOutputLayer(cell, 1, &output))
             return;
 
         double explicitRadius = microns == -1 ? 0 : LFile_MicronsToIntU(file, microns);
@@ -273,6 +288,9 @@ module ShapeConversionMacros
             LObject object = LSelection_GetObject(selection);
             selection = LSelection_GetNext(selection);
             if (object == NULL || LObject_GetShape(object) != LCircle)
+                continue;
+            LLayer outputLayer = ResolveObjectOutputLayer(cell, &output, object);
+            if (outputLayer == NULL)
                 continue;
             LPoint center = LCircle_GetCenter(object);
             LCoord size = LCircle_GetRadius(object);
@@ -286,17 +304,24 @@ module ShapeConversionMacros
                 skipped++;
         }
         LDisplay_Refresh();
+        ReportSkippedOutputLayers(&output);
         if (skipped)
             LDialog_AlertBox(LFormat("Skipped %d rounded hexagons that could not be created at 10 nm point spacing.", skipped));
     }
 
+    DEFINE_UNDOABLE_MACRO(UndoableConvertSelectionToCircles, ConvertSelectionToCircles, "Convert to Circles")
+    DEFINE_UNDOABLE_MACRO(UndoableConvertSelectionToCirclesLegacy, ConvertSelectionToCirclesLegacy, "Convert to Circles")
+    DEFINE_UNDOABLE_MACRO(UndoableConvertCirclesToRegularPolygons, ConvertCirclesToRegularPolygons, "Convert to Regular Polygons")
+    DEFINE_UNDOABLE_MACRO(UndoableConvertCirclesToRoundedHexagons, ConvertCirclesToRoundedHexagons, "Convert to Rounded Hexagons")
+    DEFINE_UNDOABLE_MACRO(UndoableRoundSelectedCorners, RoundSelectedCorners, "Round Selected Corners")
+
     void RegisterShapeConversionMacros(void)
     {
-        LMacro_Register("Approximate_Circle_func", "ConvertSelectionToCircles");
-        LMacro_Register("Approximate_Circle_Sample_func", "ConvertSelectionToCirclesLegacy");
-        LMacro_Register("Conversion_To_Polygon_func", "ConvertCirclesToRegularPolygons");
-        LMacro_Register("Conversion_To_Rounded_Hexagon_func", "ConvertCirclesToRoundedHexagons");
-        LMacro_Register("Round_Selected_Corners_func", "RoundSelectedCorners");
+        LMacro_Register("Approximate_Circle_func", "UndoableConvertSelectionToCircles");
+        LMacro_Register("Approximate_Circle_Sample_func", "UndoableConvertSelectionToCirclesLegacy");
+        LMacro_Register("Conversion_To_Polygon_func", "UndoableConvertCirclesToRegularPolygons");
+        LMacro_Register("Conversion_To_Rounded_Hexagon_func", "UndoableConvertCirclesToRoundedHexagons");
+        LMacro_Register("Round_Selected_Corners_func", "UndoableRoundSelectedCorners");
     }
 } /* End of ShapeConversionMacros. */
 

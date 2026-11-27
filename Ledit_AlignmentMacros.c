@@ -20,6 +20,7 @@ module AlignmentMacros
 #include <stdlib.h>
 #include <string.h>
 #include "ldata.h" /* Main UPI header. */
+#include "Ledit_MacroUndo.h"
 
 	void AlignSelectionLeft();
 	void AlignSelectionRight();
@@ -236,7 +237,10 @@ module AlignmentMacros
 	{
 		LCell Cell_Now = LCell_GetVisible();
 		LShapeType selectedShapeType = LObject_GetShape(selectedObject);
-		// Function for selectedObject exmple get the left xcoord
+		if (selectedShapeType < LBox || selectedShapeType > LPie ||
+		    (xOffset == 0 && yOffset == 0) || !RecordMacroObjectEdit(Cell_Now, selectedObject))
+			return;
+
 		switch (selectedShapeType)
 		{
 		case 0: // LBox
@@ -461,9 +465,11 @@ module AlignmentMacros
 		}
 	}
 
+	DEFINE_UNDOABLE_MACRO(UndoableAlignSelection, AlignSelection, "Align Selection")
+
 	void RegisterAlignmentMacros(void)
 	{
-		LMacro_Register("Align_Selection_func", "AlignSelection");
+		LMacro_Register("Align_Selection_func", "UndoableAlignSelection");
 	}
 
 } /* End of AlignmentMacros. */

@@ -21,6 +21,7 @@ module RegularShapeMacros
 #include <string.h>
 #include <math.h>
 #include "ldata.h" /* Main UPI header. */
+#include "Ledit_MacroUndo.h"
 #include "Ledit_OutputLayer.h"
 
 	void DrawEllipsePolygon();
@@ -181,11 +182,15 @@ module RegularShapeMacros
 		return points;
 	}
 
+	DEFINE_UNDOABLE_MACRO(UndoableDrawRegularPolygonBySideLength, DrawRegularPolygonBySideLength, "Draw Polygon by Side Length")
+	DEFINE_UNDOABLE_MACRO(UndoableDrawRegularPolygonByCircumradius, DrawRegularPolygonByCircumradius, "Draw Polygon by Circumradius")
+	DEFINE_UNDOABLE_MACRO(UndoableDrawEllipsePolygon, DrawEllipsePolygon, "Draw Ellipse")
+
 	void RegisterRegularShapeMacros(void)
 	{
-		LMacro_Register("DrawPolygonByEdgeLenght_func", "DrawRegularPolygonBySideLength");
-		LMacro_Register("DrawPolygonByRadius_func", "DrawRegularPolygonByCircumradius");
-		LMacro_Register("DrawEllipse_func", "DrawEllipsePolygon");
+		LMacro_Register("DrawPolygonByEdgeLenght_func", "UndoableDrawRegularPolygonBySideLength");
+		LMacro_Register("DrawPolygonByRadius_func", "UndoableDrawRegularPolygonByCircumradius");
+		LMacro_Register("DrawEllipse_func", "UndoableDrawEllipsePolygon");
 	}
 } /* End of RegularShapeMacros. */
 

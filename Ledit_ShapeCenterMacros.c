@@ -21,6 +21,7 @@ module ShapeCenterMacros
 #include <string.h>
 #include <math.h>
 #include "ldata.h" /* Main UPI header. */
+#include "Ledit_MacroUndo.h"
 #include "Ledit_OutputLayer.h"
 
     void SwapPoints(LPoint * a, LPoint * b);
@@ -206,9 +207,11 @@ module ShapeCenterMacros
         LDisplay_Refresh();
     }
 
+    DEFINE_UNDOABLE_MACRO(UndoableDrawCircleAtSelectionCenter, DrawCircleAtSelectionCenter, "Draw Center Circle")
+
     void RegisterShapeCenterMacros(void)
     {
-        LMacro_Register("DrawCircleAtShapeCenter_func", "DrawCircleAtSelectionCenter");
+        LMacro_Register("DrawCircleAtShapeCenter_func", "UndoableDrawCircleAtSelectionCenter");
     }
 } /* End of ShapeCenterMacros. */
 

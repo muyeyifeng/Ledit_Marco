@@ -1,36 +1,57 @@
 #ifndef LEDIT_OUTPUT_LAYER_H
 #define LEDIT_OUTPUT_LAYER_H
 
-/* Pick once per command. NULL means cancelled or no writable layer. */
-static LLayer PickOutputLayer(LCell cell)
+typedef struct
 {
+    LLayer fixedLayer;
+    int useSourceLayer;
+    int skippedObjects;
+} OutputLayerChoice;
+
+static int OutputLayerIsWritable(LLayer layer)
+{
+    LLayerParamEx1512 params;
+    return layer != NULL && !LLayer_IsDerived(layer) &&
+           LLayer_GetParametersEx1512(layer, &params) == LStatusOK &&
+           !params.Locked && !params.Protected;
+}
+
+/* The source-layer option is offered only for commands with a source per result. */
+static int ChooseOutputLayer(LCell cell, int allowSourceLayer, OutputLayerChoice *choice)
+{
+    choice->fixedLayer = NULL;
+    choice->useSourceLayer = 0;
+    choice->skippedObjects = 0;
     if (cell == NULL)
-        return NULL;
+        return 0;
 
     LFile file = LCell_GetFile(cell);
     LLayer current = LLayer_GetCurrent(file);
     LLayer layer;
-    int capacity = 0;
+    int firstFixedLayer = allowSourceLayer ? 1 : 0;
+    int capacity = firstFixedLayer;
     for (layer = LLayer_GetList(file); layer != NULL; layer = LLayer_GetNext(layer))
         capacity++;
 
-    if (capacity == 0)
-        return NULL;
+    if (capacity == firstFixedLayer)
+    {
+        LDialog_AlertBox("No writable output layer in the current design.");
+        return 0;
+    }
 
     LLayer *layers = malloc(capacity * sizeof(*layers));
     char (*names)[256] = malloc(capacity * sizeof(*names));
     const char **options = malloc(capacity * sizeof(*options));
-    int count = 0;
-    int defaultIndex = 0;
-    LLayer result = NULL;
+    int count = firstFixedLayer;
+    int defaultIndex = firstFixedLayer;
+    int chosen = 0;
     if (layers != NULL && names != NULL && options != NULL)
     {
+        if (allowSourceLayer)
+            options[0] = "Use each object's source layer";
         for (layer = LLayer_GetList(file); layer != NULL; layer = LLayer_GetNext(layer))
         {
-            LLayerParamEx1512 params;
-            if (LLayer_IsDerived(layer) ||
-                LLayer_GetParametersEx1512(layer, &params) != LStatusOK ||
-                params.Locked || params.Protected)
+            if (!OutputLayerIsWritable(layer))
                 continue;
 
             char name[192] = "";
@@ -50,11 +71,16 @@ static LLayer PickOutputLayer(LCell cell)
             count++;
         }
 
-        if (count > 0)
+        if (count > firstFixedLayer)
         {
             int picked = LDialog_PickList("Output layer", options, count, defaultIndex);
             if (picked >= 0 && picked < count)
-                result = layers[picked];
+            {
+                choice->useSourceLayer = picked < firstFixedLayer;
+                if (!choice->useSourceLayer)
+                    choice->fixedLayer = layers[picked];
+                chosen = 1;
+            }
         }
         else
             LDialog_AlertBox("No writable output layer in the current design.");
@@ -65,7 +91,39 @@ static LLayer PickOutputLayer(LCell cell)
     free(options);
     free(names);
     free(layers);
-    return result;
+    return chosen;
+}
+
+/* Commands that combine sources or draw new geometry need a single explicit layer. */
+static LLayer PickOutputLayer(LCell cell)
+{
+    OutputLayerChoice choice;
+    return ChooseOutputLayer(cell, 0, &choice) ? choice.fixedLayer : NULL;
+}
+
+static LLayer ResolveObjectOutputLayer(LCell cell, OutputLayerChoice *choice, LObject source)
+{
+    if (source == NULL)
+        return NULL;
+    if (!choice->useSourceLayer)
+        return choice->fixedLayer;
+
+    LLayer layer = LObject_GetLayer(cell, source);
+    if (OutputLayerIsWritable(layer))
+        return layer;
+    choice->skippedObjects++;
+    return NULL;
+}
+
+static void ReportSkippedOutputLayers(const OutputLayerChoice *choice)
+{
+    if (choice->skippedObjects != 0)
+    {
+        char message[128];
+        snprintf(message, sizeof(message), "Skipped %d objects with unavailable or unwritable source layers.",
+                 choice->skippedObjects);
+        LDialog_AlertBox(message);
+    }
 }
 
 #endif
